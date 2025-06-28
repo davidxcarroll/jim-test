@@ -1,0 +1,81 @@
+import { format, parseISO, isToday, isTomorrow, isYesterday, addDays, startOfWeek, endOfWeek } from 'date-fns'
+import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz'
+
+// MLB timezone (Eastern Time for most games)
+const MLB_TIMEZONE = 'America/New_York'
+
+export const dateHelpers = {
+  // Format game date for display
+  formatGameDate(dateString: string): string {
+    const date = parseISO(dateString)
+    const zonedDate = utcToZonedTime(date, MLB_TIMEZONE)
+    
+    if (isToday(zonedDate)) {
+      return `Today at ${format(zonedDate, 'h:mm a')}`
+    } else if (isTomorrow(zonedDate)) {
+      return `Tomorrow at ${format(zonedDate, 'h:mm a')}`
+    } else if (isYesterday(zonedDate)) {
+      return `Yesterday at ${format(zonedDate, 'h:mm a')}`
+    } else {
+      return format(zonedDate, 'MMM d, yyyy h:mm a')
+    }
+  },
+
+  // Get relative time for live games
+  getRelativeTime(dateString: string): string {
+    const date = parseISO(dateString)
+    const zonedDate = utcToZonedTime(date, MLB_TIMEZONE)
+    const now = new Date()
+    
+    const diffInMinutes = Math.floor((now.getTime() - zonedDate.getTime()) / (1000 * 60))
+    
+    if (diffInMinutes < 1) {
+      return 'Just started'
+    } else if (diffInMinutes < 60) {
+      return `${diffInMinutes}m ago`
+    } else {
+      const hours = Math.floor(diffInMinutes / 60)
+      const minutes = diffInMinutes % 60
+      return `${hours}h ${minutes}m ago`
+    }
+  },
+
+  // Get week range for weekly picks
+  getWeekRange(date: Date = new Date()) {
+    const start = startOfWeek(date, { weekStartsOn: 1 }) // Monday
+    const end = endOfWeek(date, { weekStartsOn: 1 }) // Sunday
+    return { start, end }
+  },
+
+  // Format date range for display
+  formatDateRange(start: Date, end: Date): string {
+    return `${format(start, 'MMM d')} - ${format(end, 'MMM d, yyyy')}`
+  },
+
+  // Check if game is live
+  isGameLive(startTime: string, status: string): boolean {
+    if (status === 'live') return true
+    
+    const gameStart = parseISO(startTime)
+    const zonedGameStart = utcToZonedTime(gameStart, MLB_TIMEZONE)
+    const now = new Date()
+    
+    // Game is live if it started within the last 4 hours
+    const fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000)
+    return zonedGameStart > fourHoursAgo && zonedGameStart < now
+  },
+
+  // Get next game day
+  getNextGameDay(): Date {
+    const today = new Date()
+    const tomorrow = addDays(today, 1)
+    return tomorrow
+  },
+
+  // Format timezone-aware time
+  formatTimeWithTimezone(dateString: string): string {
+    const date = parseISO(dateString)
+    const zonedDate = utcToZonedTime(date, MLB_TIMEZONE)
+    return format(zonedDate, 'h:mm a zzz')
+  }
+} 

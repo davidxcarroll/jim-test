@@ -1,4 +1,5 @@
 import { Game, Team } from '@/types/mlb'
+import { format as formatDate } from 'date-fns'
 
 const ESPN_BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb'
 
@@ -89,5 +90,47 @@ export const espnApi = {
       league: team.team.league?.name || '',
       logo: team.team.logo
     }))
+  },
+
+  // Get games for a date range (week)
+  async getGamesForDateRange(startDate: Date, endDate: Date): Promise<Game[]> {
+    const games: Game[] = [];
+    let current = new Date(startDate);
+    while (current <= endDate) {
+      const dateStr = formatDate(current, 'yyyyMMdd'); // YYYYMMDD
+      const response = await fetch(`${ESPN_BASE_URL}/scoreboard?dates=${dateStr}`);
+      const data = await response.json();
+      if (data.events) {
+        games.push(...data.events.map((event: any) => ({
+          id: event.id,
+          date: event.date,
+          homeTeam: {
+            id: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.id,
+            name: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.name,
+            abbreviation: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.abbreviation,
+            city: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.location,
+            division: '',
+            league: '',
+            logo: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.logo
+          },
+          awayTeam: {
+            id: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.id,
+            name: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.name,
+            abbreviation: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.abbreviation,
+            city: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.location,
+            division: '',
+            league: '',
+            logo: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.logo
+          },
+          homeScore: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').score,
+          awayScore: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').score,
+          status: event.status.type.state,
+          venue: event.competitions[0].venue?.fullName,
+          startTime: event.date
+        })));
+      }
+      current.setDate(current.getDate() + 1);
+    }
+    return games;
   }
 } 

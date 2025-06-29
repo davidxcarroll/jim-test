@@ -8,6 +8,10 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        'jim': ['JimCasual', 'sans-serif'],
+        'chakra': ['var(--font-chakra-petch)', 'sans-serif'],
+      },
       colors: {
         'mlb-blue': '#002D72',
         'mlb-red': '#D50032',

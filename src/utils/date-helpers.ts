@@ -1,8 +1,8 @@
 import { format, parseISO, isToday, isTomorrow, isYesterday, addDays, startOfWeek, endOfWeek } from 'date-fns'
 import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz'
 
-// MLB timezone (Eastern Time for most games)
-const MLB_TIMEZONE = 'America/New_York'
+// MLB timezone (Pacific Time as default)
+const MLB_TIMEZONE = 'America/Los_Angeles'
 
 export const dateHelpers = {
   // Format game date for display
@@ -77,5 +77,12 @@ export const dateHelpers = {
     const date = parseISO(dateString)
     const zonedDate = utcToZonedTime(date, MLB_TIMEZONE)
     return format(zonedDate, 'h:mm a zzz')
+  },
+
+  // Get week range starting on Sunday
+  getSundayWeekRange(date: Date = new Date()) {
+    const start = startOfWeek(date, { weekStartsOn: 0 }) // Sunday
+    const end = endOfWeek(date, { weekStartsOn: 0 }) // Saturday
+    return { start, end }
   }
 } 

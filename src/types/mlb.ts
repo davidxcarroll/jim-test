@@ -33,7 +33,7 @@ export interface Game {
   awayTeam: Team
   homeScore?: number
   awayScore?: number
-  status: 'scheduled' | 'live' | 'final'
+  status: 'scheduled' | 'live' | 'final' | 'post'
   inning?: number
   topInning?: boolean
   venue?: string

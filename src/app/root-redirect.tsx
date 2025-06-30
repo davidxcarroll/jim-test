@@ -21,7 +21,7 @@ export function RootRedirect() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-2xl font-jim">Loading...</div>
+        <div className="px-2 text-2xl font-chakra uppercase font-bold bg-black text-white">Loading...</div>
       </div>
     )
   }

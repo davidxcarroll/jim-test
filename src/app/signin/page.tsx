@@ -5,25 +5,26 @@ import { signInWithEmailAndPassword } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import { useRouter } from 'next/navigation'
 import { PublicOnlyRoute } from '@/components/protected-route'
+import { Toast } from '@/components/toast'
 import Link from 'next/link'
 
 function SignInPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
+    setToast(null)
     setLoading(true)
 
     try {
       await signInWithEmailAndPassword(auth, email, password)
       router.push('/')
     } catch (err: any) {
-      setError(err.message || 'Failed to sign in')
+      setToast({ message: err.message || 'Failed to sign in', type: 'error' })
     } finally {
       setLoading(false)
     }
@@ -31,6 +32,9 @@ function SignInPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      {toast && (
+        <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+      )}
       <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-lg">
         <div className="text-center">
           <h1 className="text-4xl font-jim font-bold text-gray-900">Jim's Clipboard</h1>
@@ -38,12 +42,6 @@ function SignInPage() {
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
-              {error}
-            </div>
-          )}
-
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700">
               Email address

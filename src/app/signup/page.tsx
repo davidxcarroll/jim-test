@@ -5,27 +5,28 @@ import { createUserWithEmailAndPassword } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import { useRouter } from 'next/navigation'
 import { PublicOnlyRoute } from '@/components/protected-route'
+import { Toast } from '@/components/toast'
 import Link from 'next/link'
 
 function SignUpPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
+    setToast(null)
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match')
+      setToast({ message: 'Passwords do not match', type: 'error' })
       return
     }
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters')
+      setToast({ message: 'Password must be at least 6 characters', type: 'error' })
       return
     }
 
@@ -35,7 +36,7 @@ function SignUpPage() {
       await createUserWithEmailAndPassword(auth, email, password)
       router.push('/')
     } catch (err: any) {
-      setError(err.message || 'Failed to create account')
+      setToast({ message: err.message || 'Failed to create account', type: 'error' })
     } finally {
       setLoading(false)
     }
@@ -43,6 +44,9 @@ function SignUpPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      {toast && (
+        <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+      )}
       <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-lg">
         <div className="text-center">
           <h1 className="text-4xl font-jim font-bold text-gray-900">Jim's Clipboard</h1>
@@ -50,12 +54,6 @@ function SignUpPage() {
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
-              {error}
-            </div>
-          )}
-
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700">
               Email address

@@ -19,7 +19,9 @@ export const espnApi = {
         city: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.location,
         division: '',
         league: '',
-        logo: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.logo
+        logo: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.logos?.[0]?.href || '',
+        color: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.color || '',
+        alternateColor: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.alternateColor || ''
       },
       awayTeam: {
         id: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.id,
@@ -28,7 +30,9 @@ export const espnApi = {
         city: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.location,
         division: '',
         league: '',
-        logo: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.logo
+        logo: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.logos?.[0]?.href || '',
+        color: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.color || '',
+        alternateColor: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.alternateColor || ''
       },
       homeScore: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').score,
       awayScore: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').score,
@@ -55,7 +59,9 @@ export const espnApi = {
         city: data.header.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.location,
         division: '',
         league: '',
-        logo: data.header.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.logo
+        logo: data.header.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.logos?.[0]?.href || '',
+        color: data.header.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.color || '',
+        alternateColor: data.header.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.alternateColor || ''
       },
       awayTeam: {
         id: data.header.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.id,
@@ -64,7 +70,9 @@ export const espnApi = {
         city: data.header.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.location,
         division: '',
         league: '',
-        logo: data.header.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.logo
+        logo: data.header.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.logos?.[0]?.href || '',
+        color: data.header.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.color || '',
+        alternateColor: data.header.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.alternateColor || ''
       },
       homeScore: data.header.competitions[0].competitors.find((c: any) => c.homeAway === 'home').score,
       awayScore: data.header.competitions[0].competitors.find((c: any) => c.homeAway === 'away').score,
@@ -88,7 +96,9 @@ export const espnApi = {
       city: team.team.location,
       division: team.team.division?.name || '',
       league: team.team.league?.name || '',
-      logo: team.team.logo
+      logo: team.team.logos?.[0]?.href || '',
+      color: team.team.color || '',
+      alternateColor: team.team.alternateColor || ''
     }))
   },
 
@@ -111,7 +121,9 @@ export const espnApi = {
             city: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.location,
             division: '',
             league: '',
-            logo: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.logo
+            logo: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.logos?.[0]?.href || '',
+            color: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.color || '',
+            alternateColor: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.alternateColor || ''
           },
           awayTeam: {
             id: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.id,
@@ -120,7 +132,9 @@ export const espnApi = {
             city: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.location,
             division: '',
             league: '',
-            logo: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.logo
+            logo: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.logos?.[0]?.href || '',
+            color: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.color || '',
+            alternateColor: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.alternateColor || ''
           },
           homeScore: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').score,
           awayScore: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').score,

@@ -10,3 +10,23 @@
   font-style: normal;
   font-display: swap;
 }
+
+html {
+  background-color: #000;
+}
+
+body {
+  min-height: 100dvh;
+  background-image: url('/images/board-100.gif');
+  background-repeat: repeat;
+  background-size: 1500px;
+  border-radius: 3rem;
+}
+
+.material-symbols-sharp {
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 800,
+    'GRAD' 0,
+    'opsz' 20;
+}

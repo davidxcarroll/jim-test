@@ -8,6 +8,12 @@ import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/auth-store'
 import { ProtectedRoute } from '@/components/protected-route'
 import { Navigation } from '@/components/navigation'
+import { Toast } from '@/components/toast'
+import { teamDisplayNames } from '@/utils/team-names'
+import { getTeamByAbbreviation, formatHexColor } from '@/utils/team-utils'
+import { Team } from '@/types/mlb'
+import { espnApi } from '@/lib/espn-api'
+import image from 'next/image'
 
 interface UserSettings {
   displayName: string
@@ -22,8 +28,28 @@ function SettingsPage() {
   })
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState('')
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
+  const [teams, setTeams] = useState<Team[]>([])
   const router = useRouter()
+
+  // Fetch official, active teams from ESPN API on mount
+  useEffect(() => {
+    async function fetchTeams() {
+      try {
+        const apiTeams = await espnApi.getTeams()
+        // Remove duplicates by abbreviation (shouldn't be any, but just in case)
+        const uniqueTeams = Array.from(
+          new Map(apiTeams.map(team => [team.abbreviation, team])).values()
+        )
+        setTeams(uniqueTeams)
+      } catch (error) {
+        console.error('Error fetching teams:', error)
+        setTeams([])
+      }
+    }
+    fetchTeams()
+  }, [])
 
   // Load user settings on component mount
   useEffect(() => {
@@ -31,6 +57,15 @@ function SettingsPage() {
       loadUserSettings()
     }
   }, [user])
+
+  // Load team data when world series pick changes
+  useEffect(() => {
+    if (settings.worldSeriesPick) {
+      loadTeamData(settings.worldSeriesPick)
+    } else {
+      setSelectedTeam(null)
+    }
+  }, [settings.worldSeriesPick])
 
   const loadUserSettings = async () => {
     if (!user) return
@@ -49,11 +84,21 @@ function SettingsPage() {
     }
   }
 
+  const loadTeamData = async (abbreviation: string) => {
+    try {
+      const team = await getTeamByAbbreviation(abbreviation)
+      setSelectedTeam(team)
+    } catch (error) {
+      console.error('Error loading team data:', error)
+      setSelectedTeam(null)
+    }
+  }
+
   const handleSave = async () => {
     if (!user) return
 
     setSaving(true)
-    setMessage('')
+    setToast(null)
 
     try {
       await setDoc(doc(db, 'users', user.uid), {
@@ -62,9 +107,9 @@ function SettingsPage() {
         updatedAt: new Date()
       }, { merge: true })
 
-      setMessage('Settings saved successfully!')
+      setToast({ message: 'Settings saved successfully!', type: 'success' })
     } catch (error) {
-      setMessage('Error saving settings. Please try again.')
+      setToast({ message: 'Error saving settings. Please try again.', type: 'error' })
       console.error('Error saving settings:', error)
     } finally {
       setSaving(false)
@@ -83,25 +128,19 @@ function SettingsPage() {
   }
 
   return (
-    <div className="font-chakra text-2xl">
+    <div className="w-full font-chakra text-2xl pb-16">
       <Navigation />
+      {toast && (
+        <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+      )}
 
-      <div className="max-w-2xl mx-auto p-8">
-        <h1 className="text-4xl font-jim font-bold text-center mb-8">Settings</h1>
+      <div className="w-full h-[70dvh] min-h-fit flex flex-col items-center justify-center gap-4 xl:px-8 px-4 pt-8 pb-16 bg-neutral-100">
 
-        <div className="bg-white rounded-lg shadow-lg p-6 space-y-6">
-          {message && (
-            <div className={`p-4 rounded ${
-              message.includes('Error') 
-                ? 'bg-red-50 border border-red-200 text-red-600' 
-                : 'bg-green-50 border border-green-200 text-green-600'
-            }`}>
-              {message}
-            </div>
-          )}
+        <h1 className="font-jim 2xl:text-8xl xl:text-7xl text-6xl text-center">Settings</h1>
 
+        <div className="w-full max-w-xl mx-auto bg-neutral-100 space-y-6">
           <div>
-            <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="displayName" className="block text-center text-sm font-bold text-black uppercase mb-1">
               Display Name
             </label>
             <input
@@ -109,41 +148,70 @@ function SettingsPage() {
               type="text"
               value={settings.displayName}
               onChange={(e) => setSettings(prev => ({ ...prev, displayName: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 bg-neutral-100 uppercase font-bold text-center border-[1px] border-black focus:outline-none focus:bg-white"
               placeholder="Enter your display name"
             />
           </div>
 
           <div>
-            <label htmlFor="worldSeriesPick" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="worldSeriesPick" className="block text-center text-sm font-bold text-black uppercase mb-1">
               World Series Pick
             </label>
-            <input
+            <select
               id="worldSeriesPick"
-              type="text"
               value={settings.worldSeriesPick}
               onChange={(e) => setSettings(prev => ({ ...prev, worldSeriesPick: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter team abbreviation (e.g., NYY, LAD)"
-            />
-            <p className="text-sm text-gray-500 mt-1">
-              Enter the team abbreviation for your World Series pick
-            </p>
+              className="w-full px-3 py-2 bg-neutral-100 uppercase font-bold text-center border-[1px] border-black focus:outline-none focus:bg-white"
+            >
+              <option value="">Select a team</option>
+              {teams.map((team) => (
+                <option key={team.abbreviation} value={team.abbreviation}>
+                  {teamDisplayNames[team.abbreviation] || team.name}
+                </option>
+              ))}
+            </select>
+            <div
+              className="relative w-full h-40 flex items-center justify-center border-[1px] border-black border-t-0"
+              style={{
+                background: selectedTeam?.color && selectedTeam?.alternateColor
+                  ? `linear-gradient(135deg, ${formatHexColor(selectedTeam.color)}, ${formatHexColor(selectedTeam.alternateColor)})`
+                  : '#F5F5F5'
+              }}
+            >
+              <div
+                className="absolute top-0 left-0 w-full h-full flex z-10"
+                style={{
+                  backgroundImage: `url(/images/texture/texture-6.jpg)`,
+                  backgroundSize: 'cover',
+                  mixBlendMode: 'plus-lighter',
+                  opacity: '0.2'
+                }}
+              />
+              {selectedTeam?.logo ? (
+                <img
+                  src={selectedTeam.logo}
+                  alt={`${selectedTeam.name} logo`}
+                  className="w-36 h-36 object-contain z-10"
+                />
+              ) : (
+                <div className="">
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="flex space-x-4">
+          <div className="flex flex-col items-center gap-8">
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+              className="w-full bg-black text-white py-3 px-4 font-bold uppercase xl:text-3xl text-2xl focus:outline-none disabled:opacity-50"
             >
-              {saving ? 'Saving...' : 'Save Settings'}
+              {saving ? 'Saving...' : 'Save'}
             </button>
-
             <button
               onClick={handleSignOut}
               disabled={loading}
-              className="flex-1 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50"
+              className="max-xl:text-base text-black/50 font-bold uppercase leading-none focus:outline-none disabled:opacity-50"
             >
               {loading ? 'Signing out...' : 'Sign Out'}
             </button>

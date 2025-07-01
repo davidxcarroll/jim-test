@@ -11,8 +11,7 @@ const chakraPetch = Chakra_Petch({
 })
 
 export const metadata: Metadata = {
-  title: 'MLB Baseball Data Hub',
-  description: 'Comprehensive MLB baseball data and analytics platform',
+  title: '🏈 The Picks Test',
   viewport: 'width=device-width, initial-scale=1',
 }
 

@@ -11,6 +11,7 @@ import { db } from '@/lib/firebase'
 import { collection, getDocs, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { useAuthStore } from '@/store/auth-store'
 import { Toast } from '@/components/toast'
+import { Tooltip } from '@/components/tooltip'
 // @ts-ignore
 import * as Checks from '@/components/checks'
 // @ts-ignore
@@ -109,6 +110,7 @@ function getDeterministicCircleTeamComponent(size: TeamCircleSize, seed: string)
 function WeeklyMatchesPage() {
   const { user: currentUser } = useAuthStore()
   const [weekOffset, setWeekOffset] = useState(0)
+  const [isWeekDropdownOpen, setIsWeekDropdownOpen] = useState(false)
   const startOfWeek = getStartOfWeekNDaysAgo(weekOffset)
   const { start, end } = dateHelpers.getSundayWeekRange(startOfWeek)
   const { data: games, isLoading } = useGamesForWeek(start, end)
@@ -121,6 +123,24 @@ function WeeklyMatchesPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   const { season, week } = getSeasonAndWeek(startOfWeek)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element
+      if (!target.closest('.week-selector')) {
+        setIsWeekDropdownOpen(false)
+      }
+    }
+
+    if (isWeekDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isWeekDropdownOpen])
 
   // Fetch all users
   useEffect(() => {
@@ -228,85 +248,122 @@ function WeeklyMatchesPage() {
       )}
 
       <div className="flex flex-col pt-10 bg-neutral-100">
-        <div className="w-full h-16 flex flex-row bg-neutral-100 sticky left-0 top-0 z-20">
-          <div className="w-1/5 xl:min-w-60 min-w-40 flex items-center justify-center">
-            <select
-              className="px-3 py-1 bg-neutral-100 border-[1px] border-black max-xl:text-sm text-black font-bold uppercase"
-              value={weekOffset}
-              onChange={(e) => setWeekOffset(Number(e.target.value))}
-            >
-              {Array.from({ length: NUM_WEEKS }, (_, i) => {
-                // Calculate the actual MLB season week number
-                // Assuming MLB season started around March 28, 2024
-                const seasonStart = new Date('2024-03-28')
-                const weekStart = getStartOfWeekNDaysAgo(i)
-                const weekNumber = Math.ceil((weekStart.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
-                return (
-                  <option key={i} value={i}>
-                    Week {weekNumber}
-                  </option>
-                )
-              })}
-            </select>
-          </div>
-          <ul className="w-full flex flex-row justify-evenly">
-            {userDisplayNames.map((name, idx) => (
-              <li key={idx} className="w-full min-w-24 flex items-center justify-center font-jim xl:text-5xl text-3xl border-l-[1px] border-black">
-                <span className="max-w-8 flex justify-center max-xl:-rotate-45">{name}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        {/* Main scrollable container */}
+        <div className="overflow-x-auto">
+          <div className="inline-flex min-w-full pb-8">
+            {/* Sticky left column */}
+            <div className="sticky left-0 z-30 bg-neutral-100 flex flex-col gap-8 xl:gap-16">
+              {/* Week selector row */}
+              <div className="week-selector h-16 flex items-center justify-center shadow-[1px_0_0_rgba(0,0,0,1)] font-bold uppercase relative">
+                <div
+                  className="w-full h-full flex items-center justify-center gap-1 max-xl:text-sm hover:bg-white cursor-pointer"
+                  onClick={() => setIsWeekDropdownOpen(!isWeekDropdownOpen)}
+                >
+                  {/* label */}
+                  {(() => {
+                    const seasonStart = new Date('2024-03-28')
+                    const weekStart = getStartOfWeekNDaysAgo(weekOffset)
+                    const weekNumber = Math.ceil((weekStart.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
+                    return `Week ${weekNumber}`
+                  })()}
+                  <span className={`material-symbols-sharp transition-transform ${isWeekDropdownOpen ? 'rotate-180' : ''}`}>
+                    arrow_drop_down
+                  </span>
+                </div>
 
-        {isLoading || loadingUsers || loadingPicks ? (
-          <div className="min-h-screen flex items-center justify-center">
-            <div className="px-2 text-2xl font-chakra uppercase font-bold bg-black text-white">Loading games and picks...</div>
-          </div>
-        ) : (
-          <div className="flex flex-col bg-neutral-100">
-            {Object.keys(gamesByDay).length === 0 && <div>No games found for this week.</div>}
-            {Object.entries(gamesByDay).map(([day, dayGames]) => (
-              <div className="flex flex-col xl:gap-16 gap-8 xl:py-12 py-6" key={day}>
-                <div className="p-2 text-center max-xl:text-sm uppercase font-bold bg-neutral-100 sticky left-0 top-16 border-y-[1px] border-black z-10">{day}</div>
-                <div className="flex flex-col gap-8">
-                  {(dayGames ?? []).map((game) => {
-                    const homeScore = game.homeScore !== undefined ? Number(game.homeScore) : null
-                    const awayScore = game.awayScore !== undefined ? Number(game.awayScore) : null
-                    const isFinal = game.status === "final" || game.status === "post"
-                    const liveStatuses = ["live", "in_progress", "in"]
-                    const isLive = liveStatuses.includes(game.status)
-                    const validScores = homeScore !== null && awayScore !== null && Number.isFinite(homeScore) && Number.isFinite(awayScore)
-
-                    let homeWon = false
-                    let awayWon = false
-
-                    if (isFinal && validScores) {
-                      if (homeScore > awayScore) {
-                        homeWon = true
-                      } else if (awayScore > homeScore) {
-                        awayWon = true
-                      }
-                    }
-
-                    const homeCircleSize = getTeamCircleSize(game.homeTeam)
-                    const awayCircleSize = getTeamCircleSize(game.awayTeam)
-                    const homeCircleTeamNumber = getRandomCircleTeamNumber()
-                    const awayCircleTeamNumber = getRandomCircleTeamNumber()
-
-                    // Check if game is locked (has started)
-                    const gameStart = parseISO(game.date)
-                    const isGameLocked = isBefore(gameStart, new Date())
-
-                    return (
-                      <div key={game.id} className="relative flex flex-col">
-
-                        <div className={`absolute xl:top-14 top-8 left-2 h-3 w-3 flex items-center justify-center bg-neutral-100 ${isGameLocked ? '' : 'hidden'}`}>
-                          <span className="material-symbols-sharp xl:!text-lg !text-sm">lock</span>
+                {/* Dropdown overlay */}
+                {isWeekDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 bg-white border border-black z-50 rounded-2xl shadow-2xl overflow-clip">
+                    {Array.from({ length: NUM_WEEKS }, (_, i) => {
+                      // Calculate the actual MLB season week number
+                      const seasonStart = new Date('2024-03-28')
+                      const weekStart = getStartOfWeekNDaysAgo(i)
+                      const weekNumber = Math.ceil((weekStart.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
+                      return (
+                        <div
+                          key={i}
+                          className={`px-3 py-2 cursor-pointer hover:bg-black/10 font-bold text-center uppercase ${i === weekOffset ? 'bg-black/5' : ''}`}
+                          onClick={() => {
+                            setWeekOffset(i)
+                            setIsWeekDropdownOpen(false)
+                          }}
+                        >
+                          Week {weekNumber}
                         </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
 
-                        {/* Home row */}
-                        <div className="xl:h-16 h-10 flex flex-row">
-                          <div className="relative w-1/5 xl:min-w-60 min-w-40 flex items-center justify-center pl-2 font-jim xl:text-5xl text-3xl">
+              {/* Game rows - team names */}
+              {isLoading || loadingUsers || loadingPicks ? (
+                <div className="flex items-center justify-center">
+                  <div className="px-2 text-sm font-chakra uppercase font-bold bg-black text-white">Loading...</div>
+                </div>
+              ) : (
+                Object.entries(gamesByDay).map(([day, dayGames]) => (
+                  <div key={day} className="flex flex-col gap-8 xl:gap-16">
+                    {/* Day header */}
+                    <div className="relative xl:h-16 h-10 flex items-center justify-center p-2 text-center max-xl:text-sm uppercase font-bold bg-neutral-100 border-y-[1px] border-black">
+                      <div className="absolute left-0 top-0 w-screen xl:h-16 h-10 flex items-center justify-center">
+                        {day}
+                      </div>
+                    </div>
+                    {/* Games for this day */}
+                    {(dayGames ?? []).map((game) => {
+                      const homeScore = game.homeScore !== undefined ? Number(game.homeScore) : null
+                      const awayScore = game.awayScore !== undefined ? Number(game.awayScore) : null
+                      const isFinal = game.status === "final" || game.status === "post"
+                      const liveStatuses = ["live", "in_progress", "in"]
+                      const isLive = liveStatuses.includes(game.status)
+                      const validScores = homeScore !== null && awayScore !== null && Number.isFinite(homeScore) && Number.isFinite(awayScore)
+
+                      let homeWon = false
+                      let awayWon = false
+
+                      if (isFinal && validScores) {
+                        if (homeScore > awayScore) {
+                          homeWon = true
+                        } else if (awayScore > homeScore) {
+                          awayWon = true
+                        }
+                      }
+
+                      const homeCircleSize = getTeamCircleSize(game.homeTeam)
+                      const awayCircleSize = getTeamCircleSize(game.awayTeam)
+
+                      // Check if game is locked (has started)
+                      const gameStart = parseISO(game.date)
+                      const isGameLocked = isBefore(gameStart, new Date())
+
+                      return (
+                        <div key={game.id} className="relative flex flex-col shadow-[1px_0_0_rgba(0,0,0,1)]">
+
+                          {/* Lock icon */}
+                          {isGameLocked && (
+                            <div className="absolute z-50 left-2 top-1/2 -translate-y-1/2 h-3 w-3 flex items-center justify-center bg-white">
+                              <Tooltip content="Locked" position="right">
+                                <div className="h-3 w-3 flex items-center justify-center">
+                                  <span className="material-symbols-sharp xl:!text-lg !text-sm">lock</span>
+                                </div>
+                              </Tooltip>
+                            </div>
+                          )}
+
+                          {/* Game in progress icon */}
+                          {isLive && (
+                            <div className="absolute z-50 left-2 top-1/2 -translate-y-1/2 h-3 w-3 flex items-center justify-center bg-white">
+                              <Tooltip content="Game in Progress" position="right">
+                                <div className="h-3 w-3 flex items-center justify-center">
+                                  <span className="material-symbols-sharp xl:!text-lg !text-sm animate-spin text-green-500">motion_photos_on</span>
+                                </div>
+                              </Tooltip>
+                            </div>
+                          )}
+
+                          {/* Home team row */}
+                          <div className="relative xl:h-16 h-10 flex items-center justify-center px-2 font-jim xl:text-5xl text-3xl">
                             {homeWon && (() => {
                               const CircleTeam = getDeterministicCircleTeamComponent(homeCircleSize, `${game.id}_home`)
                               return <CircleTeam className="w-full h-[0.9em]" />
@@ -315,50 +372,11 @@ function WeeklyMatchesPage() {
                               {getTeamDisplayNameFromTeam(game.homeTeam)}
                             </span>
                           </div>
-                          <ul className="w-full flex flex-row justify-evenly">
-                            {users.map((user, index) => {
-                              const pick = userPicksByUser[user.id]?.[game.id]?.pickedTeam
-                              const correct = pick === 'home' && homeWon
-                              const isCurrentUser = user.id === currentUser?.uid
 
-                              // Use deterministic components to prevent reshuffling
-                              const Check = getDeterministicCheckComponent(`${game.id}_${user.id}_home`)
-                              const CircleCheck = getDeterministicCircleCheckComponent(`${game.id}_${user.id}_home`)
+                          <hr className="w-full border-t-[1px] border-black" />
 
-                              return (
-                                <li
-                                  key={index}
-                                  className={`w-full min-w-24 flex items-center justify-center font-jim xl:text-5xl text-3xl border-l-[1px] border-black ${isCurrentUser && !isGameLocked && !saving
-                                      ? 'cursor-pointer hover:bg-white hover:shadow-xl'
-                                      : isCurrentUser && isGameLocked
-                                        ? 'cursor-not-allowed'
-                                        : ''
-                                    }`}
-                                  onClick={() => {
-                                    if (isCurrentUser && !isGameLocked && !saving) {
-                                      handlePick(game.id, 'home')
-                                    }
-                                  }}
-                                >
-                                  {pick === 'home' && (() => {
-                                    return (
-                                      <div className="relative">
-                                        <Check className="w-10 h-10 xl:w-12 xl:h-12 transform translate-x-2 -translate-y-2" />
-                                        {correct && <CircleCheck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-12 xl:w-20 xl:h-15" />}
-                                      </div>
-                                    )
-                                  })()}
-                                </li>
-                              )
-                            })}
-                          </ul>
-                        </div>
-
-                        <hr className="w-full border-[.5px] border-black" />
-
-                        {/* Away row */}
-                        <div className="xl:h-16 h-10 flex flex-row">
-                          <div className="relative w-1/5 xl:min-w-60 min-w-40 flex items-center justify-center pl-2 font-jim xl:text-5xl text-3xl">
+                          {/* Away team row */}
+                          <div className="relative xl:h-16 h-10 flex items-center justify-center px-2 font-jim xl:text-5xl text-3xl">
                             {awayWon && (() => {
                               const CircleTeam = getDeterministicCircleTeamComponent(awayCircleSize, `${game.id}_away`)
                               return <CircleTeam className="w-full h-[0.9em]" />
@@ -367,52 +385,123 @@ function WeeklyMatchesPage() {
                               {getTeamDisplayNameFromTeam(game.awayTeam)}
                             </span>
                           </div>
-                          <ul className="w-full flex flex-row justify-evenly">
-                            {users.map((user, index) => {
-                              const pick = userPicksByUser[user.id]?.[game.id]?.pickedTeam
-                              const correct = pick === 'away' && awayWon
-                              const isCurrentUser = user.id === currentUser?.uid
-
-                              // Use deterministic components to prevent reshuffling
-                              const Check = getDeterministicCheckComponent(`${game.id}_${user.id}_away`)
-                              const CircleCheck = getDeterministicCircleCheckComponent(`${game.id}_${user.id}_away`)
-
-                              return (
-                                <li
-                                  key={index}
-                                  className={`w-full min-w-24 flex items-center justify-center font-jim xl:text-5xl text-3xl border-l-[1px] border-black ${isCurrentUser && !isGameLocked && !saving
-                                      ? 'cursor-pointer hover:bg-white hover:shadow-xl'
-                                      : isCurrentUser && isGameLocked
-                                        ? 'cursor-not-allowed'
-                                        : ''
-                                    }`}
-                                  onClick={() => {
-                                    if (isCurrentUser && !isGameLocked && !saving) {
-                                      handlePick(game.id, 'away')
-                                    }
-                                  }}
-                                >
-                                  {pick === 'away' && (() => {
-                                    return (
-                                      <div className="relative">
-                                        <Check className="w-10 h-10 xl:w-12 xl:h-12 transform translate-x-2 -translate-y-2" />
-                                        {correct && <CircleCheck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-12 xl:w-20 xl:h-15" />}
-                                      </div>
-                                    )
-                                  })()}
-                                </li>
-                              )
-                            })}
-                          </ul>
                         </div>
+                      )
+                    })}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Scrollable user columns */}
+            <div className="w-full flex">
+              {userDisplayNames.map((name, userIndex) => (
+                <div key={userIndex} className="min-w-24 flex flex-1 flex-col gap-8 xl:gap-16">
+                  {/* User name header */}
+                  <div className="w-full min-w-16 h-16 flex items-center justify-center font-jim xl:text-5xl text-3xl border-l-[1px] border-black">
+                    <span className="max-w-8 flex justify-center max-xl:-rotate-[55deg]">{name}</span>
+                  </div>
+
+                  {/* Game rows for this user */}
+                  {isLoading || loadingUsers || loadingPicks ? (
+                    <div className="w-full min-w-24 flex items-center justify-center">
+                      <div className="px-2 text-sm font-chakra uppercase font-bold bg-black text-white">Loading...</div>
+                    </div>
+                  ) : (
+                    Object.entries(gamesByDay).map(([day, dayGames]) => (
+                      <div key={day} className="flex flex-col gap-8 xl:gap-16">
+                        {/* Day header (hidden since it's in the sticky column) */}
+                        <div className="w-full min-w-24 xl:h-16 h-10 bg-neutral-100 border-y-[1px] border-black"></div>
+                        {/* Games for this day */}
+                        {(dayGames ?? []).map((game) => {
+                          const homeScore = game.homeScore !== undefined ? Number(game.homeScore) : null
+                          const awayScore = game.awayScore !== undefined ? Number(game.awayScore) : null
+                          const isFinal = game.status === "final" || game.status === "post"
+                          const validScores = homeScore !== null && awayScore !== null && Number.isFinite(homeScore) && Number.isFinite(awayScore)
+
+                          let homeWon = false
+                          let awayWon = false
+
+                          if (isFinal && validScores) {
+                            if (homeScore > awayScore) {
+                              homeWon = true
+                            } else if (awayScore > homeScore) {
+                              awayWon = true
+                            }
+                          }
+
+                          const user = users[userIndex]
+                          const pick = userPicksByUser[user.id]?.[game.id]?.pickedTeam
+                          const homeCorrect = pick === 'home' && homeWon
+                          const awayCorrect = pick === 'away' && awayWon
+                          const isCurrentUser = user.id === currentUser?.uid
+
+                          // Check if game is locked (has started)
+                          const gameStart = parseISO(game.date)
+                          const isGameLocked = isBefore(gameStart, new Date())
+
+                          // Use deterministic components to prevent reshuffling
+                          const HomeCheck = getDeterministicCheckComponent(`${game.id}_${user.id}_home`)
+                          const HomeCircleCheck = getDeterministicCircleCheckComponent(`${game.id}_${user.id}_home`)
+                          const AwayCheck = getDeterministicCheckComponent(`${game.id}_${user.id}_away`)
+                          const AwayCircleCheck = getDeterministicCircleCheckComponent(`${game.id}_${user.id}_away`)
+
+                          return (
+                            <div key={game.id} className="flex flex-col">
+                              {/* Home team pick */}
+                              <div
+                                className={`w-full min-w-24 xl:h-16 h-10 flex items-center justify-center font-jim xl:text-5xl text-3xl border-l-[1px] border-black ${isCurrentUser && !isGameLocked && !saving
+                                  ? 'cursor-pointer hover:bg-white'
+                                  : isCurrentUser && isGameLocked
+                                    ? 'cursor-not-allowed'
+                                    : ''
+                                  }`}
+                                onClick={() => {
+                                  if (isCurrentUser && !isGameLocked && !saving) {
+                                    handlePick(game.id, 'home')
+                                  }
+                                }}
+                              >
+                                {pick === 'home' && (
+                                  <div className="relative">
+                                    <HomeCheck className="w-10 h-10 xl:w-12 xl:h-12 transform translate-x-2 -translate-y-2" />
+                                    {homeCorrect && <HomeCircleCheck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-12 xl:w-20 xl:h-15" />}
+                                  </div>
+                                )}
+                              </div>
+                              <hr className="w-full border-t-[1px] border-black" />
+                              {/* Away team pick */}
+                              <div
+                                className={`w-full min-w-24 xl:h-16 h-10 flex items-center justify-center font-jim xl:text-5xl text-3xl border-l-[1px] border-black ${isCurrentUser && !isGameLocked && !saving
+                                  ? 'cursor-pointer hover:bg-white'
+                                  : isCurrentUser && isGameLocked
+                                    ? 'cursor-not-allowed'
+                                    : ''
+                                  }`}
+                                onClick={() => {
+                                  if (isCurrentUser && !isGameLocked && !saving) {
+                                    handlePick(game.id, 'away')
+                                  }
+                                }}
+                              >
+                                {pick === 'away' && (
+                                  <div className="relative">
+                                    <AwayCheck className="w-10 h-10 xl:w-12 xl:h-12 transform translate-x-2 -translate-y-1" />
+                                    {awayCorrect && <AwayCircleCheck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-12 xl:w-20 xl:h-15" />}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
                       </div>
-                    )
-                  })}
+                    ))
+                  )}
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   )

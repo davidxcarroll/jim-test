@@ -21,7 +21,7 @@ export function Tooltip({ children, content, position = 'top', className = '' }:
 
   return (
     <div 
-      className={`relative inline-block ${className}`}
+      className={`relative flex items-center justify-center inline-block font-chakra ${className}`}
       onMouseEnter={() => setIsVisible(true)}
       onMouseLeave={() => setIsVisible(false)}
     >

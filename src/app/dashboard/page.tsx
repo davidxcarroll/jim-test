@@ -16,6 +16,7 @@ import { Tooltip } from '@/components/tooltip'
 import * as Checks from '@/components/checks'
 // @ts-ignore
 import * as Circles from '@/components/circles'
+import React from 'react'
 
 const NUM_WEEKS = 5
 
@@ -107,6 +108,30 @@ function getDeterministicCircleTeamComponent(size: TeamCircleSize, seed: string)
   return arr[index]
 }
 
+// Helper to map status to warning tooltip
+const statusWarningMap: Record<string, string> = {
+  postponed: 'Postponed',
+  wdelay: 'Delayed (Weather)',
+  fdelay: 'Delayed (Facility)',
+  odelay: 'Delayed',
+  delayed: 'Delayed',
+  suspended: 'Suspended',
+  canceled: 'Cancelled',
+  cancelled: 'Cancelled',
+  maintenance: 'Maintenance',
+  unnecessary: 'Unnecessary',
+  'if-necessary': 'If Necessary',
+}
+
+// Add a helper for likely postponed heuristic
+function isLikelyPostponed(game: any) {
+  return (
+    game.status === 'post' &&
+    (!game.homeScore || Number(game.homeScore) === 0) &&
+    (!game.awayScore || Number(game.awayScore) === 0)
+  )
+}
+
 function WeeklyMatchesPage() {
   const { user: currentUser } = useAuthStore()
   const [weekOffset, setWeekOffset] = useState(0)
@@ -186,6 +211,16 @@ function WeeklyMatchesPage() {
     gamesByDay[day].push(game)
   })
 
+  // Helper to filter unique games by id
+  function getUniqueGamesById(games: any[]) {
+    const seen = new Set()
+    return games.filter(game => {
+      if (seen.has(game.id)) return false
+      seen.add(game.id)
+      return true
+    })
+  }
+
   // User display names for header
   const userDisplayNames = users.map(u => u.displayName || u.id)
 
@@ -198,7 +233,12 @@ function WeeklyMatchesPage() {
     // Check if game is locked
     const game = games?.find(g => g.id === gameId)
     if (game && isBefore(parseISO(game.date), new Date())) {
-      setToast({ message: 'Game has already started!', type: 'error' })
+      // Check if game has finished vs just started
+      if (game.status === 'final' || game.status === 'post') {
+        setToast({ message: 'Game has concluded!', type: 'error' })
+      } else {
+        setToast({ message: 'Game has already started!', type: 'error' })
+      }
       setSaving(false)
       return
     }
@@ -240,7 +280,7 @@ function WeeklyMatchesPage() {
   }
 
   return (
-    <div className="font-chakra text-2xl pb-16">
+    <div className="min-w-fit font-chakra text-2xl pb-16 select-none overflow-x-clip">
       <Navigation />
 
       {toast && (
@@ -249,268 +289,213 @@ function WeeklyMatchesPage() {
 
       <div className="flex flex-col pt-10 bg-neutral-100">
         {/* Main scrollable container */}
-        <div className="overflow-x-auto">
-          <div className="inline-flex min-w-full pb-8">
-            {/* Sticky left column */}
-            <div className="sticky left-0 z-30 bg-neutral-100 flex flex-col gap-8 xl:gap-16">
-              {/* Week selector row */}
-              <div className="week-selector h-16 flex items-center justify-center shadow-[1px_0_0_rgba(0,0,0,1)] font-bold uppercase relative">
-                <div
-                  className="w-full h-full flex items-center justify-center gap-1 max-xl:text-sm hover:bg-white cursor-pointer"
-                  onClick={() => setIsWeekDropdownOpen(!isWeekDropdownOpen)}
-                >
-                  {/* label */}
-                  {(() => {
-                    const seasonStart = new Date('2024-03-28')
-                    const weekStart = getStartOfWeekNDaysAgo(weekOffset)
-                    const weekNumber = Math.ceil((weekStart.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
-                    return `Week ${weekNumber}`
-                  })()}
-                  <span className={`material-symbols-sharp transition-transform ${isWeekDropdownOpen ? 'rotate-180' : ''}`}>
-                    arrow_drop_down
-                  </span>
-                </div>
-
-                {/* Dropdown overlay */}
-                {isWeekDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 bg-white border border-black z-50 rounded-2xl shadow-2xl overflow-clip">
-                    {Array.from({ length: NUM_WEEKS }, (_, i) => {
-                      // Calculate the actual MLB season week number
-                      const seasonStart = new Date('2024-03-28')
-                      const weekStart = getStartOfWeekNDaysAgo(i)
-                      const weekNumber = Math.ceil((weekStart.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
-                      return (
-                        <div
-                          key={i}
-                          className={`px-3 py-2 cursor-pointer hover:bg-black/10 font-bold text-center uppercase ${i === weekOffset ? 'bg-black/5' : ''}`}
-                          onClick={() => {
-                            setWeekOffset(i)
-                            setIsWeekDropdownOpen(false)
-                          }}
-                        >
-                          Week {weekNumber}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Game rows - team names */}
-              {isLoading || loadingUsers || loadingPicks ? (
-                <div className="flex items-center justify-center">
-                  <div className="px-2 text-sm font-chakra uppercase font-bold bg-black text-white">Loading...</div>
-                </div>
-              ) : (
-                Object.entries(gamesByDay).map(([day, dayGames]) => (
-                  <div key={day} className="flex flex-col gap-8 xl:gap-16">
-                    {/* Day header */}
-                    <div className="relative xl:h-16 h-10 flex items-center justify-center p-2 text-center max-xl:text-sm uppercase font-bold bg-neutral-100 border-y-[1px] border-black">
-                      <div className="absolute left-0 top-0 w-screen xl:h-16 h-10 flex items-center justify-center">
-                        {day}
-                      </div>
+        <div>
+          <table className="min-w-full bg-neutral-100 border-separate" style={{ borderSpacing: 0 }}>
+            <thead>
+              <tr>
+                {/* Sticky week selector header cell */}
+                <th className="sticky top-0 left-0 z-[1000] bg-neutral-100 shadow-[1px_0_0_#000000] w-48 min-w-fit h-16 align-middle p-0">
+                  <div className="week-selector h-16 flex items-center justify-center font-bold uppercase relative bg-neutral-100">
+                    <div
+                      className="w-full h-full flex items-center justify-center gap-1 max-xl:text-sm"
+                      onClick={() => setIsWeekDropdownOpen(!isWeekDropdownOpen)}
+                    >
+                      {/* label */}
+                      {(() => {
+                        const seasonStart = new Date('2024-03-28')
+                        const weekStart = getStartOfWeekNDaysAgo(weekOffset)
+                        const weekNumber = Math.ceil((weekStart.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
+                        return `Week ${weekNumber}`
+                      })()}
+                      <span className={`material-symbols-sharp transition-transform`}>
+                        arrow_drop_down
+                      </span>
                     </div>
-                    {/* Games for this day */}
-                    {(dayGames ?? []).map((game) => {
-                      const homeScore = game.homeScore !== undefined ? Number(game.homeScore) : null
-                      const awayScore = game.awayScore !== undefined ? Number(game.awayScore) : null
-                      const isFinal = game.status === "final" || game.status === "post"
-                      const liveStatuses = ["live", "in_progress", "in"]
-                      const isLive = liveStatuses.includes(game.status)
-                      const validScores = homeScore !== null && awayScore !== null && Number.isFinite(homeScore) && Number.isFinite(awayScore)
-
-                      let homeWon = false
-                      let awayWon = false
-
-                      if (isFinal && validScores) {
-                        if (homeScore > awayScore) {
-                          homeWon = true
-                        } else if (awayScore > homeScore) {
-                          awayWon = true
-                        }
-                      }
-
-                      const homeCircleSize = getTeamCircleSize(game.homeTeam)
-                      const awayCircleSize = getTeamCircleSize(game.awayTeam)
-
-                      // Check if game is locked (has started)
-                      const gameStart = parseISO(game.date)
-                      const isGameLocked = isBefore(gameStart, new Date())
-
-                      return (
-                        <div key={game.id} className="relative flex flex-col shadow-[1px_0_0_rgba(0,0,0,1)]">
-
-                          {/* Lock icon */}
-                          {isGameLocked && (
-                            <div className="absolute z-50 left-2 top-1/2 -translate-y-1/2 h-3 w-3 flex items-center justify-center bg-white">
-                              <Tooltip content="Locked" position="right">
-                                <div className="h-3 w-3 flex items-center justify-center">
-                                  <span className="material-symbols-sharp xl:!text-lg !text-sm">lock</span>
-                                </div>
-                              </Tooltip>
+                    {/* Dropdown overlay */}
+                    {isWeekDropdownOpen && (
+                      <div className="absolute top-full left-1/2 right-0 -translate-x-1/2 -translate-y-2 w-[calc(100%-20px)] max-xl:text-sm bg-white shadow-[inset_0_0_0_1px_#000000] z-50 rounded-2xl shadow-2xl overflow-clip">
+                        {Array.from({ length: NUM_WEEKS }, (_, i) => {
+                          const seasonStart = new Date('2024-03-28')
+                          const weekStart = getStartOfWeekNDaysAgo(i)
+                          const weekNumber = Math.ceil((weekStart.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
+                          return (
+                            <div
+                              key={i}
+                              className={`px-3 py-2 cursor-pointer hover:bg-black/10 font-bold text-center uppercase ${i === weekOffset ? 'bg-black/5' : ''}`}
+                              onClick={() => {
+                                setWeekOffset(i)
+                                setIsWeekDropdownOpen(false)
+                              }}
+                            >
+                              Week {weekNumber}
                             </div>
-                          )}
-
-                          {/* Game in progress icon */}
-                          {isLive && (
-                            <div className="absolute z-50 left-2 top-1/2 -translate-y-1/2 h-3 w-3 flex items-center justify-center bg-white">
-                              <Tooltip content="Game in Progress" position="right">
-                                <div className="h-3 w-3 flex items-center justify-center">
-                                  <span className="material-symbols-sharp xl:!text-lg !text-sm animate-spin text-green-500">motion_photos_on</span>
-                                </div>
-                              </Tooltip>
-                            </div>
-                          )}
-
-                          {/* Home team row */}
-                          <div className="relative xl:h-16 h-10 flex items-center justify-center px-2 font-jim xl:text-5xl text-3xl">
-                            {homeWon && (() => {
-                              const CircleTeam = getDeterministicCircleTeamComponent(homeCircleSize, `${game.id}_home`)
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </th>
+                {/* User name headers */}
+                {userDisplayNames.map((name, userIndex) => (
+                  <th
+                    key={userIndex}
+                    className="sticky top-0 z-50 bg-neutral-100 shadow-[-1px_0_0_#000000] w-32 h-16 align-middle p-0"
+                  >
+                    <div className="w-full h-16 flex items-center justify-center font-jim xl:text-5xl text-3xl bg-neutral-100">
+                      <span className="max-w-8 flex justify-center font-light max-xl:-rotate-[55deg]">{name}</span>
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="h-8"></tr>
+              {isLoading || loadingUsers || loadingPicks ? (
+                <tr>
+                  <td colSpan={1 + userDisplayNames.length} className="text-center py-8">
+                    <div className="px-2 text-sm font-chakra uppercase font-bold bg-black text-white">Loading...</div>
+                  </td>
+                </tr>
+              ) : (
+                Object.entries(gamesByDay).flatMap(([day, dayGames], dayIdx) => [
+                  // Blank row above day header
+                  // <tr key={day + '-spacer-above'}>
+                  //   <td colSpan={1 + userDisplayNames.length} className="h-8"></td>
+                  // </tr>,
+                  // Day header row
+                  <tr key={day + '-header'}>
+                    <td
+                      className="sticky top-16 left-0 z-30 max-xl:text-sm bg-neutral-100 shadow-[inset_0_1px_0_#000000,inset_0_-1px_0_#000000] font-bold uppercase text-center p-2 align-middle"
+                      colSpan={1 + userDisplayNames.length}
+                    >
+                      {day}
+                    </td>
+                  </tr>,
+                  // Blank row below day header
+                  <tr key={day + '-spacer-below'}>
+                    <td colSpan={1 + userDisplayNames.length} className="h-8"></td>
+                  </tr>,
+                  // All game rows for this day, flattened
+                  ...(getUniqueGamesById(dayGames ?? [])).flatMap((game, gameIdx) => {
+                    // Debug log for game status
+                    console.log(`Game ${game.id}: ${getTeamDisplayNameFromTeam(game.awayTeam)} at ${getTeamDisplayNameFromTeam(game.homeTeam)}, date: ${game.date}, status: ${game.status}`)
+                    return [
+                      <tr key={game.id + '-' + game.date + '-home'}>
+                        {/* Sticky left: Home team info */}
+                        <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_1px_0_#000000,1px_0_0_#000000] px-2 xl:h-16 h-10 align-middle font-jim xl:text-5xl text-3xl">
+                          <div className="relative flex items-center justify-center h-full">
+                            {(game.homeScore ?? 0) > (game.awayScore ?? 0) && (() => {
+                              const CircleTeam = getDeterministicCircleTeamComponent(getTeamCircleSize(game.homeTeam), `${game.id}_home`)
                               return <CircleTeam className="w-full h-[0.9em]" />
                             })()}
                             <span className="text-black">
                               {getTeamDisplayNameFromTeam(game.homeTeam)}
                             </span>
                           </div>
-
-                          <hr className="w-full border-t-[1px] border-black" />
-
-                          {/* Away team row */}
-                          <div className="relative xl:h-16 h-10 flex items-center justify-center px-2 font-jim xl:text-5xl text-3xl">
-                            {awayWon && (() => {
-                              const CircleTeam = getDeterministicCircleTeamComponent(awayCircleSize, `${game.id}_away`)
+                        </td>
+                        {/* User picks for home team */}
+                        {users.map((user, userIndex) => {
+                          const pick = userPicksByUser[user.id]?.[game.id]?.pickedTeam
+                          const homeCorrect = pick === 'home' && (game.homeScore ?? 0) > (game.awayScore ?? 0)
+                          const isCurrentUser = user.id === currentUser?.uid
+                          const isGameFinished = game.status === 'final' || game.status === 'post'
+                          const HomeCheck = getDeterministicCheckComponent(`${game.id}_${user.id}_home`)
+                          const HomeCircleCheck = getDeterministicCircleCheckComponent(`${game.id}_${user.id}_home`)
+                          return (
+                            <td
+                              key={userIndex}
+                              className={`shadow-[inset_1px_0_0_#000000,inset_0_-1px_0_#000000] px-0 xl:h-16 h-10 align-middle font-jim xl:text-5xl text-3xl ${isCurrentUser && game.status === 'scheduled' && !saving
+                                ? 'cursor-pointer hover:bg-white'
+                                : isCurrentUser && game.status !== 'scheduled'
+                                  ? 'cursor-not-allowed'
+                                  : ''
+                              }`}
+                              onClick={isCurrentUser ? () => handlePick(game.id, 'home') : undefined}
+                            >
+                              {pick === 'home' && (
+                                <div className="relative flex items-center justify-center h-full">
+                                  <HomeCheck className="w-10 h-10 xl:w-12 xl:h-12 transform translate-x-3 -translate-y-2" />
+                                  {homeCorrect && isGameFinished && <HomeCircleCheck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-12 xl:w-20 xl:h-15" />}
+                                </div>
+                              )}
+                            </td>
+                          )
+                        })}
+                      </tr>,
+                      <tr key={game.id + '-' + game.date + '-away'}>
+                        {/* Sticky left: Away team info */}
+                        <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_-1px_0_#000000,1px_0_0_#000000] px-2 xl:h-16 h-10 align-middle font-jim xl:text-5xl text-3xl">
+                          <div className="relative flex items-center justify-center h-full">
+                            {/* Show warning icon if needed, else live icon if live */}
+                            {((statusWarningMap[game.status?.toLowerCase?.()] || isLikelyPostponed(game)) ? (
+                              <div className="absolute right-[-18.5px] top-[-1.5px] -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-yellow-400 rounded-full">
+                                <Tooltip content={
+                                  isLikelyPostponed(game)
+                                    ? 'Likely postponed (no result reported)'
+                                    : statusWarningMap[game.status.toLowerCase()]
+                                } position="right">
+                                  <span className="material-symbols-sharp !text-sm mb-[1px]">warning</span>
+                                </Tooltip>
+                              </div>
+                            ) : game.status === "live" && (
+                              <div className="absolute right-[-18.5px] top-[-1.5px] -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-green-400 rounded-full">
+                                <Tooltip content="Game in Progress" position="right">
+                                <span className="material-symbols-sharp !text-sm mb-[1px] animate-ping">sports_baseball</span>
+                                </Tooltip>
+                              </div>
+                            ))}
+                            {(game.awayScore ?? 0) > (game.homeScore ?? 0) && (() => {
+                              const CircleTeam = getDeterministicCircleTeamComponent(getTeamCircleSize(game.awayTeam), `${game.id}_away`)
                               return <CircleTeam className="w-full h-[0.9em]" />
                             })()}
                             <span className="text-black">
                               {getTeamDisplayNameFromTeam(game.awayTeam)}
                             </span>
                           </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Scrollable user columns */}
-            <div className="w-full flex">
-              {userDisplayNames.map((name, userIndex) => (
-                <div key={userIndex} className="min-w-24 flex flex-1 flex-col gap-8 xl:gap-16">
-                  {/* User name header */}
-                  <div className="w-full min-w-16 h-16 flex items-center justify-center font-jim xl:text-5xl text-3xl border-l-[1px] border-black">
-                    <span className="max-w-8 flex justify-center max-xl:-rotate-[55deg]">{name}</span>
-                  </div>
-
-                  {/* Game rows for this user */}
-                  {isLoading || loadingUsers || loadingPicks ? (
-                    <div className="w-full min-w-24 flex items-center justify-center">
-                      <div className="px-2 text-sm font-chakra uppercase font-bold bg-black text-white">Loading...</div>
-                    </div>
-                  ) : (
-                    Object.entries(gamesByDay).map(([day, dayGames]) => (
-                      <div key={day} className="flex flex-col gap-8 xl:gap-16">
-                        {/* Day header (hidden since it's in the sticky column) */}
-                        <div className="w-full min-w-24 xl:h-16 h-10 bg-neutral-100 border-y-[1px] border-black"></div>
-                        {/* Games for this day */}
-                        {(dayGames ?? []).map((game) => {
-                          const homeScore = game.homeScore !== undefined ? Number(game.homeScore) : null
-                          const awayScore = game.awayScore !== undefined ? Number(game.awayScore) : null
-                          const isFinal = game.status === "final" || game.status === "post"
-                          const validScores = homeScore !== null && awayScore !== null && Number.isFinite(homeScore) && Number.isFinite(awayScore)
-
-                          let homeWon = false
-                          let awayWon = false
-
-                          if (isFinal && validScores) {
-                            if (homeScore > awayScore) {
-                              homeWon = true
-                            } else if (awayScore > homeScore) {
-                              awayWon = true
-                            }
-                          }
-
-                          const user = users[userIndex]
+                        </td>
+                        {/* User picks for away team */}
+                        {users.map((user, userIndex) => {
                           const pick = userPicksByUser[user.id]?.[game.id]?.pickedTeam
-                          const homeCorrect = pick === 'home' && homeWon
-                          const awayCorrect = pick === 'away' && awayWon
+                          const awayCorrect = pick === 'away' && (game.awayScore ?? 0) > (game.homeScore ?? 0)
                           const isCurrentUser = user.id === currentUser?.uid
-
-                          // Check if game is locked (has started)
-                          const gameStart = parseISO(game.date)
-                          const isGameLocked = isBefore(gameStart, new Date())
-
-                          // Use deterministic components to prevent reshuffling
-                          const HomeCheck = getDeterministicCheckComponent(`${game.id}_${user.id}_home`)
-                          const HomeCircleCheck = getDeterministicCircleCheckComponent(`${game.id}_${user.id}_home`)
+                          const isGameFinished = game.status === 'final' || game.status === 'post'
                           const AwayCheck = getDeterministicCheckComponent(`${game.id}_${user.id}_away`)
                           const AwayCircleCheck = getDeterministicCircleCheckComponent(`${game.id}_${user.id}_away`)
-
                           return (
-                            <div key={game.id} className="flex flex-col">
-                              {/* Home team pick */}
-                              <div
-                                className={`w-full min-w-24 xl:h-16 h-10 flex items-center justify-center font-jim xl:text-5xl text-3xl border-l-[1px] border-black ${isCurrentUser && !isGameLocked && !saving
-                                  ? 'cursor-pointer hover:bg-white'
-                                  : isCurrentUser && isGameLocked
-                                    ? 'cursor-not-allowed'
-                                    : ''
-                                  }`}
-                                onClick={() => {
-                                  if (isCurrentUser && !isGameLocked && !saving) {
-                                    handlePick(game.id, 'home')
-                                  }
-                                }}
-                              >
-                                {pick === 'home' && (
-                                  <div className="relative">
-                                    <HomeCheck className="w-10 h-10 xl:w-12 xl:h-12 transform translate-x-2 -translate-y-2" />
-                                    {homeCorrect && <HomeCircleCheck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-12 xl:w-20 xl:h-15" />}
-                                  </div>
-                                )}
-                              </div>
-                              <hr className="w-full border-t-[1px] border-black" />
-                              {/* Away team pick */}
-                              <div
-                                className={`w-full min-w-24 xl:h-16 h-10 flex items-center justify-center font-jim xl:text-5xl text-3xl border-l-[1px] border-black ${isCurrentUser && !isGameLocked && !saving
-                                  ? 'cursor-pointer hover:bg-white'
-                                  : isCurrentUser && isGameLocked
-                                    ? 'cursor-not-allowed'
-                                    : ''
-                                  }`}
-                                onClick={() => {
-                                  if (isCurrentUser && !isGameLocked && !saving) {
-                                    handlePick(game.id, 'away')
-                                  }
-                                }}
-                              >
-                                {pick === 'away' && (
-                                  <div className="relative">
-                                    <AwayCheck className="w-10 h-10 xl:w-12 xl:h-12 transform translate-x-2 -translate-y-1" />
-                                    {awayCorrect && <AwayCircleCheck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-12 xl:w-20 xl:h-15" />}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
+                            <td
+                              key={userIndex}
+                              className={`shadow-[inset_1px_0_0_#000000] px-0 xl:h-16 h-10 align-middle font-jim xl:text-5xl text-3xl ${isCurrentUser && game.status === 'scheduled' && !saving
+                                ? 'cursor-pointer hover:bg-white'
+                                : isCurrentUser && game.status !== 'scheduled'
+                                  ? 'cursor-not-allowed'
+                                  : ''
+                              }`}
+                              onClick={isCurrentUser ? () => handlePick(game.id, 'away') : undefined}
+                            >
+                              {pick === 'away' && (
+                                <div className="relative flex items-center justify-center h-full">
+                                  <AwayCheck className="w-10 h-10 xl:w-12 xl:h-12 transform translate-x-2" />
+                                  {awayCorrect && isGameFinished && <AwayCircleCheck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-12 xl:w-20 xl:h-15" />}
+                                </div>
+                              )}
+                            </td>
                           )
                         })}
-                      </div>
-                    ))
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+                      </tr>,
+                      // Blank row between matchups
+                      <tr key={game.id + '-' + game.date + '-spacer'}>
+                        <td colSpan={1 + userDisplayNames.length} className="h-8"></td>
+                      </tr>
+                    ]
+                  })
+                ])
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
   )
 }
 
-export default function ProtectedWeeklyMatchesPage() {
-  return (
-    <ProtectedRoute>
-      <WeeklyMatchesPage />
-    </ProtectedRoute>
-  )
-} 
+export default WeeklyMatchesPage

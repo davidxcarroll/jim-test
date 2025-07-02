@@ -13,10 +13,12 @@
 
 html {
   background-color: #000;
+  min-width: fit-content;
 }
 
 body {
   min-height: 100dvh;
+  min-width: fit-content;
   background-image: url('/images/board-100.gif');
   background-repeat: repeat;
   background-size: 1500px;

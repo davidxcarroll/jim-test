@@ -36,7 +36,7 @@ export const espnApi = {
       },
       homeScore: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').score,
       awayScore: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').score,
-      status: event.status.type.state,
+                status: event.status.type.state === 'in' ? 'live' : event.status.type.state === 'pre' ? 'scheduled' : event.status.type.state,
       venue: event.competitions[0].venue?.fullName,
       startTime: event.date
     })) || []
@@ -76,7 +76,7 @@ export const espnApi = {
       },
       homeScore: data.header.competitions[0].competitors.find((c: any) => c.homeAway === 'home').score,
       awayScore: data.header.competitions[0].competitors.find((c: any) => c.homeAway === 'away').score,
-      status: data.header.status.type.state,
+      status: data.header.status.type.state === 'in' ? 'live' : data.header.status.type.state === 'pre' ? 'scheduled' : data.header.status.type.state,
       inning: data.gameInfo?.inning,
       topInning: data.gameInfo?.topInning,
       venue: data.header.competitions[0].venue?.fullName,
@@ -138,7 +138,7 @@ export const espnApi = {
           },
           homeScore: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').score,
           awayScore: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').score,
-          status: event.status.type.state,
+          status: event.status.type.state === 'in' ? 'live' : event.status.type.state === 'pre' ? 'scheduled' : event.status.type.state,
           venue: event.competitions[0].venue?.fullName,
           startTime: event.date
         })));

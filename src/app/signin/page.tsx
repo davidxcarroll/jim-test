@@ -31,7 +31,7 @@ function SignInPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center font-chakra font-bold uppercase bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center font-chakra font-bold uppercase">
       {toast && (
         <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
       )}

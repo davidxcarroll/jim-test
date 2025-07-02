@@ -377,8 +377,6 @@ function WeeklyMatchesPage() {
                   </tr>,
                   // All game rows for this day, flattened
                   ...(getUniqueGamesById(dayGames ?? [])).flatMap((game, gameIdx) => {
-                    // Debug log for game status
-                    console.log(`Game ${game.id}: ${getTeamDisplayNameFromTeam(game.awayTeam)} at ${getTeamDisplayNameFromTeam(game.homeTeam)}, date: ${game.date}, status: ${game.status}`)
                     return [
                       <tr key={game.id + '-' + game.date + '-home'}>
                         {/* Sticky left: Home team info */}

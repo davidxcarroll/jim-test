@@ -128,7 +128,7 @@ function SettingsPage() {
   }
 
   return (
-    <div className="w-full font-chakra text-2xl pb-16">
+    <div className="w-full font-chakra text-2xl pb-16 select-none">
       <Navigation />
       {toast && (
         <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />

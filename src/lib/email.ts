@@ -33,7 +33,7 @@ export const emailService = {
       <html>
         <head>
           <meta charset="utf-8">
-          <title>Welcome to Jim's Pick'em!</title>
+          <title>Welcome to Jim's Clipboard!</title>
           <style>
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -47,11 +47,11 @@ export const emailService = {
         <body>
           <div class="container">
             <div class="header">
-              <h1>Welcome to Jim's Pick'em!</h1>
+              <h1>Welcome to Jim's Clipboard!</h1>
             </div>
             <div class="content">
               <h2>Hi ${displayName || 'there'}!</h2>
-              <p>Welcome to Jim's Pick'em! You're now part of the community.</p>
+              <p>Welcome to Jim's Clipboard! You're now part of the community.</p>
               <p>Get ready to make your picks and compete with friends!</p>
               <p><strong>Quick Sign In:</strong> Click the button below to sign in and go straight to your dashboard!</p>
               <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/signin" class="button magic-link">Sign In & Start Making Picks</a></p>
@@ -66,9 +66,9 @@ export const emailService = {
     `
 
     return resend.emails.send({
-      from: 'Jim\'s Pick\'em <noreply@jimsclipboard.com>',
+      from: 'Jim\'s Clipboard <noreply@jimsclipboard.com>',
       to: email,
-      subject: 'Welcome to Jim\'s Pick\'em!',
+      subject: 'Welcome to Jim\'s Clipboard!',
       html
     })
   },
@@ -96,7 +96,7 @@ export const emailService = {
             </div>
             <div class="content">
               <h2>Hi ${displayName || 'there'}!</h2>
-              <p>A new week has started in Jim's Pick'em!</p>
+              <p>A new week has started in Jim's Clipboard!</p>
               <p>Don't forget to make your picks to stay in the competition.</p>
               <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/signin" class="button">Sign In & Make Your Picks</a></p>
               <p><small>Use the "Sign in with Magic Link" option for quick passwordless access!</small></p>
@@ -110,7 +110,7 @@ export const emailService = {
     `
 
     return resend.emails.send({
-      from: 'Jim\'s Pick\'em <noreply@jimsclipboard.com>',
+      from: 'Jim\'s Clipboard <noreply@jimsclipboard.com>',
       to: email,
       subject: 'New Week - Make Your Picks!',
       html

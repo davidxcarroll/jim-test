@@ -11,8 +11,11 @@ const chakraPetch = Chakra_Petch({
 })
 
 export const metadata: Metadata = {
-  title: '🏈 The Picks Test',
+  title: 'Jim\'s Clipboard',
   viewport: 'width=device-width, initial-scale=1',
+  icons: {
+    icon: '/images/favicon.ico',
+  },
 }
 
 export default function RootLayout({

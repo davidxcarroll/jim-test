@@ -45,7 +45,7 @@ export const emailService = {
     `
 
     return resend.emails.send({
-      from: 'Jim\'s Pick\'em <onboarding@resend.dev>',
+      from: 'Jim\'s Pick\'em <noreply@jimsclipboard.com>',
       to: email,
       subject: 'Welcome to Jim\'s Pick\'em!',
       html
@@ -88,7 +88,7 @@ export const emailService = {
     `
 
     return resend.emails.send({
-      from: 'Jim\'s Pick\'em <onboarding@resend.dev>',
+      from: 'Jim\'s Pick\'em <noreply@jimsclipboard.com>',
       to: email,
       subject: 'New Week - Make Your Picks!',
       html

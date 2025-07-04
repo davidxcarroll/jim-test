@@ -33,8 +33,23 @@ function SignUpPage() {
     setLoading(true)
 
     try {
-      await createUserWithEmailAndPassword(auth, email, password)
-      router.push('/')
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+      
+      // Send welcome email
+      try {
+        await fetch('/api/email/welcome', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email }),
+        })
+      } catch (emailError) {
+        console.error('Failed to send welcome email:', emailError)
+        // Don't fail the signup if email fails
+      }
+      
+      router.push('/settings')
     } catch (err: any) {
       setToast({ message: err.message || 'Failed to create account', type: 'error' })
     } finally {
@@ -43,19 +58,18 @@ function SignUpPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center font-chakra font-bold uppercase">
+    <div className="min-h-screen flex items-center justify-center font-chakra">
       {toast && (
         <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
       )}
-      <div className="max-w-md w-full space-y-8 p-8 bg-white">
+      <div className="w-full max-w-xl mx-auto bg-neutral-100 space-y-6 text-center p-8">
         <div className="text-center">
-        <h1 className="text-6xl font-jim font-bold">Hiya!</h1>
-        <h2 className="mt-6 max-xl:text-sm font-bold">Create Account</h2>
+        <h1 className="text-6xl font-jim">Hiya!<br/>Create an Account</h1>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        <form className="space-y-6" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="email" className="block text-sm font-medium">
+            <label htmlFor="email" className="block text-center text-sm font-bold text-black uppercase mb-1">
               Email address
             </label>
             <input
@@ -66,12 +80,12 @@ function SignUpPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 bg-neutral-100 uppercase font-bold text-center shadow-[0_0_0_1px_#000000] focus:outline-none focus:bg-white"
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium">
+            <label htmlFor="password" className="block text-center text-sm font-bold text-black uppercase mb-1">
               Password
             </label>
             <input
@@ -82,12 +96,12 @@ function SignUpPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 bg-neutral-100 uppercase font-bold text-center shadow-[0_0_0_1px_#000000] focus:outline-none focus:bg-white"
             />
           </div>
 
           <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium">
+            <label htmlFor="confirmPassword" className="block text-center text-sm font-bold text-black uppercase mb-1">
               Confirm Password
             </label>
             <input
@@ -98,7 +112,7 @@ function SignUpPage() {
               required
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 bg-neutral-100 uppercase font-bold text-center shadow-[0_0_0_1px_#000000] focus:outline-none focus:bg-white"
             />
           </div>
 
@@ -106,20 +120,21 @@ function SignUpPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              className="w-full bg-black text-white py-3 px-4 font-bold uppercase xl:text-3xl text-2xl focus:outline-none disabled:opacity-50"
             >
               {loading ? 'Creating account...' : 'Sign up'}
             </button>
           </div>
 
           <div className="text-center">
-            <p className="text-sm">
+            <p className="text-sm font-bold text-black uppercase">
               Already have an account?{' '}
-              <Link href="/signin" className="font-medium text-blue-600 hover:text-blue-500">
+              <Link href="/signin" className="underline">
                 Sign in
               </Link>
             </p>
           </div>
+
         </form>
       </div>
     </div>

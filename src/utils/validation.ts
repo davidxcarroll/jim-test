@@ -65,4 +65,8 @@ export type UserLogin = z.infer<typeof userLoginSchema>
 export type GamePick = z.infer<typeof gamePickSchema>
 export type EmailSubscription = z.infer<typeof emailSubscriptionSchema>
 export type Team = z.infer<typeof teamSchema>
-export type Game = z.infer<typeof gameSchema> 
+export type Game = z.infer<typeof gameSchema>
+
+export function hasCompletedProfile(userData: any): boolean {
+  return userData && userData.displayName && userData.displayName.trim().length > 0
+} 

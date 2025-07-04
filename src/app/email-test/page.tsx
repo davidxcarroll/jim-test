@@ -2,12 +2,14 @@
 
 import { useState } from 'react'
 import { emailService } from '@/lib/email'
+import { sendMagicLinkEmail } from '@/lib/email'
 
 export default function EmailTestPage() {
   const [email, setEmail] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<string>('')
+  const [message, setMessage] = useState('')
 
   const testWelcomeEmail = async () => {
     if (!email) {
@@ -73,6 +75,25 @@ export default function EmailTestPage() {
     }
   }
 
+  const handleSendMagicLink = async () => {
+    if (!email) {
+      setMessage('Please enter an email address')
+      return
+    }
+
+    setLoading(true)
+    setMessage('')
+
+    try {
+      await sendMagicLinkEmail(email)
+      setMessage('Magic link sent successfully! Check your email.')
+    } catch (error: any) {
+      setMessage(`Error: ${error.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center font-chakra p-4">
       <div className="w-full max-w-md mx-auto bg-neutral-100 space-y-6 p-8">
@@ -122,6 +143,14 @@ export default function EmailTestPage() {
           >
             {loading ? 'Sending...' : 'Test Weekly Reminder'}
           </button>
+
+          <button
+            onClick={handleSendMagicLink}
+            disabled={loading}
+            className="w-full bg-green-600 text-white py-3 px-4 font-bold uppercase xl:text-3xl text-2xl focus:outline-none disabled:opacity-50"
+          >
+            {loading ? 'Sending...' : 'Send Magic Link'}
+          </button>
         </div>
 
         {result && (
@@ -129,6 +158,12 @@ export default function EmailTestPage() {
             result.includes('✅') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
           }`}>
             {result}
+          </div>
+        )}
+
+        {message && (
+          <div className={`p-4 rounded ${message.includes('Error') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+            {message}
           </div>
         )}
 

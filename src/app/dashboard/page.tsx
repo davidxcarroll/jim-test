@@ -477,7 +477,7 @@ const userDisplayNames = users.map(u => toTitleCase(u.displayName || u.id))
                 {userDisplayNames.map((name, userIndex) => (
                   <th
                     key={userIndex}
-                    className="sticky top-0 z-50 bg-neutral-100 shadow-[-1px_0_0_#000000] w-32 h-16 align-middle p-0"
+                    className="sticky top-0 z-50 bg-neutral-100 shadow-[-1px_0_0_#000000] w-32 min-w-14 h-16 align-middle p-0"
                     style={{ willChange: 'transform' }}
                   >
                     <div 
@@ -541,7 +541,7 @@ const userDisplayNames = users.map(u => toTitleCase(u.displayName || u.id))
                         return (
                           <td
                             key={userIndex}
-                            className={`shadow-[inset_1px_0_0_#000000,inset_0_-1px_0_#000000] px-0 xl:h-16 h-10 align-middle font-jim xl:text-5xl text-3xl ${isCurrentUser && game.status === 'scheduled' && !saving
+                            className={`shadow-[inset_1px_0_0_#000000,inset_0_-1px_0_#000000] px-0 xl:h-16 h-10 align-middle font-jim xl:text-5xl text-3xl min-w-14 ${isCurrentUser && game.status === 'scheduled' && !saving
                               ? 'cursor-pointer hover:bg-white'
                               : isCurrentUser && game.status !== 'scheduled'
                                 ? 'cursor-not-allowed'
@@ -606,7 +606,7 @@ const userDisplayNames = users.map(u => toTitleCase(u.displayName || u.id))
                         return (
                           <td
                             key={userIndex}
-                            className={`shadow-[inset_1px_0_0_#000000] px-0 xl:h-16 h-10 align-middle font-jim xl:text-5xl text-3xl ${isCurrentUser && game.status === 'scheduled' && !saving
+                            className={`shadow-[inset_1px_0_0_#000000] px-0 xl:h-16 h-10 align-middle font-jim xl:text-5xl text-3xl min-w-14 ${isCurrentUser && game.status === 'scheduled' && !saving
                               ? 'cursor-pointer hover:bg-white'
                               : isCurrentUser && game.status !== 'scheduled'
                                 ? 'cursor-not-allowed'

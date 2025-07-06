@@ -9,7 +9,7 @@ export const teamDisplayNames: Record<string, string> = {
   'CHW': 'White Sox',       // Chicago White Sox
   'CIN': 'Reds',            // Cincinnati Reds
   'CLE': 'Commanders',      // Cleveland Guardians
-  'COL': 'Rox',             // Colorado Rockies
+  'COL': 'Rockies',         // Colorado Rockies
   'DET': 'Tigers',          // Detroit Tigers
   'HOU': 'Stros',           // Houston Astros
   'KC': 'Royals',           // Kansas City Royals

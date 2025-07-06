@@ -136,10 +136,10 @@ function isLikelyPostponed(game: any) {
 // Skeleton loading component
 function DashboardSkeleton() {
   return (
-    <div className="min-w-fit font-chakra text-2xl pb-16 select-none overflow-x-clip">
+    <div className="min-w-fit font-chakra text-2xl pb-16 select-none">
       <Navigation />
 
-      <div className="flex flex-col pt-10 lg:mx-8 md:mx-4 sm:mx-2 bg-neutral-100 overflow-x-clip">
+      <div className="flex flex-col pt-10 pr-10 lg:mx-8 md:mx-4 sm:mx-2 bg-neutral-100">
         <div className="md:pb-8 pb-4">
           <table className="min-w-full bg-neutral-100 border-separate" style={{ borderSpacing: 0 }}>
             <thead>
@@ -425,14 +425,14 @@ const userDisplayNames = users.map(u => toTitleCase(u.displayName || u.id))
         <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
       )}
 
-      <div className="flex flex-col pt-10 lg:mx-8 md:mx-4 sm:mx-2 bg-neutral-100">
+      <div className="flex flex-col pt-10 max-sm:pr-10 lg:mx-8 md:mx-4 sm:mx-2 bg-neutral-100">
         {/* Main scrollable container */}
         <div className="md:pb-8 pb-4">
           <table className="min-w-full bg-neutral-100 border-separate" style={{ borderSpacing: 0 }}>
             <thead>
               <tr className="bg-neutral-100">
                 {/* Sticky week selector header cell */}
-                <th className="sticky top-0 left-0 z-50 bg-neutral-100 shadow-[1px_0_0_#000000] w-48 min-w-fit h-16 align-middle p-0" style={{ willChange: 'transform' }}>
+                <th className="sticky top-0 left-0 z-[60] bg-neutral-100 shadow-[1px_0_0_#000000] w-48 min-w-fit h-16 align-middle p-0" style={{ willChange: 'transform' }}>
                   <div className="week-selector h-16 flex items-center justify-center relative">
                     <div
                       className="w-full h-full flex items-center justify-center gap-1 font-bold uppercase max-xl:text-sm"
@@ -451,7 +451,7 @@ const userDisplayNames = users.map(u => toTitleCase(u.displayName || u.id))
                     </div>
                     {/* Dropdown overlay */}
                     {isWeekDropdownOpen && (
-                      <div className="absolute top-full left-1/2 right-0 -translate-x-1/2 -translate-y-2 w-[calc(100%-20px)] max-xl:text-sm bg-white shadow-[inset_0_0_0_1px_#000000] z-50-2xl shadow-2xl overflow-clip">
+                      <div className="absolute top-full left-1/2 right-0 -translate-x-1/2 -translate-y-2 w-[calc(100%-20px)] max-xl:text-sm bg-white shadow-[inset_0_0_0_1px_#000000] z-[70] shadow-2xl overflow-clip">
                         {Array.from({ length: NUM_WEEKS }, (_, i) => {
                           const seasonStart = new Date('2024-03-28')
                           const weekStart = getStartOfWeekNDaysAgo(i)

@@ -145,7 +145,7 @@ function DashboardSkeleton() {
             <thead>
               <tr className="bg-neutral-100">
                 {/* Week selector skeleton */}
-                <th className="sticky top-0 left-0 z-50 bg-neutral-100 shadow-[1px_0_0_#cccccc] w-48 min-w-fit h-16 align-middle p-0">
+                <th className="sticky top-0 left-0 z-50 bg-neutral-100 border-r border-black w-48 min-w-fit h-16 align-middle p-0">
                   <div className="week-selector h-16 flex items-center justify-center relative">
                     <div className="w-full h-full flex items-center justify-center gap-1 font-bold uppercase max-xl:text-sm">
                       <div className="w-24 h-6 bg-black/10 animate-pulse"></div>
@@ -156,7 +156,7 @@ function DashboardSkeleton() {
                 {Array.from({ length: 5 }, (_, i) => (
                   <th
                     key={i}
-                    className="sticky top-0 z-50 bg-neutral-100 shadow-[-1px_0_0_#cccccc] w-32 h-16 align-middle p-0"
+                    className="sticky top-0 z-50 bg-neutral-100 border-l border-black w-32 h-16 align-middle p-0"
                   >
                     <div className="w-full h-16 flex items-center justify-center">
                       <div className="w-16 h-8 bg-black/10 animate-pulse"></div>
@@ -418,21 +418,21 @@ const userDisplayNames = users.map(u => toTitleCase(u.displayName || u.id))
   }
 
   return (
-    <div className="min-w-fit font-chakra text-2xl pb-16 select-none overflow-x-clip">
+    <div className="min-w-fit font-chakra text-2xl pb-16 select-none">
       <Navigation />
 
       {toast && (
         <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
       )}
 
-      <div className="flex flex-col pt-10 lg:mx-8 md:mx-4 sm:mx-2 bg-neutral-100 overflow-x-clip">
+      <div className="flex flex-col pt-10 lg:mx-8 md:mx-4 sm:mx-2 bg-neutral-100">
         {/* Main scrollable container */}
         <div className="md:pb-8 pb-4">
           <table className="min-w-full bg-neutral-100 border-separate" style={{ borderSpacing: 0 }}>
             <thead>
               <tr className="bg-neutral-100">
                 {/* Sticky week selector header cell */}
-                <th className="sticky top-0 left-0 z-50 bg-neutral-100 shadow-[1px_0_0_#000000] w-48 min-w-fit h-16 align-middle p-0">
+                <th className="sticky top-0 left-0 z-50 bg-neutral-100 shadow-[1px_0_0_#000000] w-48 min-w-fit h-16 align-middle p-0" style={{ willChange: 'transform' }}>
                   <div className="week-selector h-16 flex items-center justify-center relative">
                     <div
                       className="w-full h-full flex items-center justify-center gap-1 font-bold uppercase max-xl:text-sm"
@@ -478,10 +478,14 @@ const userDisplayNames = users.map(u => toTitleCase(u.displayName || u.id))
                   <th
                     key={userIndex}
                     className="sticky top-0 z-50 bg-neutral-100 shadow-[-1px_0_0_#000000] w-32 h-16 align-middle p-0"
+                    style={{ willChange: 'transform' }}
                   >
                     <div 
                       className="w-full h-16 flex items-center justify-center font-jim xl:text-5xl text-3xl cursor-pointer"
-                      onClick={() => setSelectedUser({ id: users[userIndex].id, name })}
+                      onClick={() => {
+                        console.log('👤 User clicked:', { id: users[userIndex].id, name })
+                        setSelectedUser({ id: users[userIndex].id, name })
+                      }}
                     >
                       <span className="max-w-8 flex justify-center font-light max-xl:-rotate-[55deg]">{name}</span>
                     </div>
@@ -640,7 +644,10 @@ const userDisplayNames = users.map(u => toTitleCase(u.displayName || u.id))
       {selectedUser && (
         <UserStatsModal
           isOpen={!!selectedUser}
-          onClose={() => setSelectedUser(null)}
+          onClose={() => {
+            console.log('🚪 Closing modal for user:', selectedUser)
+            setSelectedUser(null)
+          }}
           userId={selectedUser.id}
           userName={selectedUser.name}
         />

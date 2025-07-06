@@ -45,36 +45,50 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
 
   const fetchUserStats = async () => {
     setLoading(true)
+    console.log('🔍 Starting fetchUserStats for userId:', userId)
+    
     try {
       // Check if Firebase is initialized
       if (!db) {
-        console.warn('Firebase not initialized, cannot fetch user stats')
+        console.warn('❌ Firebase not initialized, cannot fetch user stats')
         setStats(null)
         return
       }
 
+      console.log('✅ Firebase is initialized, proceeding with data fetch')
+
       // Fetch user data for movies and world series pick
+      console.log('📋 Fetching user document for userId:', userId)
       const userDoc = await getDoc(doc(db, 'users', userId))
       const userData = userDoc.exists() ? userDoc.data() : {}
+      console.log('📋 User data:', userData)
+      
       const movies = userData.moviePicks || []
       const worldSeriesPick = userData.worldSeriesPick || ''
+      console.log('🎬 Movies:', movies)
+      console.log('🏆 World Series Pick:', worldSeriesPick)
 
       // Fetch world series team data if user has a pick
       if (worldSeriesPick) {
         try {
+          console.log('🏆 Fetching world series team for:', worldSeriesPick)
           const team = await getTeamByAbbreviation(worldSeriesPick)
+          console.log('🏆 World series team found:', team)
           setWorldSeriesTeam(team)
         } catch (error) {
-          console.error('Error fetching world series team:', error)
+          console.error('❌ Error fetching world series team:', error)
           setWorldSeriesTeam(null)
         }
       } else {
+        console.log('🏆 No world series pick found')
         setWorldSeriesTeam(null)
       }
 
       // Fetch all picks for this user
+      console.log('📊 Fetching picks collection for userId:', userId)
       const picksCollection = collection(db, 'users', userId, 'picks')
       const picksSnapshot = await getDocs(picksCollection)
+      console.log('📊 Picks snapshot size:', picksSnapshot.size)
 
       const weeklyStats: Record<string, { correct: number; total: number }> = {}
       let overallCorrect = 0
@@ -84,6 +98,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
       for (const pickDoc of picksSnapshot.docs) {
         const weekData = pickDoc.data()
         const weekId = pickDoc.id // Format: "2024_week-1"
+        console.log(`📅 Processing week: ${weekId}`, weekData)
 
         let weekCorrect = 0
         let weekTotal = 0
@@ -91,30 +106,36 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
         // Get week dates for fetching games
         const [season, weekStr] = weekId.split('_')
         const weekNumber = parseInt(weekStr.replace('week-', ''))
+        console.log(`📅 Week number: ${weekNumber}`)
 
         // Calculate week start date (MLB season started March 28, 2024)
         const seasonStart = new Date('2024-03-28')
         const weekStart = new Date(seasonStart.getTime() + (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000)
         const { start, end } = dateHelpers.getSundayWeekRange(weekStart)
+        console.log(`📅 Week date range: ${start.toISOString()} to ${end.toISOString()}`)
 
         // Fetch games for this week
         let weekGames: any[] = []
         try {
+          console.log(`🎮 Fetching games for week ${weekId}`)
           weekGames = await espnApi.getGamesForDateRange(start, end)
+          console.log(`🎮 Found ${weekGames.length} games for week ${weekId}`)
         } catch (error) {
-          console.error(`Error fetching games for ${weekId}:`, error)
+          console.error(`❌ Error fetching games for ${weekId}:`, error)
         }
 
         // Count picks for this week and check correctness
         Object.entries(weekData).forEach(([gameId, pick]: [string, any]) => {
           if (pick.pickedTeam && gameId) {
             weekTotal++
+            console.log(`🎯 Game ${gameId}: picked ${pick.pickedTeam}`)
 
             // Find the corresponding game
             const game = weekGames.find(g => g.id === gameId)
             if (game && (game.status === 'final' || game.status === 'post')) {
               const homeScore = Number(game.homeScore) || 0
               const awayScore = Number(game.awayScore) || 0
+              console.log(`🎯 Game ${gameId}: ${game.awayTeam.abbreviation} ${awayScore} @ ${game.homeTeam.abbreviation} ${homeScore}`)
 
               // Determine if pick was correct
               const homeWon = homeScore > awayScore
@@ -123,7 +144,12 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
 
               if (pickCorrect) {
                 weekCorrect++
+                console.log(`✅ Correct pick for game ${gameId}`)
+              } else {
+                console.log(`❌ Incorrect pick for game ${gameId}`)
               }
+            } else {
+              console.log(`⏳ Game ${gameId} not finished yet (status: ${game?.status})`)
             }
           }
         })
@@ -131,7 +157,10 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
         weeklyStats[weekId] = { correct: weekCorrect, total: weekTotal }
         overallCorrect += weekCorrect
         overallTotal += weekTotal
+        console.log(`📊 Week ${weekId}: ${weekCorrect}/${weekTotal} correct`)
       }
+
+      console.log(`📊 Overall stats: ${overallCorrect}/${overallTotal} correct`)
 
       // Convert to sorted array format
       const weeklyArray = Object.entries(weeklyStats)
@@ -152,12 +181,16 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
           return bNum - aNum // Most recent first
         })
 
+      console.log('📊 Weekly array:', weeklyArray)
+
       // Filter movies but preserve original positions
       const filteredMovies = movies
         .map((movie: string, index: number) => ({ movie: movie.trim(), position: index + 1 }))
         .filter((item: { movie: string; position: number }) => item.movie !== '')
 
-      setStats({
+      console.log('🎬 Filtered movies:', filteredMovies)
+
+      const finalStats = {
         overall: {
           correct: overallCorrect,
           total: overallTotal,
@@ -166,15 +199,28 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
         weekly: weeklyArray,
         movies: filteredMovies.map((item: { movie: string; position: number }) => item.movie),
         moviePositions: filteredMovies.map((item: { movie: string; position: number }) => item.position)
-      })
+      }
+
+      console.log('📊 Final stats object:', finalStats)
+      setStats(finalStats)
     } catch (error) {
-      console.error('Error fetching user stats:', error)
+      console.error('❌ Error fetching user stats:', error)
     } finally {
       setLoading(false)
+      console.log('✅ fetchUserStats completed')
     }
   }
 
   if (!isOpen) return null
+
+  console.log('🎭 Modal render state:', {
+    isOpen,
+    userId,
+    userName,
+    loading,
+    stats,
+    worldSeriesTeam
+  })
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
@@ -223,7 +269,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
             <div className="text-center py-6">
               <div className="text-xl max-xl:text-sm font-bold uppercase">Loading...</div>
             </div>
-          ) : (
+          ) : stats ? (
             <>
               {/* Overall Success Rate - only show if there are picks */}
               {stats?.overall && stats.overall.total > 0 && (
@@ -258,7 +304,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
                 </div>
               ))}
               {stats && stats.weekly.filter(week => week.total > 0).length === 0 && (
-                <div className="text-center py-4 text-gray-500 max-xl:text-sm font-bold uppercase">
+                <div className="text-center py-4 text-black/50 max-xl:text-sm font-bold uppercase">
                   No picks recorded yet
                 </div>
               )}
@@ -285,10 +331,14 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
 
                 </>
               )}
-            </>
-          )}
+                          </>
+            ) : (
+              <div className="text-center py-6">
+                <div className="text-xl max-xl:text-sm font-bold uppercase">No data available</div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  )
-} 
+    )
+  } 

@@ -271,7 +271,15 @@ function WeeklyMatchesPage() {
           id: doc.id,
           ...doc.data()
         } as any)).filter((user: any) => user.displayName) // Only include users with display names
-        setUsers(usersData)
+        
+        // Reorder users so current user appears first
+        const reorderedUsers = usersData.sort((a, b) => {
+          if (a.id === currentUser?.uid) return -1
+          if (b.id === currentUser?.uid) return 1
+          return 0
+        })
+        
+        setUsers(reorderedUsers)
       } catch (error) {
         console.error('Error fetching users:', error)
         setUsers([])

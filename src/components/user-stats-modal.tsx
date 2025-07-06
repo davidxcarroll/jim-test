@@ -176,8 +176,17 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
 
   if (!isOpen) return null
 
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose()
+    }
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={handleBackdropClick}
+    >
       <div className="bg-neutral-100 max-w-2xl w-full mx-2 pb-8 max-h-[98vh] overflow-y-auto">
 
         {/* Header */}
@@ -223,7 +232,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
                     <div className="w-full text-left">
                       Overall
                     </div>
-                    <div className="w-full text-center">
+                    <div className="w-full text-center leading-none">
                       {stats.overall.correct}/{stats.overall.total}
                     </div>
                     <div className="w-full text-right">
@@ -240,7 +249,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
                   <div className="w-full text-left">
                     {week.week}
                   </div>
-                  <div className="w-full text-center">
+                  <div className="w-full text-center leading-none">
                     {week.correct}/{week.total}
                   </div>
                   <div className="w-full text-right">
@@ -266,7 +275,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
                       <div className="w-14 text-left">
                         #{stats.moviePositions[index]}
                       </div>
-                      <div className="w-full text-center">
+                      <div className="w-full text-center leading-none">
                         {movie}
                       </div>
                       <div className="w-14 text-right">

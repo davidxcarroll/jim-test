@@ -359,7 +359,7 @@ function SettingsPage() {
                       type="text"
                       value={movie}
                       onChange={(e) => handleMoviePickChange(index, e.target.value)}
-                      className="w-full px-3 py-2 bg-neutral-100 uppercase font-bold max-xl:text-base text-center placeholder:text-black/30 shadow-[0_0_0_1px_#000000] focus:outline-none focus:bg-white"
+                      className="w-full py-2 bg-neutral-100 uppercase text-center font-bold max-xl:text-base text-center placeholder:text-black/30 shadow-[0_0_0_1px_#000000] focus:outline-none focus:bg-white"
                       placeholder={`#${index + 1} Movie`}
                     />
                     <div className="w-16 flex flex-row items-center justify-center gap-1">

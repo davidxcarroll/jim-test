@@ -15,7 +15,6 @@ function SignInPage() {
   const [magicLinkLoading, setMagicLinkLoading] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [showForgotPassword, setShowForgotPassword] = useState(false)
-  const [resetEmail, setResetEmail] = useState('')
   const [resetLoading, setResetLoading] = useState(false)
   const router = useRouter()
 
@@ -85,15 +84,22 @@ function SignInPage() {
     }
   }
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleForgotPassword = async () => {
     setToast(null)
+    if (!email) {
+      setToast({ message: 'Please enter your email address', type: 'error' })
+      return
+    }
     setResetLoading(true)
     try {
-      await sendPasswordResetEmail(auth, resetEmail)
+      const actionCodeSettings = {
+        url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password`,
+        handleCodeInApp: true,
+      }
+      
+      await sendPasswordResetEmail(auth, email, actionCodeSettings)
       setToast({ message: 'Password reset email sent! Check your inbox.', type: 'success' })
       setShowForgotPassword(false)
-      setResetEmail('')
     } catch (err: any) {
       let errorMessage = 'Failed to send password reset email'
       if (err.code === 'auth/user-not-found') {
@@ -163,41 +169,25 @@ function SignInPage() {
               className="w-full px-3 py-2 bg-neutral-100 uppercase font-bold text-center shadow-[0_0_0_1px_#000000] focus:outline-none focus:bg-white"
             />
 
-
             <div className="text-center mt-1">
                 <button
                   type="button"
                   className="text-sm underline text-black/50 hover:text-black font-bold uppercase"
-                  onClick={() => setShowForgotPassword((v) => !v)}
+                  onClick={async () => {
+                    setShowForgotPassword(false)
+                    setResetLoading(true)
+                    await handleForgotPassword()
+                    setResetLoading(false)
+                  }}
+                  disabled={resetLoading}
                 >
-                  Forgot Password?
+                  {resetLoading ? 'Sending...' : 'Forgot Password?'}
                 </button>
               </div>
           </div>
 
           {showForgotPassword && (
-            <div className="border-[1px] border-black p-4">
-              <form onSubmit={handleForgotPassword} className="space-y-2">
-                <label htmlFor="reset-email" className="block text-sm font-bold text-black uppercase leading-none mb-1">
-                  Enter your email to reset password
-                </label>
-                <input
-                  id="reset-email"
-                  type="email"
-                  value={resetEmail}
-                  onChange={(e) => setResetEmail(e.target.value)}
-                  className="w-full px-3 py-2 uppercase font-bold text-center text-black shadow-[0_0_0_1px_#000000] focus:outline-none bg-transparent focus:bg-white"
-                  required
-                />
-                <button
-                  type="submit"
-                  disabled={resetLoading || !resetEmail}
-                  className="w-full bg-black text-white py-3 px-4 font-bold uppercase leading-none disabled:bg-black/20"
-                >
-                  {resetLoading ? 'Sending...' : 'Send Reset Email'}
-                </button>
-              </form>
-            </div>
+            <></>
           )}
 
           <div className="space-y-4">
@@ -222,7 +212,7 @@ function SignInPage() {
               type="button"
               onClick={handleMagicLinkSignIn}
               disabled={magicLinkLoading || !email}
-              className="w-full bg-green-600 text-white py-3 px-4 font-bold uppercase leading-none focus:outline-none disabled:bg-black/20"
+              className="w-full bg-black text-white py-3 px-4 font-bold uppercase leading-none focus:outline-none disabled:bg-black/20"
             >
               {magicLinkLoading ? 'Sending Link...' : 'Sign in with Email Link'}
             </button>

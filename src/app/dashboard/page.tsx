@@ -275,6 +275,8 @@ function WeeklyMatchesPage() {
       } catch (error) {
         console.error('Error fetching users:', error)
         setUsers([])
+      } finally {
+        setLoadingUsers(false)
       }
     }
     fetchUsers()
@@ -310,6 +312,8 @@ function WeeklyMatchesPage() {
       } catch (error) {
         console.error('Error fetching picks:', error)
         setUserPicksByUser({})
+      } finally {
+        setLoadingPicks(false)
       }
     }
     fetchAllPicks()

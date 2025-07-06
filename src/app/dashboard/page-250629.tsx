@@ -95,18 +95,31 @@ function WeeklyMatchesPage() {
   useEffect(() => {
     setLoadingUsers(true)
     const fetchUsers = async () => {
-      const usersSnap = await getDocs(collection(db, 'users'))
-      const usersList = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      try {
+        // Check if Firebase is initialized
+        if (!db) {
+          console.warn('Firebase not initialized, cannot fetch users')
+          setUsers([])
+          return
+        }
 
-      // Reorder users so current user appears first
-      const reorderedUsers = usersList.sort((a, b) => {
-        if (a.id === currentUser?.uid) return -1
-        if (b.id === currentUser?.uid) return 1
-        return 0
-      })
+        const usersSnap = await getDocs(collection(db, 'users'))
+        const usersList = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
 
-      setUsers(reorderedUsers)
-      setLoadingUsers(false)
+        // Reorder users so current user appears first
+        const reorderedUsers = usersList.sort((a, b) => {
+          if (a.id === currentUser?.uid) return -1
+          if (b.id === currentUser?.uid) return 1
+          return 0
+        })
+
+        setUsers(reorderedUsers)
+      } catch (error) {
+        console.error('Error fetching users:', error)
+        setUsers([])
+      } finally {
+        setLoadingUsers(false)
+      }
     }
     fetchUsers()
   }, [currentUser])
@@ -116,13 +129,26 @@ function WeeklyMatchesPage() {
     if (users.length === 0) return
     setLoadingPicks(true)
     const fetchAllPicks = async () => {
-      const picksByUser: Record<string, any> = {}
-      await Promise.all(users.map(async (user) => {
-        const picksDoc = await getDoc(doc(db, 'users', user.id, 'picks', `${season}_${week}`))
-        picksByUser[user.id] = picksDoc.exists() ? picksDoc.data() : {}
-      }))
-      setUserPicksByUser(picksByUser)
-      setLoadingPicks(false)
+      try {
+        // Check if Firebase is initialized
+        if (!db) {
+          console.warn('Firebase not initialized, cannot fetch picks')
+          setUserPicksByUser({})
+          return
+        }
+
+        const picksByUser: Record<string, any> = {}
+        await Promise.all(users.map(async (user) => {
+          const picksDoc = await getDoc(doc(db, 'users', user.id, 'picks', `${season}_${week}`))
+          picksByUser[user.id] = picksDoc.exists() ? picksDoc.data() : {}
+        }))
+        setUserPicksByUser(picksByUser)
+      } catch (error) {
+        console.error('Error fetching picks:', error)
+        setUserPicksByUser({})
+      } finally {
+        setLoadingPicks(false)
+      }
     }
     fetchAllPicks()
   }, [users, season, week])

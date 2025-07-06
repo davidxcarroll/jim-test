@@ -20,6 +20,13 @@ function ResetPasswordPage() {
   useEffect(() => {
     const verifyResetCode = async () => {
       try {
+        // Check if Firebase is initialized
+        if (!auth) {
+          setToast({ message: 'Firebase not initialized. Please refresh the page.', type: 'error' })
+          setVerifying(false)
+          return
+        }
+
         const oobCode = searchParams.get('oobCode')
         if (!oobCode) {
           setToast({ message: 'Invalid reset link', type: 'error' })
@@ -47,6 +54,12 @@ function ResetPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setToast(null)
+
+    // Check if Firebase is initialized
+    if (!auth) {
+      setToast({ message: 'Firebase not initialized. Please refresh the page.', type: 'error' })
+      return
+    }
 
     if (password !== confirmPassword) {
       setToast({ message: 'Passwords do not match', type: 'error' })

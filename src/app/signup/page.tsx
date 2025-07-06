@@ -22,6 +22,12 @@ function SignUpPage() {
     e.preventDefault()
     setToast(null)
 
+    // Check if Firebase is initialized
+    if (!auth || !db) {
+      setToast({ message: 'Firebase not initialized. Please refresh the page.', type: 'error' })
+      return
+    }
+
     if (password !== confirmPassword) {
       setToast({ message: 'Passwords do not match', type: 'error' })
       return

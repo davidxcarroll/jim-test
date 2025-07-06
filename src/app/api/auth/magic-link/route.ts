@@ -4,6 +4,14 @@ import { auth } from '@/lib/firebase'
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if Firebase is initialized
+    if (!auth) {
+      return NextResponse.json(
+        { error: 'Firebase not initialized' },
+        { status: 500 }
+      )
+    }
+
     const { email } = await request.json()
 
     if (!email) {

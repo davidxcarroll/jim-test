@@ -12,13 +12,21 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     console.log('Setting up auth state listener...')
+    
+    // Check if Firebase is initialized
+    if (!auth) {
+      console.warn('Firebase not initialized, skipping auth state listener')
+      setLoading(false)
+      return
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       console.log('Auth state changed:', user ? `User: ${user.email}` : 'No user')
       setUser(user)
     })
 
     return () => unsubscribe()
-  }, [setUser])
+  }, [setUser, setLoading])
 
   return <>{children}</>
 }

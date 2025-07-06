@@ -53,6 +53,14 @@ export function useUserData() {
       return
     }
 
+    // Check if Firebase is initialized
+    if (!db) {
+      console.warn('Firebase not initialized, cannot fetch user data')
+      setUserData(null)
+      setLoading(false)
+      return
+    }
+
     const fetchUserData = async () => {
       try {
         const userDoc = await getDoc(doc(db, 'users', user.uid))

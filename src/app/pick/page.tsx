@@ -62,6 +62,13 @@ function PickPage() {
     setLoadingPicks(true)
     const fetchPicks = async () => {
       try {
+        // Check if Firebase is initialized
+        if (!db) {
+          console.warn('Firebase not initialized, cannot fetch picks')
+          setUserPicks({})
+          return
+        }
+
         const picksDoc = await getDoc(doc(db, 'users', user.uid, 'picks', `${season}_${week}`))
         if (picksDoc.exists()) {
           setUserPicks(picksDoc.data() || {})
@@ -80,6 +87,13 @@ function PickPage() {
   // Save pick to Firestore
   const handlePick = async (gameId: string, pick: 'home' | 'away') => {
     if (!user) return
+    
+    // Check if Firebase is initialized
+    if (!db) {
+      setToast({ message: 'Firebase not initialized. Please refresh the page.', type: 'error' })
+      return
+    }
+
     setSaving(true)
     setToast(null)
 

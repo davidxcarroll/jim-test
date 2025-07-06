@@ -77,6 +77,12 @@ function SettingsPage() {
   const loadUserSettings = async () => {
     if (!user) return
 
+    // Check if Firebase is initialized
+    if (!db) {
+      console.warn('Firebase not initialized, cannot load user settings')
+      return
+    }
+
     try {
       const userDoc = await getDoc(doc(db, 'users', user.uid))
       if (userDoc.exists()) {
@@ -106,6 +112,12 @@ function SettingsPage() {
 
   const handleSave = async () => {
     if (!user) return
+
+    // Check if Firebase is initialized
+    if (!db) {
+      setToast({ message: 'Firebase not initialized. Please refresh the page.', type: 'error' })
+      return
+    }
 
     // Validate that display name is provided
     if (!settings.displayName.trim()) {
@@ -192,6 +204,12 @@ function SettingsPage() {
   const handleSignOut = async () => {
     setLoading(true)
     try {
+      // Check if Firebase is initialized
+      if (!auth) {
+        setToast({ message: 'Firebase not initialized. Please refresh the page.', type: 'error' })
+        return
+      }
+
       await signOut(auth)
       router.push('/signin')
     } catch (error) {

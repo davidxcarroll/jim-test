@@ -12,6 +12,14 @@ export async function POST(request: NextRequest) {
       await emailService.sendWeeklyReminder(email)
       return NextResponse.json({ success: true })
     } else {
+      // Check if Firebase is initialized
+      if (!db) {
+        return NextResponse.json(
+          { error: 'Firebase not initialized' },
+          { status: 500 }
+        )
+      }
+
       // Send to all users who have opted in
       const usersRef = collection(db, 'users')
       const q = query(usersRef, where('emailNotifications', '==', true))

@@ -21,6 +21,13 @@ function SignInPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setToast(null)
+    
+    // Check if Firebase is initialized
+    if (!auth) {
+      setToast({ message: 'Firebase not initialized. Please refresh the page.', type: 'error' })
+      return
+    }
+    
     setLoading(true)
 
     try {
@@ -59,6 +66,12 @@ function SignInPage() {
       return
     }
 
+    // Check if Firebase is initialized
+    if (!auth) {
+      setToast({ message: 'Firebase not initialized. Please refresh the page.', type: 'error' })
+      return
+    }
+
     setToast(null)
     setMagicLinkLoading(true)
 
@@ -90,6 +103,13 @@ function SignInPage() {
       setToast({ message: 'Please enter your email address', type: 'error' })
       return
     }
+    
+    // Check if Firebase is initialized
+    if (!auth) {
+      setToast({ message: 'Firebase not initialized. Please refresh the page.', type: 'error' })
+      return
+    }
+    
     setResetLoading(true)
     try {
       const actionCodeSettings = {

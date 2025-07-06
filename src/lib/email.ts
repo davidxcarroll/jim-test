@@ -12,6 +12,11 @@ export interface EmailData {
 
 // Helper function to send email link
 export const sendMagicLinkEmail = async (email: string) => {
+  // Check if Firebase is initialized
+  if (!auth) {
+    throw new Error('Firebase not initialized')
+  }
+
   const actionCodeSettings = {
     url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth-complete`,
     handleCodeInApp: true,

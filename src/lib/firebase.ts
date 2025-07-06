@@ -13,14 +13,35 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 }
 
-// Initialize Firebase
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
+// Only initialize Firebase if we have the required config and we're not in a build environment
+const shouldInitializeFirebase = () => {
+  return (
+    typeof window !== 'undefined' || // Client-side
+    (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_FIREBASE_API_KEY) || // Production with env vars
+    process.env.NODE_ENV === 'development' // Development
+  )
+}
 
-// Initialize Firebase services
-export const auth = getAuth(app)
-export const db = getFirestore(app)
+// Initialize Firebase only when needed
+let app: any = null
+let auth: any = null
+let db: any = null
+let analytics: any = null
 
-// Initialize Analytics (only in browser environment)
-export const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null
+if (shouldInitializeFirebase()) {
+  try {
+    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
+    auth = getAuth(app)
+    db = getFirestore(app)
+    
+    // Initialize Analytics (only in browser environment)
+    if (typeof window !== 'undefined') {
+      analytics = getAnalytics(app)
+    }
+  } catch (error) {
+    console.warn('Firebase initialization failed:', error)
+  }
+}
 
+export { auth, db, analytics }
 export default app 

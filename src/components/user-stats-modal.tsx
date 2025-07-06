@@ -46,6 +46,13 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
   const fetchUserStats = async () => {
     setLoading(true)
     try {
+      // Check if Firebase is initialized
+      if (!db) {
+        console.warn('Firebase not initialized, cannot fetch user stats')
+        setStats(null)
+        return
+      }
+
       // Fetch user data for movies and world series pick
       const userDoc = await getDoc(doc(db, 'users', userId))
       const userData = userDoc.exists() ? userDoc.data() : {}

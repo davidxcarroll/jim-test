@@ -13,6 +13,14 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Check if Firebase is initialized
+    if (!db) {
+      return NextResponse.json(
+        { error: 'Firebase not initialized' },
+        { status: 500 }
+      )
+    }
+
     // Get all users who have opted in to email notifications
     const usersRef = collection(db, 'users')
     const q = query(usersRef, where('emailNotifications', '==', true))

@@ -258,18 +258,24 @@ function WeeklyMatchesPage() {
   useEffect(() => {
     setLoadingUsers(true)
     const fetchUsers = async () => {
-      const usersSnap = await getDocs(collection(db, 'users'))
-      const usersList = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      try {
+        // Check if Firebase is initialized
+        if (!db) {
+          console.warn('Firebase not initialized, cannot fetch users')
+          setUsers([])
+          return
+        }
 
-      // Reorder users so current user appears first
-      const reorderedUsers = usersList.sort((a, b) => {
-        if (a.id === currentUser?.uid) return -1
-        if (b.id === currentUser?.uid) return 1
-        return 0
-      })
-
-      setUsers(reorderedUsers)
-      setLoadingUsers(false)
+        const usersSnapshot = await getDocs(collection(db, 'users'))
+        const usersData = usersSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as any)).filter((user: any) => user.displayName) // Only include users with display names
+        setUsers(usersData)
+      } catch (error) {
+        console.error('Error fetching users:', error)
+        setUsers([])
+      }
     }
     fetchUsers()
   }, [currentUser])
@@ -279,13 +285,32 @@ function WeeklyMatchesPage() {
     if (users.length === 0) return
     setLoadingPicks(true)
     const fetchAllPicks = async () => {
-      const picksByUser: Record<string, any> = {}
-      await Promise.all(users.map(async (user) => {
-        const picksDoc = await getDoc(doc(db, 'users', user.id, 'picks', `${season}_${week}`))
-        picksByUser[user.id] = picksDoc.exists() ? picksDoc.data() : {}
-      }))
-      setUserPicksByUser(picksByUser)
-      setLoadingPicks(false)
+      try {
+        // Check if Firebase is initialized
+        if (!db) {
+          console.warn('Firebase not initialized, cannot fetch picks')
+          setUserPicksByUser({})
+          return
+        }
+
+        const picksPromises = users.map(async (user) => {
+          const picksDoc = await getDoc(doc(db, 'users', user.id, 'picks', `${season}_${week}`))
+          return {
+            userId: user.id,
+            picks: picksDoc.exists() ? picksDoc.data() : {}
+          }
+        })
+
+        const picksResults = await Promise.all(picksPromises)
+        const picksMap: Record<string, any> = {}
+        picksResults.forEach(result => {
+          picksMap[result.userId] = result.picks
+        })
+        setUserPicksByUser(picksMap)
+      } catch (error) {
+        console.error('Error fetching picks:', error)
+        setUserPicksByUser({})
+      }
     }
     fetchAllPicks()
   }, [users, season, week])

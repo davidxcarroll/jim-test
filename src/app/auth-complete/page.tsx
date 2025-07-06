@@ -16,6 +16,13 @@ function AuthCompletePage() {
   useEffect(() => {
     const completeSignIn = async () => {
       try {
+        // Check if Firebase is initialized
+        if (!auth) {
+          setError('Firebase not initialized. Please refresh the page.')
+          setLoading(false)
+          return
+        }
+
         // Check if this is an email link sign-in
         if (!isSignInWithEmailLink(auth, window.location.href)) {
           setError('Invalid sign-in link')

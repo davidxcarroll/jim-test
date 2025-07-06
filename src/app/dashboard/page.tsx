@@ -12,6 +12,7 @@ import { collection, getDocs, doc, getDoc, setDoc, serverTimestamp } from 'fireb
 import { useAuthStore } from '@/store/auth-store'
 import { Toast } from '@/components/toast'
 import { Tooltip } from '@/components/tooltip'
+import { UserStatsModal } from '@/components/user-stats-modal'
 // @ts-ignore
 import * as Checks from '@/components/checks'
 // @ts-ignore
@@ -144,7 +145,7 @@ function DashboardSkeleton() {
             <thead>
               <tr className="bg-neutral-100">
                 {/* Week selector skeleton */}
-                <th className="sticky top-0 left-0 z-[1000] bg-neutral-100 shadow-[1px_0_0_#cccccc] w-48 min-w-fit h-16 align-middle p-0">
+                <th className="sticky top-0 left-0 z-50 bg-neutral-100 shadow-[1px_0_0_#cccccc] w-48 min-w-fit h-16 align-middle p-0">
                   <div className="week-selector h-16 flex items-center justify-center relative">
                     <div className="w-full h-full flex items-center justify-center gap-1 font-bold uppercase max-xl:text-sm">
                       <div className="w-24 h-6 bg-black/10 animate-pulse"></div>
@@ -231,6 +232,7 @@ function WeeklyMatchesPage() {
   const [loadingPicks, setLoadingPicks] = useState(true)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [selectedUser, setSelectedUser] = useState<{ id: string; name: string } | null>(null)
 
   const { season, week } = getSeasonAndWeek(startOfWeek)
 
@@ -393,7 +395,7 @@ const userDisplayNames = users.map(u => toTitleCase(u.displayName || u.id))
             <thead>
               <tr className="bg-neutral-100">
                 {/* Sticky week selector header cell */}
-                <th className="sticky top-0 left-0 z-[1000] bg-neutral-100 shadow-[1px_0_0_#000000] w-48 min-w-fit h-16 align-middle p-0">
+                <th className="sticky top-0 left-0 z-50 bg-neutral-100 shadow-[1px_0_0_#000000] w-48 min-w-fit h-16 align-middle p-0">
                   <div className="week-selector h-16 flex items-center justify-center relative">
                     <div
                       className="w-full h-full flex items-center justify-center gap-1 font-bold uppercase max-xl:text-sm"
@@ -440,7 +442,10 @@ const userDisplayNames = users.map(u => toTitleCase(u.displayName || u.id))
                     key={userIndex}
                     className="sticky top-0 z-50 bg-neutral-100 shadow-[-1px_0_0_#000000] w-32 h-16 align-middle p-0"
                   >
-                    <div className="w-full h-16 flex items-center justify-center font-jim xl:text-5xl text-3xl">
+                    <div 
+                      className="w-full h-16 flex items-center justify-center font-jim xl:text-5xl text-3xl cursor-pointer"
+                      onClick={() => setSelectedUser({ id: users[userIndex].id, name })}
+                    >
                       <span className="max-w-8 flex justify-center font-light max-xl:-rotate-[55deg]">{name}</span>
                     </div>
                   </th>
@@ -519,7 +524,7 @@ const userDisplayNames = users.map(u => toTitleCase(u.displayName || u.id))
                         <div className="relative flex items-center justify-center h-full">
                           {/* Show warning icon if needed, else live icon if live */}
                           {((statusWarningMap[game.status?.toLowerCase?.()] || isLikelyPostponed(game)) ? (
-                            <div className="absolute right-[-18.5px] top-[-1.5px] -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-yellow-400-full">
+                            <div className="absolute right-[-18.5px] top-[-1.5px] -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-yellow-400 rounded-full">
                               <Tooltip content={
                                 isLikelyPostponed(game)
                                   ? 'Likely postponed (no result reported)'
@@ -529,7 +534,7 @@ const userDisplayNames = users.map(u => toTitleCase(u.displayName || u.id))
                               </Tooltip>
                             </div>
                           ) : game.status === "live" && (
-                            <div className="absolute right-[-18.5px] top-[-1.5px] -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-green-400-full">
+                            <div className="absolute right-[-18.5px] top-[-1.5px] -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-green-400 rounded-full">
                               <Tooltip content="Game in Progress" position="right">
                               <span className="material-symbols-sharp !text-sm mb-[1px] animate-ping">sports_baseball</span>
                               </Tooltip>
@@ -593,6 +598,16 @@ const userDisplayNames = users.map(u => toTitleCase(u.displayName || u.id))
       <div className="mt-8 2xl:text-8xl xl:text-7xl lg:text-6xl md:text-5xl sm:text-4xl text-3xl leading-none text-center font-bold text-black uppercase mix-blend-soft-light">
         Long Live The Clipboard
       </div>
+
+      {/* User Stats Modal */}
+      {selectedUser && (
+        <UserStatsModal
+          isOpen={!!selectedUser}
+          onClose={() => setSelectedUser(null)}
+          userId={selectedUser.id}
+          userName={selectedUser.name}
+        />
+      )}
 
     </div>
   )

@@ -19,12 +19,12 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ 
       success: true, 
-      message: 'Magic link sent successfully' 
+      message: 'Email link sent successfully' 
     })
   } catch (error: any) {
-    console.error('Error sending magic link:', error)
+    console.error('Error sending email link:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to send magic link' },
+      { error: error.message || 'Failed to send email link' },
       { status: 500 }
     )
   }

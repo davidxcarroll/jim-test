@@ -27,7 +27,7 @@ A comprehensive MLB baseball data and analytics platform built with modern web t
 1. Clone the repository:
 ```bash
 git clone <your-repo-url>
-cd JIM-TEST
+cd jims-clipboard
 ```
 
 2. Install dependencies:

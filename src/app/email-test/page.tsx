@@ -86,7 +86,7 @@ export default function EmailTestPage() {
 
     try {
       await sendMagicLinkEmail(email)
-      setMessage('Magic link sent successfully! Check your email.')
+      setMessage('Email link sent successfully! Check your email.')
     } catch (error: any) {
       setMessage(`Error: ${error.message}`)
     } finally {
@@ -149,7 +149,7 @@ export default function EmailTestPage() {
             disabled={loading}
             className="w-full bg-green-600 text-white py-3 px-4 font-bold uppercase xl:text-3xl text-2xl focus:outline-none disabled:opacity-50"
           >
-            {loading ? 'Sending...' : 'Send Magic Link'}
+            {loading ? 'Sending...' : 'Send Email Link'}
           </button>
         </div>
 

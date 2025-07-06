@@ -10,7 +10,7 @@ export interface EmailData {
   html: string
 }
 
-// Helper function to send magic link email
+// Helper function to send email link
 export const sendMagicLinkEmail = async (email: string) => {
   const actionCodeSettings = {
     url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth-complete`,
@@ -21,7 +21,7 @@ export const sendMagicLinkEmail = async (email: string) => {
     await sendSignInLinkToEmail(auth, email, actionCodeSettings)
     return { success: true }
   } catch (error) {
-    console.error('Error sending magic link:', error)
+    console.error('Error sending email link:', error)
     throw error
   }
 }
@@ -55,7 +55,7 @@ export const emailService = {
               <p>Get ready to make your picks and compete with friends!</p>
               <p><strong>Quick Sign In:</strong> Click the button below to sign in and go straight to your dashboard!</p>
               <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/signin" class="button magic-link">Sign In & Start Making Picks</a></p>
-              <p><small>Once you click the button, you can use the "Sign in with Magic Link" option for passwordless authentication!</small></p>
+              <p><small>Once you click the button, you can use the "Sign in with Email Link" option for passwordless authentication!</small></p>
             </div>
             <div class="footer">
               <p>Thanks for joining us!</p>
@@ -99,7 +99,7 @@ export const emailService = {
               <p>A new week has started in Jim's Clipboard!</p>
               <p>Don't forget to make your picks to stay in the competition.</p>
               <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/signin" class="button">Sign In & Make Your Picks</a></p>
-              <p><small>Use the "Sign in with Magic Link" option for quick passwordless access!</small></p>
+              <p><small>Use the "Sign in with Email Link" option for quick passwordless access!</small></p>
             </div>
             <div class="footer">
               <p>Good luck this week!</p>

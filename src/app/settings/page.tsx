@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { signOut } from 'firebase/auth'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { auth, db } from '@/lib/firebase'
@@ -19,6 +19,7 @@ interface UserSettings {
   displayName: string
   worldSeriesPick: string
   emailNotifications: boolean
+  moviePicks: string[]
 }
 
 function SettingsPage() {
@@ -26,7 +27,8 @@ function SettingsPage() {
   const [settings, setSettings] = useState<UserSettings>({
     displayName: '',
     worldSeriesPick: '',
-    emailNotifications: false
+    emailNotifications: false,
+    moviePicks: Array(10).fill('')
   })
   const [originalUserData, setOriginalUserData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
@@ -34,6 +36,8 @@ function SettingsPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
   const [teams, setTeams] = useState<Team[]>([])
+  const [showMovies, setShowMovies] = useState(false)
+  const moviesSectionRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
   // Fetch official, active teams from ESPN API on mount
@@ -81,7 +85,8 @@ function SettingsPage() {
         setSettings({
           displayName: data.displayName || '',
           worldSeriesPick: data.worldSeriesPick || '',
-          emailNotifications: data.emailNotifications || false
+          emailNotifications: data.emailNotifications || false,
+          moviePicks: data.moviePicks || Array(10).fill('')
         })
       }
     } catch (error) {
@@ -113,19 +118,21 @@ function SettingsPage() {
 
     try {
       await setDoc(doc(db, 'users', user.uid), {
+        email: user.email,
         displayName: settings.displayName.trim(),
         worldSeriesPick: settings.worldSeriesPick,
         emailNotifications: settings.emailNotifications,
+        moviePicks: settings.moviePicks,
         updatedAt: new Date()
       }, { merge: true })
 
       setToast({ message: 'Settings saved successfully!', type: 'success' })
-      
+
       // Trigger a refresh of user data in navigation
       if (typeof window !== 'undefined' && (window as any).refreshUserData) {
         (window as any).refreshUserData()
       }
-      
+
       // Navigate to dashboard after a short delay to show the success message
       setTimeout(() => {
         router.push('/dashboard')
@@ -135,6 +142,50 @@ function SettingsPage() {
       console.error('Error saving settings:', error)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleMoviePickChange = (index: number, value: string) => {
+    const newMoviePicks = [...settings.moviePicks]
+    newMoviePicks[index] = value
+    setSettings(prev => ({ ...prev, moviePicks: newMoviePicks }))
+  }
+
+  const handleMoveMovieUp = (index: number) => {
+    if (index === 0) return // Can't move first item up
+
+    const newMoviePicks = [...settings.moviePicks]
+    const temp = newMoviePicks[index]
+    newMoviePicks[index] = newMoviePicks[index - 1]
+    newMoviePicks[index - 1] = temp
+    setSettings(prev => ({ ...prev, moviePicks: newMoviePicks }))
+  }
+
+  const handleMoveMovieDown = (index: number) => {
+    if (index === settings.moviePicks.length - 1) return // Can't move last item down
+
+    const newMoviePicks = [...settings.moviePicks]
+    const temp = newMoviePicks[index]
+    newMoviePicks[index] = newMoviePicks[index + 1]
+    newMoviePicks[index + 1] = temp
+    setSettings(prev => ({ ...prev, moviePicks: newMoviePicks }))
+  }
+
+  const handleToggleMovies = () => {
+    const newShowMovies = !showMovies
+    setShowMovies(newShowMovies)
+
+    // If we're showing movies, scroll to the section after a brief delay to ensure it's rendered
+    if (newShowMovies) {
+      setTimeout(() => {
+        const element = moviesSectionRef.current
+        if (element) {
+          element.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+          })
+        }
+      }, 200) // Increased delay to ensure DOM is fully updated
     }
   }
 
@@ -156,12 +207,14 @@ function SettingsPage() {
         <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
       )}
 
-      <div className="flex flex-col items-center justify-center gap-4 xl:px-8 px-4 pt-8 pb-16 lg:mx-8 md:mx-4 sm:mx-2 bg-neutral-100">
+      <div className="relative flex flex-col items-center justify-center gap-4 xl:px-8 px-4 pt-8 pb-16 lg:mx-8 md:mx-4 sm:mx-2 bg-neutral-100">
 
-        <h1 className="font-jim 2xl:text-8xl xl:text-7xl text-6xl text-center">Settings</h1>
+        <h1 className="font-jim xl:text-7xl lg:text-6xl md:text-5xl text-4xl text-center">Settings</h1>
 
         <div className="w-full max-w-xl mx-auto bg-neutral-100 space-y-6 text-center">
+
           <div>
+
             <div className="flex items-center justify-center gap-2 text-center text-sm font-bold text-black uppercase mb-1">
               <label htmlFor="email">Email</label>
               <button
@@ -177,7 +230,7 @@ function SettingsPage() {
               type="email"
               value={user?.email || ''}
               disabled
-              className="w-full px-3 py-2 text-black/50 uppercase font-bold text-center shadow-[0_0_0_1px_#aaa] cursor-not-allowed"
+              className="w-full px-3 py-2 text-black/50 uppercase font-bold max-xl:text-base text-center shadow-[0_0_0_1px_#aaa] cursor-not-allowed"
             />
           </div>
 
@@ -190,12 +243,32 @@ function SettingsPage() {
               type="text"
               value={settings.displayName}
               onChange={(e) => setSettings(prev => ({ ...prev, displayName: e.target.value }))}
-              className="w-full px-3 py-2 bg-neutral-100 uppercase font-bold text-center placeholder:text-black/30 shadow-[0_0_0_1px_#000000] focus:outline-none focus:bg-white"
+              className="w-full px-3 py-2 bg-neutral-100 uppercase font-bold max-xl:text-base text-center placeholder:text-black/30 shadow-[0_0_0_1px_#000000] focus:outline-none focus:bg-white"
               placeholder="Shorter the better"
             />
           </div>
 
           <div>
+            <p className="block text-center text-sm font-bold text-black uppercase mb-1">
+              Notifications
+            </p>
+            <label className="block p-4 shadow-[0_0_0_1px_#000000]">
+              <div className="flex sm:flex-row flex-col items-center justify-center gap-2 uppercase max-xl:text-base font-bold mb-1 leading-none">
+                <input
+                  type="checkbox"
+                  checked={settings.emailNotifications}
+                  onChange={(e) => setSettings(prev => ({ ...prev, emailNotifications: e.target.checked }))}
+                  className="w-6 h-6 accent-black cursor-pointer"
+                />
+                Weekly Reminder
+              </div>
+              <p className="block text-center text-sm font-bold text-black uppercase">
+                Email me when a new week starts
+              </p>
+            </label>
+          </div>
+
+          <div className="relative">
             <label htmlFor="worldSeriesPick" className="block text-center text-sm font-bold text-black uppercase mb-1">
               World Series Pick
             </label>
@@ -203,7 +276,7 @@ function SettingsPage() {
               id="worldSeriesPick"
               value={settings.worldSeriesPick}
               onChange={(e) => setSettings(prev => ({ ...prev, worldSeriesPick: e.target.value }))}
-              className="w-full px-3 py-2 bg-neutral-100 uppercase font-bold text-center shadow-[0_0_0_1px_#000000] focus:outline-none focus:bg-white"
+              className="absolute inset-0 opacity-0 cursor-pointer z-20"
             >
               <option value="">Select a team</option>
               {teams.map((team) => (
@@ -213,7 +286,7 @@ function SettingsPage() {
               ))}
             </select>
             <div
-              className="relative w-full h-40 flex items-center justify-center shadow-[0_0_0_1px_#000000]"
+              className="relative w-full h-20 flex items-center justify-center shadow-[0_0_0_1px_#000000] cursor-pointer"
               style={{
                 background: selectedTeam?.color && selectedTeam?.alternateColor
                   ? `linear-gradient(135deg, ${formatHexColor(selectedTeam.color)}, ${formatHexColor(selectedTeam.alternateColor)})`
@@ -230,34 +303,72 @@ function SettingsPage() {
                 }}
               />
               {selectedTeam?.logo ? (
-                <img
-                  src={selectedTeam.logo}
-                  alt={`${selectedTeam.name} logo`}
-                  className="w-36 h-36 object-contain z-10"
-                />
+                <div className="w-full flex flex-row items-center justify-center gap-2 z-10 text-white">
+                  <img
+                    src={selectedTeam.logo}
+                    alt={`${selectedTeam.name} logo`}
+                    className="w-16 h-16 object-contain"
+                  />
+                  <div className="text-center uppercase font-bold max-xl:text-base">
+                    {teamDisplayNames[selectedTeam.abbreviation] || selectedTeam.name}
+                  </div>
+                  <span className="material-symbols-sharp ml-1">arrow_drop_down</span>
+                </div>
               ) : (
-                <div className="">
+                <div className="flex flex-row items-center justify-center text-center text-black/50 uppercase font-bold z-10">
+                  Select a Team
+                  <span className="material-symbols-sharp ml-1">arrow_drop_down</span>
                 </div>
               )}
             </div>
           </div>
 
-          <label className="block p-4 shadow-[0_0_0_1px_#000000]">
-            <div className="flex sm:flex-row flex-col items-center justify-center gap-2 uppercase font-bold mb-1 leading-none">
-              <input
-                type="checkbox"
-                checked={settings.emailNotifications}
-                onChange={(e) => setSettings(prev => ({ ...prev, emailNotifications: e.target.checked }))}
-                className="w-6 h-6 accent-black cursor-pointer"
-              />
-              Send Reminders
-            </div>
-            <p className="text-sm font-bold text-black uppercase text-center mt-1 leading-none text-pretty">
-              Get an email reminder when a new week starts
-            </p>
-          </label>
+          <hr className="w-full border-t-[1px] border-black/50" />
 
-          <hr className="w-full !my-8 border-black" />
+          {showMovies && (
+            <div ref={moviesSectionRef} className="scroll-mt-8">
+
+              <h1 className="font-jim xl:text-7xl lg:text-6xl md:text-5xl text-4xl text-center">Top 10 Movies</h1>
+
+              <div className="w-full flex flex-col items-center justify-center py-8">
+                {settings.moviePicks.map((movie, index) => (
+                  <div key={index} className="w-full flex flex-row items-center justify-center gap-1">
+                    <label htmlFor={`movie-${index + 1}`} className="block w-8 flex-shrink-0 text-center text-sm font-bold text-black uppercase mb-1">
+                      #{index + 1}
+                    </label>
+                    <input
+                      id={`movie-${index + 1}`}
+                      type="text"
+                      value={movie}
+                      onChange={(e) => handleMoviePickChange(index, e.target.value)}
+                      className="w-full px-3 py-2 bg-neutral-100 uppercase font-bold max-xl:text-base text-center placeholder:text-black/30 shadow-[0_0_0_1px_#000000] focus:outline-none focus:bg-white"
+                      placeholder={`#${index + 1} Movie`}
+                    />
+                    <div className="w-16 flex flex-row items-center justify-center gap-1">
+                      <button
+                        onClick={() => handleMoveMovieUp(index)}
+                        className={`material-symbols-sharp cursor-pointer hover:text-black/70 text-black/50 ${index === 0 ? 'invisible pointer-events-none' : ''}`}
+                        tabIndex={index === 0 ? -1 : 0}
+                        aria-disabled={index === 0}
+                      >
+                        keyboard_arrow_up
+                      </button>
+                      <button
+                        onClick={() => handleMoveMovieDown(index)}
+                        className={`material-symbols-sharp cursor-pointer hover:text-black/70 text-black/50 ${index === settings.moviePicks.length - 1 ? 'invisible pointer-events-none' : ''}`}
+                        tabIndex={index === settings.moviePicks.length - 1 ? -1 : 0}
+                        aria-disabled={index === settings.moviePicks.length - 1}
+                      >
+                        keyboard_arrow_down
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <hr className="w-full border-t-[1px] border-black/50" />
+            </div>
+          )}
 
           <button
             onClick={handleSave}
@@ -267,18 +378,19 @@ function SettingsPage() {
             {saving ? 'Saving...' : 'Done'}
           </button>
 
-          {/* <hr className="w-full border-black" /> */}
-
-          {/* <button
-            onClick={handleSignOut}
-            disabled={loading}
-            className="inline-block text-black/50 font-bold uppercase leading-none focus:outline-none disabled:opacity-50"
-          >
-            {loading ? 'Signing out...' : 'Sign Out'}
-          </button> */}
-
         </div>
+
+        <div className="absolute top-14 right-3">
+          <button
+            onClick={handleToggleMovies}
+            className="focus:outline-none hover:scale-110 transition-transform"
+          >
+            <span className="material-symbols-sharp text-red-500">local_activity</span>
+          </button>
+        </div>
+
       </div>
+
     </div>
   )
 }

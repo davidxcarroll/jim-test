@@ -18,6 +18,7 @@ import * as Checks from '@/components/checks'
 // @ts-ignore
 import * as Circles from '@/components/circles'
 import React from 'react'
+import { LiveGameDisplay } from '@/components/live-game-display'
 
 const NUM_WEEKS = 5
 
@@ -145,7 +146,7 @@ function DashboardSkeleton() {
             <thead>
               <tr className="bg-neutral-100">
                 {/* Week selector skeleton */}
-                <th className="sticky top-0 left-0 z-50 bg-neutral-100 border-r border-black w-48 min-w-fit h-16 align-middle p-0">
+                <th className="sticky top-0 left-0 z-50 bg-neutral-100 shadow-[1px_0_0_#cccccc] w-48 min-w-fit h-16 align-middle p-0">
                   <div className="week-selector h-16 flex items-center justify-center relative">
                     <div className="w-full h-full flex items-center justify-center gap-1 font-bold uppercase max-xl:text-sm">
                       <div className="w-24 h-6 bg-black/10 animate-pulse"></div>
@@ -156,7 +157,7 @@ function DashboardSkeleton() {
                 {Array.from({ length: 5 }, (_, i) => (
                   <th
                     key={i}
-                    className="sticky top-0 z-50 bg-neutral-100 border-l border-black w-32 h-16 align-middle p-0"
+                    className="sticky top-0 z-50 bg-neutral-100 shadow-[inset_1px_0_0_#cccccc] w-32 h-16 align-middle p-0"
                   >
                     <div className="w-full h-16 flex items-center justify-center">
                       <div className="w-16 h-8 bg-black/10 animate-pulse"></div>
@@ -234,6 +235,12 @@ function WeeklyMatchesPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [selectedUser, setSelectedUser] = useState<{ id: string; name: string } | null>(null)
 
+  const [loadTimeout, setLoadTimeout] = useState(false)
+  useEffect(() => {
+    const timer = setTimeout(() => setLoadTimeout(true), 10000) // 10 seconds
+    return () => clearTimeout(timer)
+  }, [])
+
   const { season, week } = getSeasonAndWeek(startOfWeek)
 
   // Close dropdown when clicking outside
@@ -271,14 +278,14 @@ function WeeklyMatchesPage() {
           id: doc.id,
           ...doc.data()
         } as any)).filter((user: any) => user.displayName) // Only include users with display names
-        
+
         // Reorder users so current user appears first
         const reorderedUsers = usersData.sort((a, b) => {
           if (a.id === currentUser?.uid) return -1
           if (b.id === currentUser?.uid) return 1
           return 0
         })
-        
+
         setUsers(reorderedUsers)
       } catch (error) {
         console.error('Error fetching users:', error)
@@ -336,26 +343,34 @@ function WeeklyMatchesPage() {
   })
 
   // Helper to filter unique games by id
-function getUniqueGamesById(games: any[]) {
-  const seen = new Set()
-  return games.filter(game => {
-    if (seen.has(game.id)) return false
-    seen.add(game.id)
-    return true
-  })
-}
+  function getUniqueGamesById(games: any[]) {
+    const seen = new Set()
+    return games.filter(game => {
+      if (seen.has(game.id)) return false
+      seen.add(game.id)
+      return true
+    })
+  }
 
-// Helper to convert text to title case
-function toTitleCase(text: string): string {
-  return text
-    .toLowerCase()
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-}
+  // Helper to convert text to title case
+  function toTitleCase(text: string): string {
+    return text
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+  }
 
-// User display names for header
-const userDisplayNames = users.map(u => toTitleCase(u.displayName || u.id))
+  // Helper to truncate text if longer than 8 characters
+  function truncateName(name: string): string {
+    if (name.length > 7) {
+      return name.substring(0, 7) + '...'
+    }
+    return name
+  }
+
+  // User display names for header
+  const userDisplayNames = users.map(u => truncateName(toTitleCase(u.displayName || u.id)))
 
   // Save pick to Firestore
   const handlePick = async (gameId: string, pick: 'home' | 'away') => {
@@ -413,8 +428,21 @@ const userDisplayNames = users.map(u => toTitleCase(u.displayName || u.id))
   }
 
   // Show skeleton while loading
-  if (isLoading || loadingUsers || loadingPicks) {
+  if ((isLoading || loadingUsers || loadingPicks) && !loadTimeout) {
     return <DashboardSkeleton />
+  }
+  if (loadTimeout && (isLoading || loadingUsers || loadingPicks)) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen font-chakra text-2xl bg-neutral-100">
+        <div className="mb-4 text-red-600 font-bold">Something went wrong loading the dashboard.</div>
+        <button
+          className="px-6 py-3 bg-black text-white rounded-lg font-bold hover:bg-neutral-800 transition"
+          onClick={() => window.location.reload()}
+        >
+          Retry
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -425,7 +453,7 @@ const userDisplayNames = users.map(u => toTitleCase(u.displayName || u.id))
         <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
       )}
 
-      <div className="flex flex-col pt-10 max-sm:pr-10 lg:mx-8 md:mx-4 sm:mx-2 bg-neutral-100">
+      <div className="flex flex-col pt-10 lg:mx-8 md:mx-4 sm:mx-2 bg-neutral-100">
         {/* Main scrollable container */}
         <div className="md:pb-8 pb-4">
           <table className="min-w-full bg-neutral-100 border-separate" style={{ borderSpacing: 0 }}>
@@ -433,7 +461,7 @@ const userDisplayNames = users.map(u => toTitleCase(u.displayName || u.id))
               <tr className="bg-neutral-100">
                 {/* Sticky week selector header cell */}
                 <th className="sticky top-0 left-0 z-[60] bg-neutral-100 shadow-[1px_0_0_#000000] w-48 min-w-fit h-16 align-middle p-0" style={{ willChange: 'transform' }}>
-                  <div className="week-selector h-16 flex items-center justify-center relative">
+                  <div className="week-selector h-16 flex items-center justify-center relative cursor-pointer">
                     <div
                       className="w-full h-full flex items-center justify-center gap-1 font-bold uppercase max-xl:text-sm"
                       onClick={() => setIsWeekDropdownOpen(!isWeekDropdownOpen)}
@@ -443,7 +471,7 @@ const userDisplayNames = users.map(u => toTitleCase(u.displayName || u.id))
                         const seasonStart = new Date('2024-03-28')
                         const weekStart = getStartOfWeekNDaysAgo(weekOffset)
                         const weekNumber = Math.ceil((weekStart.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
-                        return `Week ${weekNumber}`
+                        return `${weekOffset === 0 ? ' 🏈' : ''} Week ${weekNumber}`
                       })()}
                       <span className={`material-symbols-sharp transition-transform`}>
                         arrow_drop_down
@@ -465,7 +493,7 @@ const userDisplayNames = users.map(u => toTitleCase(u.displayName || u.id))
                                 setIsWeekDropdownOpen(false)
                               }}
                             >
-                              Week {weekNumber}
+                              {i === 0 ? '🏈' : ''} Week {weekNumber}
                             </div>
                           )
                         })}
@@ -480,14 +508,14 @@ const userDisplayNames = users.map(u => toTitleCase(u.displayName || u.id))
                     className="sticky top-0 z-50 bg-neutral-100 shadow-[-1px_0_0_#000000] w-32 min-w-14 h-16 align-middle p-0"
                     style={{ willChange: 'transform' }}
                   >
-                    <div 
-                      className="w-full h-16 flex items-center justify-center font-jim xl:text-5xl text-3xl cursor-pointer"
+                    <div
+                      className="w-full h-16 flex lg:items-center items-end justify-center font-jim xl:text-5xl text-3xl cursor-pointer"
                       onClick={() => {
                         console.log('👤 User clicked:', { id: users[userIndex].id, name })
                         setSelectedUser({ id: users[userIndex].id, name })
                       }}
                     >
-                      <span className="max-w-8 flex justify-center font-light max-xl:-rotate-[55deg]">{name}</span>
+                      <span className="max-w-8 flex lg:justify-center justify-start font-light max-lg:-rotate-90">{name}</span>
                     </div>
                   </th>
                 ))}
@@ -512,75 +540,10 @@ const userDisplayNames = users.map(u => toTitleCase(u.displayName || u.id))
                 // All game rows for this day, flattened
                 ...(getUniqueGamesById(dayGames ?? [])).flatMap((game, gameIdx) => {
                   return [
-                    <tr key={game.id + '-' + game.date + '-home'}>
-                      {/* Sticky left: Home team info */}
-                      <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_1px_0_#000000,1px_0_0_#000000] px-2 xl:h-16 h-10 align-middle font-jim xl:text-5xl text-3xl">
-                        <div className="relative flex items-center justify-center h-full">
-                          {(() => {
-                            const isFinal = game.status === 'final' || game.status === 'post'
-                            const homeWon = isFinal && (game.homeScore ?? 0) > (game.awayScore ?? 0)
-                            if (homeWon) {
-                              const CircleTeam = getDeterministicCircleTeamComponent(getTeamCircleSize(game.homeTeam), `${game.id}_home`)
-                              return <CircleTeam className="w-full h-[0.9em]" />
-                            }
-                            return null
-                          })()}
-                          <span className="text-black">
-                            {getTeamDisplayNameFromTeam(game.homeTeam)}
-                          </span>
-                        </div>
-                      </td>
-                      {/* User picks for home team */}
-                      {users.map((user, userIndex) => {
-                        const pick = userPicksByUser[user.id]?.[game.id]?.pickedTeam
-                        const homeCorrect = pick === 'home' && (game.homeScore ?? 0) > (game.awayScore ?? 0)
-                        const isCurrentUser = user.id === currentUser?.uid
-                        const isGameFinished = game.status === 'final' || game.status === 'post'
-                        const HomeCheck = getDeterministicCheckComponent(`${game.id}_${user.id}_home`)
-                        const HomeCircleCheck = getDeterministicCircleCheckComponent(`${game.id}_${user.id}_home`)
-                        return (
-                          <td
-                            key={userIndex}
-                            className={`shadow-[inset_1px_0_0_#000000,inset_0_-1px_0_#000000] px-0 xl:h-16 h-10 align-middle font-jim xl:text-5xl text-3xl min-w-14 ${isCurrentUser && game.status === 'scheduled' && !saving
-                              ? 'cursor-pointer hover:bg-white'
-                              : isCurrentUser && game.status !== 'scheduled'
-                                ? 'cursor-not-allowed'
-                                : ''
-                            }`}
-                            onClick={isCurrentUser ? () => handlePick(game.id, 'home') : undefined}
-                          >
-                            {pick === 'home' && (
-                              <div className="relative flex items-center justify-center h-full">
-                                <HomeCheck className="w-10 h-10 xl:w-12 xl:h-12 transform translate-x-3 -translate-y-2" />
-                                {homeCorrect && isGameFinished && <HomeCircleCheck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-12 xl:w-20 xl:h-15" />}
-                              </div>
-                            )}
-                          </td>
-                        )
-                      })}
-                    </tr>,
                     <tr key={game.id + '-' + game.date + '-away'}>
                       {/* Sticky left: Away team info */}
-                      <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_-1px_0_#000000,1px_0_0_#000000] px-2 xl:h-16 h-10 align-middle font-jim xl:text-5xl text-3xl">
+                      <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_1px_0_#000000,1px_0_0_#000000] px-2 xl:h-16 h-10 align-middle font-jim xl:text-5xl text-3xl">
                         <div className="relative flex items-center justify-center h-full">
-                          {/* Show warning icon if needed, else live icon if live */}
-                          {((statusWarningMap[game.status?.toLowerCase?.()] || isLikelyPostponed(game)) ? (
-                            <div className="absolute right-[-18.5px] top-[-1.5px] -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-yellow-400 rounded-full">
-                              <Tooltip content={
-                                isLikelyPostponed(game)
-                                  ? 'Likely postponed (no result reported)'
-                                  : statusWarningMap[game.status.toLowerCase()]
-                              } position="right">
-                                <span className="material-symbols-sharp !text-sm mb-[1px]">warning</span>
-                              </Tooltip>
-                            </div>
-                          ) : game.status === "live" && (
-                            <div className="absolute right-[-18.5px] top-[-1.5px] -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-green-400 rounded-full">
-                              <Tooltip content="Game in Progress" position="right">
-                              <span className="material-symbols-sharp !text-sm mb-[1px] animate-ping">sports_baseball</span>
-                              </Tooltip>
-                            </div>
-                          ))}
                           {(() => {
                             const isFinal = game.status === 'final' || game.status === 'post'
                             const awayWon = isFinal && (game.awayScore ?? 0) > (game.homeScore ?? 0)
@@ -606,17 +569,17 @@ const userDisplayNames = users.map(u => toTitleCase(u.displayName || u.id))
                         return (
                           <td
                             key={userIndex}
-                            className={`shadow-[inset_1px_0_0_#000000] px-0 xl:h-16 h-10 align-middle font-jim xl:text-5xl text-3xl min-w-14 ${isCurrentUser && game.status === 'scheduled' && !saving
+                            className={`shadow-[inset_1px_0_0_#000000,inset_0_-1px_0_#000000] px-0 xl:h-16 h-10 align-middle font-jim xl:text-5xl text-3xl min-w-14 ${isCurrentUser && game.status === 'scheduled' && !saving
                               ? 'cursor-pointer hover:bg-white'
                               : isCurrentUser && game.status !== 'scheduled'
                                 ? 'cursor-not-allowed'
                                 : ''
-                            }`}
+                              }`}
                             onClick={isCurrentUser ? () => handlePick(game.id, 'away') : undefined}
                           >
                             {pick === 'away' && (
                               <div className="relative flex items-center justify-center h-full">
-                                <AwayCheck className="w-10 h-10 xl:w-12 xl:h-12 transform translate-x-2" />
+                                <AwayCheck className="w-10 h-10 xl:w-12 xl:h-12 transform translate-x-3 -translate-y-2" />
                                 {awayCorrect && isGameFinished && <AwayCircleCheck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-12 xl:w-20 xl:h-15" />}
                               </div>
                             )}
@@ -624,6 +587,79 @@ const userDisplayNames = users.map(u => toTitleCase(u.displayName || u.id))
                         )
                       })}
                     </tr>,
+                    <tr key={game.id + '-' + game.date + '-home'}>
+                      {/* Sticky left: Home team info */}
+                      <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_-1px_0_#000000,1px_0_0_#000000] px-2 xl:h-16 h-10 align-middle font-jim xl:text-5xl text-3xl">
+                        <div className="relative flex items-center justify-center h-full">
+                          {/* Show warning icon if needed, else live icon if live */}
+                          {((statusWarningMap[game.status?.toLowerCase?.()] || isLikelyPostponed(game)) ? (
+                            <div className="absolute right-[-18.5px] top-[-1.5px] -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-yellow-400 rounded-full">
+                              <Tooltip content={
+                                isLikelyPostponed(game)
+                                  ? 'Likely postponed (no result reported)'
+                                  : statusWarningMap[game.status.toLowerCase()]
+                              } position="right">
+                                <span className="material-symbols-sharp !text-sm mb-[1px]">warning</span>
+                              </Tooltip>
+                            </div>
+                          ) : game.status === "live" && (
+                            <div className="absolute right-[-18.5px] top-[-1.5px] -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-green-400 shadow-[0_0_0_1px_#000000] rounded-full">
+                              <Tooltip content="Game in Progress" position="right">
+                                <span className="material-symbols-sharp !text-sm mb-[1px] animate-ping">sports_baseball</span>
+                              </Tooltip>
+                            </div>
+                          ))}
+                          {(() => {
+                            const isFinal = game.status === 'final' || game.status === 'post'
+                            const homeWon = isFinal && (game.homeScore ?? 0) > (game.awayScore ?? 0)
+                            if (homeWon) {
+                              const CircleTeam = getDeterministicCircleTeamComponent(getTeamCircleSize(game.homeTeam), `${game.id}_home`)
+                              return <CircleTeam className="w-full h-[0.9em]" />
+                            }
+                            return null
+                          })()}
+                          <span className="text-black">
+                            {getTeamDisplayNameFromTeam(game.homeTeam)}
+                          </span>
+                        </div>
+                      </td>
+                      {/* User picks for home team */}
+                      {users.map((user, userIndex) => {
+                        const pick = userPicksByUser[user.id]?.[game.id]?.pickedTeam
+                        const homeCorrect = pick === 'home' && (game.homeScore ?? 0) > (game.awayScore ?? 0)
+                        const isCurrentUser = user.id === currentUser?.uid
+                        const isGameFinished = game.status === 'final' || game.status === 'post'
+                        const HomeCheck = getDeterministicCheckComponent(`${game.id}_${user.id}_home`)
+                        const HomeCircleCheck = getDeterministicCircleCheckComponent(`${game.id}_${user.id}_home`)
+                        return (
+                          <td
+                            key={userIndex}
+                            className={`shadow-[inset_1px_0_0_#000000] px-0 xl:h-16 h-10 align-middle font-jim xl:text-5xl text-3xl min-w-14 ${isCurrentUser && game.status === 'scheduled' && !saving
+                              ? 'cursor-pointer hover:bg-white'
+                              : isCurrentUser && game.status !== 'scheduled'
+                                ? 'cursor-not-allowed'
+                                : ''
+                              }`}
+                            onClick={isCurrentUser ? () => handlePick(game.id, 'home') : undefined}
+                          >
+                            {pick === 'home' && (
+                              <div className="relative flex items-center justify-center h-full">
+                                <HomeCheck className="w-10 h-10 xl:w-12 xl:h-12 transform translate-x-2" />
+                                {homeCorrect && isGameFinished && <HomeCircleCheck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-12 xl:w-20 xl:h-15" />}
+                              </div>
+                            )}
+                          </td>
+                        )
+                      })}
+                    </tr>,
+                    // New: LiveGameDisplay row (only for live games)
+                    ...(game.status === 'live' ? [
+                      <tr key={game.id + '-' + game.date + '-livegame'}>
+                        <td colSpan={1 + userDisplayNames.length} className="p-0 align-middle shadow-lg">
+                          <LiveGameDisplay gameId={game.id} />
+                        </td>
+                      </tr>
+                    ] : []),
                     // Blank row between matchups
                     <tr key={game.id + '-' + game.date + '-spacer'}>
                       <td colSpan={1 + userDisplayNames.length} className="h-8"></td>

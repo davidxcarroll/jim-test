@@ -20,7 +20,7 @@ export const teamDisplayNames: Record<string, string> = {
   'MIN': 'Twins',           // Minnesota Twins
   'NYM': 'Mets',            // New York Mets
   'NYY': 'Yanks',           // New York Yankees
-  'OAK': 'Athletics',       // Oakland Athletics
+  'ATH': 'Athletics',       // Oakland Athletics
   'PHI': 'Phils',           // Philadelphia Phillies
   'PIT': 'Bucs',            // Pittsburgh Pirates
   'SD': 'Pads',             // San Diego Padres
@@ -31,7 +31,6 @@ export const teamDisplayNames: Record<string, string> = {
   'TEX': 'Rangers',         // Texas Rangers
   'TOR': 'Jays',            // Toronto Blue Jays
   'WSH': 'Nats',            // Washington Nationals
-  'ATH': 'Athletics',       // Athletics (alternate abbreviation for OAK)
 }
 
 /**

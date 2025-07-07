@@ -6,8 +6,16 @@ export interface Team {
   division: string
   league: string
   logo?: string
+  logos?: {
+    default?: string
+    dark?: string
+    scoreboard?: string
+    darkScoreboard?: string
+  }
   color?: string
   alternateColor?: string
+  wins?: number
+  losses?: number
 }
 
 export interface Player {

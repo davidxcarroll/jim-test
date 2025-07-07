@@ -10,10 +10,12 @@ import { ProtectedRoute } from '@/components/protected-route'
 import { Navigation } from '@/components/navigation'
 import { Toast } from '@/components/toast'
 import { teamDisplayNames } from '@/utils/team-names'
-import { getTeamByAbbreviation, formatHexColor } from '@/utils/team-utils'
+import { getTeamByAbbreviation, formatHexColor, getTeamLogo, getTeamBackgroundAndLogo } from '@/utils/team-utils'
 import { Team } from '@/types/mlb'
 import { espnApi } from '@/lib/espn-api'
 import image from 'next/image'
+import { loadTeamColorMappings, subscribeToTeamColorMappingChanges, getTeamColorMapping } from '@/store/team-color-mapping-store'
+import { MovieSearchInput } from '@/components/movie-search-input'
 
 interface UserSettings {
   displayName: string
@@ -35,6 +37,7 @@ function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
+  const [selectedTeamStyle, setSelectedTeamStyle] = useState<{ background: string; logoType: 'default' | 'dark' | 'scoreboard' | 'darkScoreboard' }>({ background: '#F5F5F5', logoType: 'dark' })
   const [teams, setTeams] = useState<Team[]>([])
   const [showMovies, setShowMovies] = useState(false)
   const moviesSectionRef = useRef<HTMLDivElement>(null)
@@ -56,6 +59,8 @@ function SettingsPage() {
       }
     }
     fetchTeams()
+    // Load team color mappings from Firestore on mount
+    loadTeamColorMappings(true)
   }, [])
 
   // Load user settings on component mount
@@ -67,12 +72,41 @@ function SettingsPage() {
 
   // Load team data when world series pick changes
   useEffect(() => {
-    if (settings.worldSeriesPick) {
-      loadTeamData(settings.worldSeriesPick)
-    } else {
-      setSelectedTeam(null)
+    const loadTeamDataAndStyle = async () => {
+      if (settings.worldSeriesPick) {
+        await loadTeamData(settings.worldSeriesPick)
+      } else {
+        setSelectedTeam(null)
+        setSelectedTeamStyle({ background: '#F5F5F5', logoType: 'dark' })
+      }
     }
+    loadTeamDataAndStyle()
   }, [settings.worldSeriesPick])
+
+  // Subscribe to mapping changes and update team style if needed
+  useEffect(() => {
+    // Always update preview when mapping changes
+    const unsubscribe = subscribeToTeamColorMappingChanges(() => {
+      if (selectedTeam) {
+        const mapping = getTeamColorMapping(selectedTeam.abbreviation)
+        // Use mapping to determine background and logoType
+        let background = '#F5F5F5'
+        let logoType: 'default' | 'dark' | 'scoreboard' | 'darkScoreboard' = 'dark'
+        if (mapping) {
+          if (mapping.backgroundColorChoice === 'custom' && mapping.customColor) {
+            background = mapping.customColor
+          } else if (mapping.backgroundColorChoice === 'secondary' && selectedTeam.alternateColor) {
+            background = selectedTeam.alternateColor.startsWith('#') ? selectedTeam.alternateColor : `#${selectedTeam.alternateColor}`
+          } else if (selectedTeam.color) {
+            background = selectedTeam.color.startsWith('#') ? selectedTeam.color : `#${selectedTeam.color}`
+          }
+          logoType = mapping.logoType || 'dark'
+        }
+        setSelectedTeamStyle({ background, logoType })
+      }
+    })
+    return unsubscribe
+  }, [selectedTeam])
 
   const loadUserSettings = async () => {
     if (!user) return
@@ -104,9 +138,49 @@ function SettingsPage() {
     try {
       const team = await getTeamByAbbreviation(abbreviation)
       setSelectedTeam(team)
+      if (team) {
+        const mapping = getTeamColorMapping(team.abbreviation)
+        // Use mapping to determine background and logoType
+        let background = '#F5F5F5'
+        let logoType: 'default' | 'dark' | 'scoreboard' | 'darkScoreboard' = 'dark'
+        if (mapping) {
+          if (mapping.backgroundColorChoice === 'custom' && mapping.customColor) {
+            background = mapping.customColor
+          } else if (mapping.backgroundColorChoice === 'secondary' && team.alternateColor) {
+            background = team.alternateColor.startsWith('#') ? team.alternateColor : `#${team.alternateColor}`
+          } else if (team.color) {
+            background = team.color.startsWith('#') ? team.color : `#${team.color}`
+          }
+          logoType = mapping.logoType || 'dark'
+        }
+        setSelectedTeamStyle({ background, logoType })
+      }
     } catch (error) {
       console.error('Error loading team data:', error)
       setSelectedTeam(null)
+      setSelectedTeamStyle({ background: '#F5F5F5', logoType: 'dark' })
+    }
+  }
+
+  const saveWorldSeriesPick = async (teamAbbreviation: string) => {
+    if (!user || !db) return
+
+    try {
+      await setDoc(doc(db, 'users', user.uid), {
+        worldSeriesPick: teamAbbreviation,
+        updatedAt: new Date()
+      }, { merge: true })
+
+      const teamName = teamDisplayNames[teamAbbreviation] || teams.find(t => t.abbreviation === teamAbbreviation)?.name || teamAbbreviation
+      setToast({ message: `World Series pick saved: ${teamName}!`, type: 'success' })
+
+      // Trigger a refresh of user data in navigation
+      if (typeof window !== 'undefined' && (window as any).refreshUserData) {
+        (window as any).refreshUserData()
+      }
+    } catch (error) {
+      console.error('Error saving World Series pick:', error)
+      setToast({ message: 'Error saving World Series pick. Please try again.', type: 'error' })
     }
   }
 
@@ -229,7 +303,7 @@ function SettingsPage() {
 
         <h1 className="font-jim xl:text-7xl lg:text-6xl md:text-5xl text-4xl text-center">Settings</h1>
 
-        <div className="w-full max-w-xl mx-auto bg-neutral-100 space-y-6 text-center">
+        <div className="w-full max-w-[800px] mx-auto bg-neutral-100 space-y-6 text-center">
 
           <div>
 
@@ -293,7 +367,13 @@ function SettingsPage() {
             <select
               id="worldSeriesPick"
               value={settings.worldSeriesPick}
-              onChange={(e) => setSettings(prev => ({ ...prev, worldSeriesPick: e.target.value }))}
+              onChange={(e) => {
+                const newValue = e.target.value
+                setSettings(prev => ({ ...prev, worldSeriesPick: newValue }))
+                if (newValue) {
+                  saveWorldSeriesPick(newValue)
+                }
+              }}
               className="absolute inset-0 opacity-0 cursor-pointer z-20"
             >
               <option value="">Select a team</option>
@@ -306,12 +386,10 @@ function SettingsPage() {
             <div
               className="relative w-full h-20 flex items-center justify-center shadow-[0_0_0_1px_#000000] cursor-pointer"
               style={{
-                background: selectedTeam?.color && selectedTeam?.alternateColor
-                  ? `linear-gradient(135deg, ${formatHexColor(selectedTeam.color)}, ${formatHexColor(selectedTeam.alternateColor)})`
-                  : '#F5F5F5'
+                background: selectedTeamStyle.background
               }}
             >
-              <div
+              {/* <div
                 className="absolute top-0 left-0 w-full h-full flex z-10"
                 style={{
                   backgroundImage: `url(/images/texture/texture-6.jpg)`,
@@ -319,11 +397,11 @@ function SettingsPage() {
                   mixBlendMode: 'plus-lighter',
                   opacity: '0.2'
                 }}
-              />
+              /> */}
               {selectedTeam?.logo ? (
                 <div className="w-full flex flex-row items-center justify-center gap-2 z-10 text-white">
                   <img
-                    src={selectedTeam.logo}
+                    src={getTeamLogo(selectedTeam, selectedTeamStyle.logoType)}
                     alt={`${selectedTeam.name} logo`}
                     className="w-16 h-16 object-contain"
                   />
@@ -354,12 +432,9 @@ function SettingsPage() {
                     <label htmlFor={`movie-${index + 1}`} className="block w-8 flex-shrink-0 text-center text-sm font-bold text-black uppercase mb-1">
                       #{index + 1}
                     </label>
-                    <input
-                      id={`movie-${index + 1}`}
-                      type="text"
+                    <MovieSearchInput
                       value={movie}
-                      onChange={(e) => handleMoviePickChange(index, e.target.value)}
-                      className="w-full py-2 bg-neutral-100 uppercase text-center font-bold max-xl:text-base text-center placeholder:text-black/30 shadow-[0_0_0_1px_#000000] focus:outline-none focus:bg-white"
+                      onChange={(value) => handleMoviePickChange(index, value)}
                       placeholder={`#${index + 1} Movie`}
                     />
                     <div className="w-16 flex flex-row items-center justify-center gap-1">

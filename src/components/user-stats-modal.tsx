@@ -6,8 +6,10 @@ import { db } from '@/lib/firebase'
 import { format } from 'date-fns'
 import { espnApi } from '@/lib/espn-api'
 import { dateHelpers } from '@/utils/date-helpers'
-import { getTeamByAbbreviation } from '@/utils/team-utils'
+import { getTeamByAbbreviation, getTeamLogo, getTeamBackgroundAndLogo } from '@/utils/team-utils'
 import { Team } from '@/types/mlb'
+import { loadTeamColorMappings } from '@/store/team-color-mapping-store'
+import { tmdbApi } from '@/lib/tmdb-api'
 
 interface UserStatsModalProps {
   isOpen: boolean
@@ -32,10 +34,19 @@ interface UserStats {
   moviePositions: number[]
 }
 
+interface MoviePoster {
+  title: string
+  posterUrl: string
+  position: number
+}
+
 export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsModalProps) {
   const [stats, setStats] = useState<UserStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [worldSeriesTeam, setWorldSeriesTeam] = useState<Team | null>(null)
+  const [mappingsLoaded, setMappingsLoaded] = useState(false)
+  const [moviePosters, setMoviePosters] = useState<MoviePoster[]>([])
+  const [postersLoading, setPostersLoading] = useState(false)
 
   useEffect(() => {
     if (isOpen && userId) {
@@ -43,10 +54,65 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
     }
   }, [isOpen, userId])
 
+  useEffect(() => {
+    loadTeamColorMappings().then(() => setMappingsLoaded(true))
+  }, [])
+
+  // Fetch movie posters when stats change
+  useEffect(() => {
+    if (stats?.movies && stats.movies.length > 0) {
+      fetchMoviePosters()
+    }
+  }, [stats?.movies])
+
+  const fetchMoviePosters = async () => {
+    if (!stats?.movies) return
+    
+    setPostersLoading(true)
+    const posters: MoviePoster[] = []
+
+    for (let i = 0; i < stats.movies.length; i++) {
+      const movieTitle = stats.movies[i]
+      if (!movieTitle.trim()) continue
+
+      try {
+        // Search for the movie
+        const searchResults = await tmdbApi.searchMovies(movieTitle, 1)
+        if (searchResults.length > 0) {
+          const movie = searchResults[0] // Get the first (most relevant) result
+          const posterUrl = tmdbApi.getPosterUrl(movie.poster_path || null, 'w342')
+          posters.push({
+            title: movieTitle,
+            posterUrl,
+            position: stats.moviePositions[i]
+          })
+        } else {
+          // Use placeholder if no poster found
+          posters.push({
+            title: movieTitle,
+            posterUrl: '/images/clip-305.png',
+            position: stats.moviePositions[i]
+          })
+        }
+      } catch (error) {
+        console.error(`Error fetching poster for ${movieTitle}:`, error)
+        // Use placeholder on error
+        posters.push({
+          title: movieTitle,
+          posterUrl: '/images/clip-305.png',
+          position: stats.moviePositions[i]
+        })
+      }
+    }
+
+    setMoviePosters(posters)
+    setPostersLoading(false)
+  }
+
   const fetchUserStats = async () => {
     setLoading(true)
     console.log('🔍 Starting fetchUserStats for userId:', userId)
-    
+
     try {
       // Check if Firebase is initialized
       if (!db) {
@@ -62,7 +128,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
       const userDoc = await getDoc(doc(db, 'users', userId))
       const userData = userDoc.exists() ? userDoc.data() : {}
       console.log('📋 User data:', userData)
-      
+
       const movies = userData.moviePicks || []
       const worldSeriesPick = userData.worldSeriesPick || ''
       console.log('🎬 Movies:', movies)
@@ -211,7 +277,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
     }
   }
 
-  if (!isOpen) return null
+  if (!isOpen || !mappingsLoaded) return null
 
   console.log('🎭 Modal render state:', {
     isOpen,
@@ -229,8 +295,8 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
   }
 
   return (
-    <div 
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50"
       onClick={handleBackdropClick}
     >
       <div className="bg-neutral-100 max-w-2xl w-full mx-2 pb-8 max-h-[98vh] overflow-y-auto">
@@ -238,21 +304,40 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
         {/* Header */}
         <div className="sticky top-0 bg-neutral-100 shadow-[0_1px_0_#000000] p-1">
           <div className="relative flex items-center justify-between">
-            
-            <div className="xl:w-20 xl:h-20 w-10 h-10 flex items-center justify-center">
-              {worldSeriesTeam && (
-                <img
-                  src={worldSeriesTeam.logo}
-                  alt={worldSeriesTeam.name}
-                  className="w-full h-full object-contain"
-                />
-              )}
-            </div>
-            
+
+            {(() => {
+              console.log('🎨 User Stats Modal - About to call getTeamBackgroundAndLogo for:', worldSeriesTeam?.abbreviation)
+              const teamStyle = worldSeriesTeam ? getTeamBackgroundAndLogo(worldSeriesTeam) : null
+              console.log('🎨 User Stats Modal - Team Style Debug:', {
+                team: worldSeriesTeam?.abbreviation,
+                teamName: worldSeriesTeam?.name,
+                background: teamStyle?.background,
+                logoType: teamStyle?.logoType,
+                teamColor: worldSeriesTeam?.color,
+                teamAlternateColor: worldSeriesTeam?.alternateColor
+              })
+              return (
+                <div
+                  className="xl:w-20 xl:h-20 w-10 h-10 flex items-center justify-center p-1 rounded-full shadow-[0_0_0_1px_#000000]"
+                  style={{
+                    backgroundColor: teamStyle ? teamStyle.background : 'transparent'
+                  }}
+                >
+                  {worldSeriesTeam && (
+                    <img
+                      src={getTeamLogo(worldSeriesTeam, teamStyle?.logoType || 'dark')}
+                      alt={worldSeriesTeam.name}
+                      className="w-full h-full object-contain"
+                    />
+                  )}
+                </div>
+              )
+            })()}
+
             <h2 className="font-jim xl:text-7xl lg:text-6xl md:text-5xl text-4xl text-center leading-10 capitalize">
               {userName}
             </h2>
-            
+
             <button
               onClick={onClose}
               className="xl:w-20 xl:h-20 w-10 h-10 flex items-center justify-center"
@@ -316,7 +401,33 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
 
                   <h2 className="font-jim xl:text-7xl lg:text-6xl md:text-5xl text-4xl text-center leading-10">Top 10 Movies</h2>
 
-                  {stats.movies.map((movie, index) => (
+                  {/* Image list */}
+                  {postersLoading ? (
+                    <div className="text-center py-4">
+                      <div className="text-sm font-bold uppercase">Loading posters...</div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-5 gap-2 max-xl:gap-1">
+                      {moviePosters.map((poster, index) => (
+                        <div key={index} className="relative">
+                          <div className="aspect-[2/3] shadow-[0_0_0_1px_#000000] overflow-hidden">
+                            <img
+                              src={poster.posterUrl}
+                              alt={poster.title}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          </div>
+                          {/* <div className="absolute top-1 left-1 bg-black text-white text-xs font-bold px-1 py-0.5 shadow-[0_0_0_1px_#000000]">
+                            #{poster.position}
+                          </div> */}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Text list */}
+                  {/* {stats.movies.map((movie, index) => (
                     <div key={index} className="flex flex-row items-center justify-center gap-1 max-xl:text-sm font-bold uppercase">
                       <div className="w-14 text-left">
                         #{stats.moviePositions[index]}
@@ -327,18 +438,18 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
                       <div className="w-14 text-right">
                       </div>
                     </div>
-                  ))}
+                  ))} */}
 
                 </>
               )}
-                          </>
-            ) : (
-              <div className="text-center py-6">
-                <div className="text-xl max-xl:text-sm font-bold uppercase">No data available</div>
-              </div>
-            )}
-          </div>
+            </>
+          ) : (
+            <div className="text-center py-6">
+              <div className="text-xl max-xl:text-sm font-bold uppercase">No data available</div>
+            </div>
+          )}
         </div>
       </div>
-    )
-  } 
+    </div>
+  )
+} 

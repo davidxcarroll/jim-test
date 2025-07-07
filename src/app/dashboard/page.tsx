@@ -447,6 +447,7 @@ function WeeklyMatchesPage() {
 
   return (
     <div className="min-w-fit font-chakra text-2xl pb-16 select-none">
+      
       <Navigation />
 
       {toast && (

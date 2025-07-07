@@ -41,8 +41,10 @@ export async function GET(request: NextRequest) {
 
     const data: TMDBSearchResponse = await response.json()
     
-    // Limit results to 5 and format them
-    const limitedResults = data.results.slice(0, 5).map(movie => ({
+    console.log(`[TMDB API] Search for "${query}" returned ${data.results.length} results:`, data.results.map(r => r.title))
+    
+    // Limit results to 10 and format them
+    const limitedResults = data.results.slice(0, 10).map(movie => ({
       id: movie.id,
       title: movie.title,
       release_date: movie.release_date,
@@ -50,6 +52,8 @@ export async function GET(request: NextRequest) {
       overview: movie.overview,
       vote_average: movie.vote_average
     }))
+
+    console.log(`[TMDB API] Returning limited results:`, limitedResults.map(r => r.title))
 
     return NextResponse.json({
       results: limitedResults,

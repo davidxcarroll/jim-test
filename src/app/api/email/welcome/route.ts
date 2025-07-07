@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { emailService } from '@/lib/email'
+import { emailService } from '@/lib/welcome-email'
+
+console.log("RESEND_API_KEY:", process.env.RESEND_API_KEY);
 
 export async function POST(request: NextRequest) {
   try {

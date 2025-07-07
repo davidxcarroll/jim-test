@@ -94,9 +94,30 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
         // Search for the movie
         const searchResults = await tmdbApi.searchMovies(movieTitle, 1)
         console.log(`[TMDB] Search results for '${movieTitle}':`, searchResults)
+        
         if (searchResults.length > 0) {
-          const movie = searchResults[0] // Get the first (most relevant) result
-          const posterUrl = tmdbApi.getPosterUrl(movie.poster_path || null, 'w342')
+          // Try to find an exact match first
+          let selectedMovie = searchResults.find(movie => 
+            movie.title.toLowerCase() === movieTitle.toLowerCase()
+          )
+          
+          // If no exact match, try partial match
+          if (!selectedMovie) {
+            selectedMovie = searchResults.find(movie => 
+              movie.title.toLowerCase().includes(movieTitle.toLowerCase()) ||
+              movieTitle.toLowerCase().includes(movie.title.toLowerCase())
+            )
+          }
+          
+          // If still no match, use the first result
+          if (!selectedMovie) {
+            selectedMovie = searchResults[0]
+            console.warn(`[TMDB] No exact match found for '${movieTitle}', using first result: '${selectedMovie.title}'`)
+          } else {
+            console.log(`[TMDB] Found match for '${movieTitle}': '${selectedMovie.title}'`)
+          }
+          
+          const posterUrl = tmdbApi.getPosterUrl(selectedMovie.poster_path || null, 'w342')
           posters.push({
             title: movieTitle,
             posterUrl,
@@ -107,7 +128,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
           console.warn(`[TMDB] No poster found for '${movieTitle}', using placeholder.`)
           posters.push({
             title: movieTitle,
-            posterUrl: '/images/clip-305.png',
+            posterUrl: '', // Use empty string to indicate placeholder
             position: stats.moviePositions[i]
           })
         }
@@ -116,7 +137,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
         // Use placeholder on error
         posters.push({
           title: movieTitle,
-          posterUrl: '/images/clip-305.png',
+          posterUrl: '', // Use empty string to indicate placeholder
           position: stats.moviePositions[i]
         })
       }
@@ -316,7 +337,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
       className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50"
       onClick={handleBackdropClick}
     >
-      <div className="bg-neutral-100 max-w-2xl w-full mx-2 pb-8 max-h-[98vh] overflow-y-auto">
+      <div className="bg-neutral-100 max-w-2xl w-full mx-2 max-h-[98vh] overflow-y-auto">
 
         {/* Header */}
         <div className="sticky top-0 bg-neutral-100 shadow-[0_1px_0_#000000] p-1">
@@ -425,21 +446,37 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
                     </div>
                   ) : (
                     <div className="grid grid-cols-5 gap-2 max-xl:gap-1">
-                      {moviePosters.map((poster, index) => (
-                        <div key={index} className="relative">
-                          <div className="aspect-[2/3] shadow-[0_0_0_1px_#000000] overflow-hidden">
-                            <img
-                              src={poster.posterUrl}
-                              alt={poster.title}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                            />
-                          </div>
-                          {/* <div className="absolute top-1 left-1 bg-black text-white text-xs font-bold px-1 py-0.5 shadow-[0_0_0_1px_#000000]">
-                            #{poster.position}
-                          </div> */}
-                        </div>
-                      ))}
+                      {Array.from({ length: 10 }).map((_, index) => {
+                        // Find the movie poster whose position matches (index + 1)
+                        const poster = moviePosters.find(p => p.position === index + 1)
+                        if (poster && poster.title && poster.title.trim() !== '') {
+                          return (
+                            <div key={index} className="relative">
+                              <div className="aspect-[2/3] shadow-[0_0_0_1px_#000000] overflow-hidden flex items-center justify-center">
+                                {poster.posterUrl ? (
+                                  <img
+                                    src={poster.posterUrl}
+                                    alt={poster.title}
+                                    className="w-full h-full object-cover"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <span className="material-symbols-sharp text-6xl text-black/30">screenshot_frame</span>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        } else {
+                          // Empty slot placeholder with position number (index + 1)
+                          return (
+                            <div key={index} className="relative">
+                              <div className="aspect-[2/3] shadow-[0_0_0_1px_#000000] overflow-hidden flex items-center justify-center">
+                                <span className="text-3xl font-bold text-black/20 select-none">{index + 1}</span>
+                              </div>
+                            </div>
+                          )
+                        }
+                      })}
                     </div>
                   )}
                   

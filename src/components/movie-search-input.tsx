@@ -31,7 +31,28 @@ export function MovieSearchInput({ value, onChange, placeholder, className = '' 
     setIsSearching(true)
     try {
       const results = await tmdbApi.searchMovies(query, 1)
-      setSearchResults(results.slice(0, 3)) // Limit to 3 results
+      console.log(`[MovieSearch] Search results for "${query}":`, results.map(r => r.title))
+      
+      // Try to prioritize exact matches
+      const exactMatches = results.filter(movie => 
+        movie.title.toLowerCase() === query.toLowerCase()
+      )
+      
+      const partialMatches = results.filter(movie => 
+        movie.title.toLowerCase().includes(query.toLowerCase()) ||
+        query.toLowerCase().includes(movie.title.toLowerCase())
+      ).filter(movie => !exactMatches.includes(movie))
+      
+      const otherResults = results.filter(movie => 
+        !exactMatches.includes(movie) && !partialMatches.includes(movie)
+      )
+      
+      // Combine results with exact matches first, then partial matches, then others
+      const prioritizedResults = [...exactMatches, ...partialMatches, ...otherResults]
+      const limitedResults = prioritizedResults.slice(0, 5) // Limit to 5 results
+      
+      console.log(`[MovieSearch] Prioritized results:`, limitedResults.map(r => r.title))
+      setSearchResults(limitedResults)
       setShowDropdown(results.length > 0)
       setHighlightedIndex(0)
     } catch (error) {
@@ -63,6 +84,7 @@ export function MovieSearchInput({ value, onChange, placeholder, className = '' 
   // Handle movie selection
   const selectMovie = (movie: TMDBMovie) => {
     const movieTitle = movie.title
+    console.log(`[MovieSearch] selectMovie called with: "${movieTitle}" (ID: ${movie.id})`)
     setSearchQuery(movieTitle)
     onChange(movieTitle)
     setShowDropdown(false)
@@ -174,7 +196,12 @@ export function MovieSearchInput({ value, onChange, placeholder, className = '' 
               className={`cursor-pointer hover:bg-black hover:text-white ${
                 index === highlightedIndex ? 'bg-black text-white' : ''
               }`}
-              onClick={() => selectMovie(movie)}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                console.log(`[MovieSearch] Clicked on movie: "${movie.title}" (index: ${index})`)
+                selectMovie(movie)
+              }}
               onMouseEnter={() => setHighlightedIndex(index)}
             >
               <div className="flex items-center gap-3 shadow-[0_-1px_0_0_#000000]">

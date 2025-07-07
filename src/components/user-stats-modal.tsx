@@ -71,13 +71,29 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
     setPostersLoading(true)
     const posters: MoviePoster[] = []
 
+    // Log if running on client or server
+    if (typeof window !== 'undefined') {
+      console.log('[TMDB] Running on CLIENT (browser)')
+    } else {
+      console.log('[TMDB] Running on SERVER (Node.js)')
+    }
+
+    // Log if TMDB API key is present (do not print the key itself)
+    if (typeof process !== 'undefined' && process.env && process.env.TMDB_API_KEY) {
+      console.log('[TMDB] TMDB API key is present')
+    } else {
+      console.warn('[TMDB] TMDB API key is NOT present or not accessible in this environment')
+    }
+
     for (let i = 0; i < stats.movies.length; i++) {
       const movieTitle = stats.movies[i]
       if (!movieTitle.trim()) continue
 
       try {
+        console.log(`[TMDB] Searching for movie: '${movieTitle}'`)
         // Search for the movie
         const searchResults = await tmdbApi.searchMovies(movieTitle, 1)
+        console.log(`[TMDB] Search results for '${movieTitle}':`, searchResults)
         if (searchResults.length > 0) {
           const movie = searchResults[0] // Get the first (most relevant) result
           const posterUrl = tmdbApi.getPosterUrl(movie.poster_path || null, 'w342')
@@ -88,6 +104,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
           })
         } else {
           // Use placeholder if no poster found
+          console.warn(`[TMDB] No poster found for '${movieTitle}', using placeholder.`)
           posters.push({
             title: movieTitle,
             posterUrl: '/images/clip-305.png',
@@ -95,7 +112,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
           })
         }
       } catch (error) {
-        console.error(`Error fetching poster for ${movieTitle}:`, error)
+        console.error(`[TMDB] Error fetching poster for '${movieTitle}':`, error)
         // Use placeholder on error
         posters.push({
           title: movieTitle,
@@ -404,7 +421,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
                   {/* Image list */}
                   {postersLoading ? (
                     <div className="text-center py-4">
-                      <div className="text-sm font-bold uppercase">Loading posters...</div>
+                      <div className="text-sm font-bold uppercase">Loading...</div>
                     </div>
                   ) : (
                     <div className="grid grid-cols-5 gap-2 max-xl:gap-1">

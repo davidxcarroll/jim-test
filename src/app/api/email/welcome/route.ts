@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { emailService } from '@/lib/welcome-email'
+import { emailService } from '@/lib/emails'
 
 console.log("RESEND_API_KEY:", process.env.RESEND_API_KEY);
 

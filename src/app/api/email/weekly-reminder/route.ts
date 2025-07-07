@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { emailService } from '@/lib/welcome-email'
+import { emailService } from '@/lib/emails'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
 export async function POST(request: NextRequest) {
   try {
-    const { email } = await request.json()
+    const { email, displayName, weekNumber } = await request.json()
 
     if (email) {
       // Send to specific user
-      await emailService.sendWeeklyReminder(email)
+      await emailService.sendWeeklyReminder(email, displayName, weekNumber)
       return NextResponse.json({ success: true })
     } else {
       // Check if Firebase is initialized
@@ -29,7 +29,8 @@ export async function POST(request: NextRequest) {
         const userData = doc.data()
         return emailService.sendWeeklyReminder(
           userData.email,
-          userData.displayName
+          userData.displayName,
+          weekNumber
         )
       })
 

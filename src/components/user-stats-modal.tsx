@@ -18,6 +18,13 @@ interface UserStatsModalProps {
   userName: string
 }
 
+interface ProcessedMovie {
+  title: string
+  position: number
+  tmdbId?: number
+  posterPath?: string
+}
+
 interface UserStats {
   overall: {
     correct: number
@@ -32,6 +39,11 @@ interface UserStats {
   }>
   movies: string[]
   moviePositions: number[]
+  movieData?: Array<{
+    title: string
+    tmdbId?: number
+    posterPath?: string
+  }>
 }
 
 interface MoviePoster {
@@ -90,8 +102,43 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
       if (!movieTitle.trim()) continue
 
       try {
+        console.log(`[TMDB] Processing movie: '${movieTitle}'`)
+        
+        // Check if we have stored movie data with tmdbId
+        const movieData = stats.movieData?.find(md => md.title === movieTitle)
+        if (movieData && movieData.tmdbId) {
+          console.log(`[TMDB] Using stored movie data for '${movieTitle}' (ID: ${movieData.tmdbId})`)
+          
+          // Use stored poster path if available
+          if (movieData.posterPath) {
+            const posterUrl = tmdbApi.getPosterUrl(movieData.posterPath, 'w342')
+            posters.push({
+              title: movieTitle,
+              posterUrl,
+              position: stats.moviePositions[i]
+            })
+            continue
+          }
+          
+          // If no stored poster path, fetch movie details by ID
+          try {
+            const movieDetails = await tmdbApi.getMovieDetails(movieData.tmdbId)
+            if (movieDetails) {
+              const posterUrl = tmdbApi.getPosterUrl(movieDetails.poster_path || null, 'w342')
+              posters.push({
+                title: movieTitle,
+                posterUrl,
+                position: stats.moviePositions[i]
+              })
+              continue
+            }
+          } catch (error) {
+            console.warn(`[TMDB] Failed to fetch movie details for ID ${movieData.tmdbId}, falling back to search`)
+          }
+        }
+        
+        // Fallback to search if no stored data or failed to fetch details
         console.log(`[TMDB] Searching for movie: '${movieTitle}'`)
-        // Search for the movie
         const searchResults = await tmdbApi.searchMovies(movieTitle, 1)
         console.log(`[TMDB] Search results for '${movieTitle}':`, searchResults)
         
@@ -171,6 +218,27 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
       const worldSeriesPick = userData.worldSeriesPick || ''
       console.log('🎬 Movies:', movies)
       console.log('🏆 World Series Pick:', worldSeriesPick)
+
+      // Process movies - handle both old format (string[]) and new format (object[])
+      const processedMovies: ProcessedMovie[] = movies.map((movie: any, index: number) => {
+        if (typeof movie === 'string') {
+          // Old format - just a string
+          return { title: movie.trim(), position: index + 1 }
+        } else if (movie && typeof movie === 'object') {
+          // New format - object with title, tmdbId, posterPath
+          return { 
+            title: movie.title?.trim() || '', 
+            position: index + 1,
+            tmdbId: movie.tmdbId,
+            posterPath: movie.posterPath
+          }
+        } else {
+          // Invalid format
+          return { title: '', position: index + 1 }
+        }
+      }).filter((item: ProcessedMovie) => item.title !== '')
+
+      console.log('🎬 Processed movies:', processedMovies)
 
       // Fetch world series team data if user has a pick
       if (worldSeriesPick) {
@@ -287,12 +355,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
 
       console.log('📊 Weekly array:', weeklyArray)
 
-      // Filter movies but preserve original positions
-      const filteredMovies = movies
-        .map((movie: string, index: number) => ({ movie: movie.trim(), position: index + 1 }))
-        .filter((item: { movie: string; position: number }) => item.movie !== '')
-
-      console.log('🎬 Filtered movies:', filteredMovies)
+      console.log('🎬 Processed movies:', processedMovies)
 
       const finalStats = {
         overall: {
@@ -301,8 +364,13 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
           percentage: overallTotal > 0 ? Math.round((overallCorrect / overallTotal) * 100) : 0
         },
         weekly: weeklyArray,
-        movies: filteredMovies.map((item: { movie: string; position: number }) => item.movie),
-        moviePositions: filteredMovies.map((item: { movie: string; position: number }) => item.position)
+        movies: processedMovies.map(item => item.title),
+        moviePositions: processedMovies.map(item => item.position),
+        movieData: processedMovies.map(item => ({
+          title: item.title,
+          tmdbId: item.tmdbId,
+          posterPath: item.posterPath
+        }))
       }
 
       console.log('📊 Final stats object:', finalStats)

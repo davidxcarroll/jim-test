@@ -10,6 +10,7 @@ import { Navigation } from "@/components/navigation"
 import { db } from '@/lib/firebase'
 import { collection, getDocs, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { useAuthStore } from '@/store/auth-store'
+import { useClipboardVisibilityStore } from '@/store/clipboard-visibility-store'
 import { Toast } from '@/components/toast'
 import { Tooltip } from '@/components/tooltip'
 import { UserStatsModal } from '@/components/user-stats-modal'
@@ -221,6 +222,7 @@ function DashboardSkeleton() {
 
 function WeeklyMatchesPage() {
   const { user: currentUser } = useAuthStore()
+  const { settings: clipboardSettings, isLoading: clipboardLoading, loadSettings, subscribeToChanges } = useClipboardVisibilityStore()
   const [weekOffset, setWeekOffset] = useState(0)
   const [isWeekDropdownOpen, setIsWeekDropdownOpen] = useState(false)
   const startOfWeek = getStartOfWeekNDaysAgo(weekOffset)
@@ -236,10 +238,22 @@ function WeeklyMatchesPage() {
   const [selectedUser, setSelectedUser] = useState<{ id: string; name: string } | null>(null)
 
   const [loadTimeout, setLoadTimeout] = useState(false)
+
+  // Filter users based on clipboard visibility settings
+  const visibleUsers = React.useMemo(() => {
+    return users.filter(user => {
+      // Always show current user
+      if (user.id === currentUser?.uid) return true
+      // Show other users only if they're in the visible users set
+      return clipboardSettings.visibleUsers.has(user.id)
+    })
+  }, [users, currentUser?.uid, clipboardSettings.visibleUsers])
   useEffect(() => {
+    // Reset timeout when loading states change
+    setLoadTimeout(false)
     const timer = setTimeout(() => setLoadTimeout(true), 10000) // 10 seconds
     return () => clearTimeout(timer)
-  }, [])
+  }, [isLoading, loadingUsers, loadingPicks, clipboardLoading])
 
   const { season, week } = getSeasonAndWeek(startOfWeek)
 
@@ -260,6 +274,15 @@ function WeeklyMatchesPage() {
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [isWeekDropdownOpen])
+
+  // Load clipboard visibility settings when current user changes
+  useEffect(() => {
+    if (currentUser?.uid) {
+      loadSettings(currentUser.uid)
+      const unsubscribe = subscribeToChanges(currentUser.uid)
+      return unsubscribe
+    }
+  }, [currentUser?.uid, loadSettings, subscribeToChanges])
 
   // Fetch all users
   useEffect(() => {
@@ -299,40 +322,46 @@ function WeeklyMatchesPage() {
 
   // Fetch all user picks for this week
   useEffect(() => {
-    if (users.length === 0) return
-    setLoadingPicks(true)
-    const fetchAllPicks = async () => {
-      try {
-        // Check if Firebase is initialized
-        if (!db) {
-          console.warn('Firebase not initialized, cannot fetch picks')
-          setUserPicksByUser({})
-          return
-        }
-
-        const picksPromises = users.map(async (user) => {
-          const picksDoc = await getDoc(doc(db, 'users', user.id, 'picks', `${season}_${week}`))
-          return {
-            userId: user.id,
-            picks: picksDoc.exists() ? picksDoc.data() : {}
+    if (visibleUsers.length === 0 || clipboardLoading) return
+    
+    // Add a small delay to prevent rapid re-fetching when settings change
+    const timeoutId = setTimeout(() => {
+      setLoadingPicks(true)
+      const fetchAllPicks = async () => {
+        try {
+          // Check if Firebase is initialized
+          if (!db) {
+            console.warn('Firebase not initialized, cannot fetch picks')
+            setUserPicksByUser({})
+            return
           }
-        })
 
-        const picksResults = await Promise.all(picksPromises)
-        const picksMap: Record<string, any> = {}
-        picksResults.forEach(result => {
-          picksMap[result.userId] = result.picks
-        })
-        setUserPicksByUser(picksMap)
-      } catch (error) {
-        console.error('Error fetching picks:', error)
-        setUserPicksByUser({})
-      } finally {
-        setLoadingPicks(false)
+          const picksPromises = visibleUsers.map(async (user) => {
+            const picksDoc = await getDoc(doc(db, 'users', user.id, 'picks', `${season}_${week}`))
+            return {
+              userId: user.id,
+              picks: picksDoc.exists() ? picksDoc.data() : {}
+            }
+          })
+
+          const picksResults = await Promise.all(picksPromises)
+          const picksMap: Record<string, any> = {}
+          picksResults.forEach(result => {
+            picksMap[result.userId] = result.picks
+          })
+          setUserPicksByUser(picksMap)
+        } catch (error) {
+          console.error('Error fetching picks:', error)
+          setUserPicksByUser({})
+        } finally {
+          setLoadingPicks(false)
+        }
       }
-    }
-    fetchAllPicks()
-  }, [users, season, week])
+      fetchAllPicks()
+    }, 100) // 100ms delay
+
+    return () => clearTimeout(timeoutId)
+  }, [visibleUsers.map(u => u.id).join(','), season, week])
 
   // Group games by day
   const gamesByDay: Record<string, typeof games> = {}
@@ -370,7 +399,9 @@ function WeeklyMatchesPage() {
   }
 
   // User display names for header
-  const userDisplayNames = users.map(u => truncateName(toTitleCase(u.displayName || u.id)))
+  const userDisplayNames = React.useMemo(() => {
+    return visibleUsers.map(u => truncateName(toTitleCase(u.displayName || u.id)))
+  }, [visibleUsers])
 
   // Save pick to Firestore
   const handlePick = async (gameId: string, pick: 'home' | 'away') => {
@@ -428,10 +459,12 @@ function WeeklyMatchesPage() {
   }
 
   // Show skeleton while loading
-  if ((isLoading || loadingUsers || loadingPicks) && !loadTimeout) {
+  if ((isLoading || loadingUsers || loadingPicks || clipboardLoading) && !loadTimeout) {
     return <DashboardSkeleton />
   }
-  if (loadTimeout && (isLoading || loadingUsers || loadingPicks)) {
+  
+  // Show error if timeout occurs
+  if (loadTimeout && (isLoading || loadingUsers || loadingPicks || clipboardLoading)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen font-chakra text-2xl bg-neutral-100">
         <div className="mb-4 text-red-600 font-bold">Something went wrong loading the dashboard.</div>
@@ -512,8 +545,8 @@ function WeeklyMatchesPage() {
                     <div
                       className="w-full h-16 flex lg:items-center items-end justify-center font-jim xl:text-5xl text-3xl cursor-pointer"
                       onClick={() => {
-                        console.log('👤 User clicked:', { id: users[userIndex].id, name })
-                        setSelectedUser({ id: users[userIndex].id, name })
+                        console.log('👤 User clicked:', { id: visibleUsers[userIndex].id, name })
+                        setSelectedUser({ id: visibleUsers[userIndex].id, name })
                       }}
                     >
                       <span className="max-w-8 flex lg:justify-center justify-start font-light max-lg:-rotate-90">{name}</span>
@@ -560,7 +593,7 @@ function WeeklyMatchesPage() {
                         </div>
                       </td>
                       {/* User picks for away team */}
-                      {users.map((user, userIndex) => {
+                      {visibleUsers.map((user, userIndex) => {
                         const pick = userPicksByUser[user.id]?.[game.id]?.pickedTeam
                         const awayCorrect = pick === 'away' && (game.awayScore ?? 0) > (game.homeScore ?? 0)
                         const isCurrentUser = user.id === currentUser?.uid
@@ -625,7 +658,7 @@ function WeeklyMatchesPage() {
                         </div>
                       </td>
                       {/* User picks for home team */}
-                      {users.map((user, userIndex) => {
+                      {visibleUsers.map((user, userIndex) => {
                         const pick = userPicksByUser[user.id]?.[game.id]?.pickedTeam
                         const homeCorrect = pick === 'home' && (game.homeScore ?? 0) > (game.awayScore ?? 0)
                         const isCurrentUser = user.id === currentUser?.uid

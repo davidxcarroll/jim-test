@@ -5,7 +5,7 @@ import { tmdbApi, TMDBMovie } from '@/lib/tmdb-api'
 
 interface MovieSearchInputProps {
   value: string
-  onChange: (value: string) => void
+  onChange: (value: string | { title: string; tmdbId: number; posterPath?: string }) => void
   placeholder: string
   className?: string
 }
@@ -86,7 +86,11 @@ export function MovieSearchInput({ value, onChange, placeholder, className = '' 
     const movieTitle = movie.title
     console.log(`[MovieSearch] selectMovie called with: "${movieTitle}" (ID: ${movie.id})`)
     setSearchQuery(movieTitle)
-    onChange(movieTitle)
+    onChange({
+      title: movie.title,
+      tmdbId: movie.id,
+      posterPath: movie.poster_path || undefined
+    })
     setShowDropdown(false)
     setSearchResults([])
     inputRef.current?.blur()
@@ -165,7 +169,7 @@ export function MovieSearchInput({ value, onChange, placeholder, className = '' 
       <input
         ref={inputRef}
         type="text"
-        value={searchQuery}
+        value={searchQuery || ''}
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}
         onFocus={() => {
@@ -173,7 +177,7 @@ export function MovieSearchInput({ value, onChange, placeholder, className = '' 
             setShowDropdown(true)
           }
         }}
-        className={`w-full py-2 bg-neutral-100 uppercase text-center font-bold max-xl:text-base placeholder:text-black/30 shadow-[0_0_0_1px_#000000] focus:outline-none focus:bg-white ${className}`}
+        className={`w-full h-[90px] p-2 pr-0 bg-neutral-100 uppercase font-bold max-xl:text-base placeholder:text-black/30 shadow-[0_0_0_1px_#000000] focus:outline-none focus:bg-white flex items-center ${className}`}
         placeholder={placeholder}
       />
       
@@ -206,7 +210,7 @@ export function MovieSearchInput({ value, onChange, placeholder, className = '' 
             >
               <div className="flex items-center gap-3 shadow-[0_-1px_0_0_#000000]">
                 {/* Movie poster thumbnail */}
-                <div className="flex-shrink-0 h-24 shadow-[0_0_0_1px_#000000] overflow-hidden">
+                <div className="flex-shrink-0 w-[60px] h-[90px] shadow-[0_0_0_1px_#000000] overflow-hidden">
                   {movie.poster_path ? (
                     <img
                       src={tmdbApi.getPosterUrl(movie.poster_path, 'w92')}
@@ -215,7 +219,7 @@ export function MovieSearchInput({ value, onChange, placeholder, className = '' 
                       loading="lazy"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center">
+                    <div className="w-full h-full flex items-center justify-center bg-neutral-100">
                       <span className="material-symbols-sharp text-black/30 text-sm">movie</span>
                     </div>
                   )}

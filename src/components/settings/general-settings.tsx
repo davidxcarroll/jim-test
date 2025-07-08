@@ -362,7 +362,7 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
       <button
         onClick={() => router.push('/dashboard')}
         disabled={!settings.displayName.trim()}
-        className="w-full bg-black text-white py-3 px-4 font-bold uppercase xl:text-3xl text-2xl focus:outline-none disabled:opacity-50"
+        className="bg-black text-white py-3 px-4 font-bold uppercase xl:text-3xl text-2xl focus:outline-none disabled:opacity-50"
       >
         Done
       </button>

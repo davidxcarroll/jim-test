@@ -8,9 +8,10 @@ interface MovieSearchInputProps {
   onChange: (value: string | { title: string; tmdbId: number; posterPath?: string }) => void
   placeholder: string
   className?: string
+  onClear?: () => void
 }
 
-export function MovieSearchInput({ value, onChange, placeholder, className = '' }: MovieSearchInputProps) {
+export function MovieSearchInput({ value, onChange, placeholder, className = '', onClear }: MovieSearchInputProps) {
   const [searchResults, setSearchResults] = useState<TMDBMovie[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
@@ -177,9 +178,24 @@ export function MovieSearchInput({ value, onChange, placeholder, className = '' 
             setShowDropdown(true)
           }
         }}
-        className={`w-full h-[90px] p-2 pr-0 bg-neutral-100 uppercase font-bold max-xl:text-base placeholder:text-black/30 shadow-[0_0_0_1px_#000000] focus:outline-none focus:bg-white flex items-center ${className}`}
+        className={`w-full h-[90px] p-2 ${onClear ? 'pr-8' : 'pr-0'} bg-neutral-100 uppercase font-bold max-xl:text-base placeholder:text-black/30 shadow-[0_0_0_1px_#000000] focus:outline-none focus:bg-white flex items-center ${className}`}
         placeholder={placeholder}
       />
+      
+      {/* Clear button */}
+      {onClear && value && (
+        <button
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            onClear()
+          }}
+          className="absolute right-2 top-1/2 transform -translate-y-1/2 material-symbols-sharp cursor-pointer hover:text-red-600 text-black/50"
+          title="Clear movie"
+        >
+          close
+        </button>
+      )}
       
       {/* Loading indicator */}
       {isSearching && (

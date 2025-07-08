@@ -13,7 +13,7 @@ interface ClipboardVisibilityStore {
   error: string | null
   
   // Actions
-  loadSettings: (userId: string) => Promise<void>
+  loadSettings: (userId: string, allUserIds?: string[]) => Promise<void>
   updateVisibleUsers: (userId: string, visibleUsers: Set<string>) => Promise<void>
   subscribeToChanges: (userId: string) => () => void
   reset: () => void
@@ -27,7 +27,7 @@ export const useClipboardVisibilityStore = create<ClipboardVisibilityStore>((set
   isLoading: false,
   error: null,
 
-  loadSettings: async (userId: string) => {
+  loadSettings: async (userId: string, allUserIds?: string[]) => {
     if (!db) {
       set({ error: 'Firebase not initialized' })
       return
@@ -49,11 +49,19 @@ export const useClipboardVisibilityStore = create<ClipboardVisibilityStore>((set
           isLoading: false
         })
       } else {
-        // Initialize with empty settings
+        // Initialize with all users visible by default
+        const defaultVisibleUsers = allUserIds ? new Set(allUserIds as string[]) : new Set<string>()
+        
+        // Save the default settings to Firestore
+        await setDoc(docRef, {
+          visibleUsers: Array.from(defaultVisibleUsers),
+          lastUpdated: new Date()
+        }, { merge: true })
+        
         set({
           settings: {
-            visibleUsers: new Set(),
-            lastUpdated: null
+            visibleUsers: defaultVisibleUsers,
+            lastUpdated: new Date()
           },
           isLoading: false
         })

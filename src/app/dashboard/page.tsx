@@ -278,11 +278,13 @@ function WeeklyMatchesPage() {
   // Load clipboard visibility settings when current user changes
   useEffect(() => {
     if (currentUser?.uid) {
-      loadSettings(currentUser.uid)
+      // Pass all user IDs to ensure all users are visible by default
+      const allUserIds = users.map(user => user.id)
+      loadSettings(currentUser.uid, allUserIds)
       const unsubscribe = subscribeToChanges(currentUser.uid)
       return unsubscribe
     }
-  }, [currentUser?.uid, loadSettings, subscribeToChanges])
+  }, [currentUser?.uid, loadSettings, subscribeToChanges, users])
 
   // Fetch all users
   useEffect(() => {

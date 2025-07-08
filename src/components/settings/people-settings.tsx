@@ -40,9 +40,11 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
   // Load clipboard visibility settings when current user changes
   useEffect(() => {
     if (currentUser?.uid) {
-      loadSettings(currentUser.uid)
+      // Pass all user IDs to ensure all users are visible by default
+      const allUserIds = users.map(user => user.uid)
+      loadSettings(currentUser.uid, allUserIds)
     }
-  }, [currentUser?.uid, loadSettings])
+  }, [currentUser?.uid, loadSettings, users])
 
   // Initialize selected users from settings when they load
   useEffect(() => {
@@ -262,7 +264,7 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
             const teamStyle = user.worldSeriesPick ? teamStyles[user.worldSeriesPick] : null
 
             return (
-              <div key={user.uid} className="w-full xl:p-4 p-2 shadow-[0_0_0_1px_#000000]">
+              <div key={user.uid} className="w-full p-2 shadow-[0_0_0_1px_#000000]">
 
                 <div className="flex flex-row items-center justify-start gap-4">
 

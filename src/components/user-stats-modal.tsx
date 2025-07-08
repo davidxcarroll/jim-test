@@ -469,11 +469,11 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
                     <div className="w-full text-left">
                       Overall
                     </div>
-                    <div className="w-full text-center leading-none">
-                      {stats.overall.correct}/{stats.overall.total}
-                    </div>
-                    <div className="w-full text-right">
+                    <div className="w-full text-center">
                       {stats.overall.percentage}%
+                    </div>
+                    <div className="w-full text-right leading-none">
+                      {stats.overall.correct}/{stats.overall.total}
                     </div>
                   </div>
                   <hr className="border-t-[1px] border-black" />
@@ -486,11 +486,11 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
                   <div className="w-full text-left">
                     {week.week}
                   </div>
-                  <div className="w-full text-center leading-none">
-                    {week.correct}/{week.total}
-                  </div>
-                  <div className="w-full text-right">
+                  <div className="w-full text-center">
                     {week.percentage}%
+                  </div>
+                  <div className="w-full text-right leading-none">
+                    {week.correct}/{week.total}
                   </div>
                 </div>
               ))}

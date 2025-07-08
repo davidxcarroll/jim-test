@@ -19,7 +19,7 @@ function SettingsPage() {
         <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
       )}
 
-      <div className="relative flex flex-col items-center justify-center gap-4 xl:px-8 pt-8 pb-16 lg:mx-8 md:mx-4 sm:mx-2 bg-neutral-100">
+      <div className="relative flex flex-col items-center justify-center gap-4 xl:px-8 md:px-4 px-2 pt-8 pb-16 lg:mx-8 md:mx-4 sm:mx-2 bg-neutral-100">
 
         <div className="w-full flex flex-col items-center justify-center">
 

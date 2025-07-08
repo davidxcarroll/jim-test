@@ -78,8 +78,15 @@ export function MoviesSettings({ onToast }: MoviesSettingsProps) {
 
         setSaving(true)
         try {
+            // Sanitize movie picks to remove undefined values
+            const sanitizedMoviePicks = settings.moviePicks.map(movie => ({
+                title: movie.title || '',
+                tmdbId: movie.tmdbId ?? null,
+                posterPath: movie.posterPath ?? null,
+            }))
+
             await setDoc(doc(db, 'users', user.uid), {
-                moviePicks: settings.moviePicks,
+                moviePicks: sanitizedMoviePicks,
                 updatedAt: new Date()
             }, { merge: true })
 
@@ -142,7 +149,7 @@ export function MoviesSettings({ onToast }: MoviesSettingsProps) {
                 {settings.moviePicks.map((movie, index) => (
                     <div key={index} className="w-full flex flex-row items-center justify-center">
 
-                        <label htmlFor={`movie-${index + 1}`} className="block xl:w-14 w-10 flex-shrink-0 font-bold text-black uppercase mb-1 text-center max-xl:text-base">
+                        <label htmlFor={`movie-${index + 1}`} className="block xl:w-12 w-8 flex-shrink-0 font-bold text-black uppercase mb-1 text-center max-xl:text-base">
                             #{index + 1}
                         </label>
 

@@ -99,14 +99,14 @@ export function LiveGameDisplay({ gameId }: LiveGameDisplayProps) {
     <div className="flex flex-row w-full overflow-hidden">
       
       {/* Away Team Block */}
-      <div className="flex flex-row justify-evenly items-center flex-1 xl:px-6 xl:py-4 p-2 text-white relative shadow-[inset_0_0_0_1px_#000000]" style={{ background: awayTeamStyle.background }}>
+      <div className="flex md:flex-row flex-col justify-evenly items-center flex-1 xl:px-6 xl:py-4 p-2 text-white relative shadow-[inset_0_0_0_1px_#000000]" style={{ background: awayTeamStyle.background }}>
         {getTeamLogo(game.awayTeam, awayTeamStyle.logoType) ? (
-          <img src={getTeamLogo(game.awayTeam, awayTeamStyle.logoType)} alt={game.awayTeam.abbreviation} className="w-12 h-12 z-20 relative" />
+          <img src={getTeamLogo(game.awayTeam, awayTeamStyle.logoType)} alt={game.awayTeam.abbreviation} className="aspect-square max:w-12 w-8 z-20 relative" />
         ) : (
-          <div className="w-12 h-12 z-20 relative" />
+          <div className="aspect-square max:w-12 w-8 z-20 relative" />
         )}
         <div className="flex flex-col justify-center items-center z-20 relative">
-          <span className="xl:text-3xl font-bold text-center uppercase leading-none">{getTeamDisplayName(game.awayTeam.abbreviation)}</span>
+          <span className="xl:text-3xl text-sm font-bold text-center uppercase leading-none max-md:mt-2">{getTeamDisplayName(game.awayTeam.abbreviation)}</span>
         </div>
         <span className="xl:text-5xl text-2xl font-bold z-20 relative">{game.awayScore}</span>
       </div>
@@ -127,15 +127,15 @@ export function LiveGameDisplay({ gameId }: LiveGameDisplayProps) {
       </div>
 
       {/* Home Team Block */}
-      <div className="flex flex-row justify-evenly items-center flex-1 xl:px-6 xl:py-4 p-2 text-white relative shadow-[inset_0_0_0_1px_#000000]" style={{ background: homeTeamStyle.background }}>
+      <div className="flex md:flex-row max-md:flex-col-reverse flex-col justify-evenly items-center flex-1 xl:px-6 xl:py-4 p-2 text-white relative shadow-[inset_0_0_0_1px_#000000]" style={{ background: homeTeamStyle.background }}>
         <span className="xl:text-5xl text-2xl font-bold z-20 relative">{game.homeScore}</span>
         <div className="flex flex-col justify-center items-center z-20 relative">
-          <span className="xl:text-3xl font-bold text-center uppercase leading-none">{getTeamDisplayName(game.homeTeam.abbreviation)}</span>
+          <span className="xl:text-3xl text-sm font-bold text-center uppercase leading-none max-md:mt-2">{getTeamDisplayName(game.homeTeam.abbreviation)}</span>
         </div>
         {getTeamLogo(game.homeTeam, homeTeamStyle.logoType) ? (
-          <img src={getTeamLogo(game.homeTeam, homeTeamStyle.logoType)} alt={game.homeTeam.abbreviation} className="w-12 h-12 z-20 relative" />
+          <img src={getTeamLogo(game.homeTeam, homeTeamStyle.logoType)} alt={game.homeTeam.abbreviation} className="aspect-square max:w-12 w-8 z-20 relative" />
         ) : (
-          <div className="w-12 h-12 z-20 relative" />
+          <div className="aspect-square max:w-12 w-8 z-20 relative" />
         )}
       </div>
 

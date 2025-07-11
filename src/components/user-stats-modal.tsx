@@ -79,7 +79,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
 
   const fetchMoviePosters = async () => {
     if (!stats?.movies) return
-    
+
     setPostersLoading(true)
     const posters: MoviePoster[] = []
 
@@ -103,12 +103,12 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
 
       try {
         console.log(`[TMDB] Processing movie: '${movieTitle}'`)
-        
+
         // Check if we have stored movie data with tmdbId
         const movieData = stats.movieData?.find(md => md.title === movieTitle)
         if (movieData && movieData.tmdbId) {
           console.log(`[TMDB] Using stored movie data for '${movieTitle}' (ID: ${movieData.tmdbId})`)
-          
+
           // Use stored poster path if available
           if (movieData.posterPath) {
             const posterUrl = tmdbApi.getPosterUrl(movieData.posterPath, 'w342')
@@ -119,7 +119,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
             })
             continue
           }
-          
+
           // If no stored poster path, fetch movie details by ID
           try {
             const movieDetails = await tmdbApi.getMovieDetails(movieData.tmdbId)
@@ -136,26 +136,26 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
             console.warn(`[TMDB] Failed to fetch movie details for ID ${movieData.tmdbId}, falling back to search`)
           }
         }
-        
+
         // Fallback to search if no stored data or failed to fetch details
         console.log(`[TMDB] Searching for movie: '${movieTitle}'`)
         const searchResults = await tmdbApi.searchMovies(movieTitle, 1)
         console.log(`[TMDB] Search results for '${movieTitle}':`, searchResults)
-        
+
         if (searchResults.length > 0) {
           // Try to find an exact match first
-          let selectedMovie = searchResults.find(movie => 
+          let selectedMovie = searchResults.find(movie =>
             movie.title.toLowerCase() === movieTitle.toLowerCase()
           )
-          
+
           // If no exact match, try partial match
           if (!selectedMovie) {
-            selectedMovie = searchResults.find(movie => 
+            selectedMovie = searchResults.find(movie =>
               movie.title.toLowerCase().includes(movieTitle.toLowerCase()) ||
               movieTitle.toLowerCase().includes(movie.title.toLowerCase())
             )
           }
-          
+
           // If still no match, use the first result
           if (!selectedMovie) {
             selectedMovie = searchResults[0]
@@ -163,7 +163,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
           } else {
             console.log(`[TMDB] Found match for '${movieTitle}': '${selectedMovie.title}'`)
           }
-          
+
           const posterUrl = tmdbApi.getPosterUrl(selectedMovie.poster_path || null, 'w342')
           posters.push({
             title: movieTitle,
@@ -226,8 +226,8 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
           return { title: movie.trim(), position: index + 1 }
         } else if (movie && typeof movie === 'object') {
           // New format - object with title, tmdbId, posterPath
-          return { 
-            title: movie.title?.trim() || '', 
+          return {
+            title: movie.title?.trim() || '',
             position: index + 1,
             tmdbId: movie.tmdbId,
             posterPath: movie.posterPath
@@ -505,10 +505,14 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
                 <>
                   <hr className="border-t-[1px] border-black" />
 
-                  <h2 className="font-jim xl:text-7xl lg:text-6xl md:text-5xl text-4xl text-center leading-10">Top 10 Movies</h2>
+                  {/* <h2 className="font-jim xl:text-7xl lg:text-6xl md:text-5xl text-4xl text-center leading-10">Top 10 Movies</h2> */}
+
+                  <h2 className="font-bold uppercase text-center max-xl:text-sm">Top 10 Movies</h2>
+
+
 
                   {/* Image list */}
-                  {postersLoading ? (
+                  {/* {postersLoading ? (
                     <div className="text-center py-4">
                       <div className="text-sm font-bold uppercase">Loading...</div>
                     </div>
@@ -546,21 +550,50 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
                         }
                       })}
                     </div>
-                  )}
-                  
-                  {/* Text list */}
-                  {/* {stats.movies.map((movie, index) => (
-                    <div key={index} className="flex flex-row items-center justify-center gap-1 max-xl:text-sm font-bold uppercase">
-                      <div className="w-14 text-left">
-                        #{stats.moviePositions[index]}
-                      </div>
-                      <div className="w-full text-center leading-none">
-                        {movie}
-                      </div>
-                      <div className="w-14 text-right">
-                      </div>
-                    </div>
-                  ))} */}
+                  )} */}
+
+                  <div className="w-full flex flex-col items-center justify-center xl:gap-6 gap-4">
+
+                    {/* Text list */}
+                    {stats.movies.map((movie, index) => {
+                      // Find the movie poster whose position matches (index + 1)
+                      const poster = moviePosters.find(p => p.position === stats.moviePositions[index])
+                      
+                      return (
+                        <div key={index} className="w-full flex flex-row items-center justify-center gap-2">
+                          {/* movie poster */}
+                          {postersLoading ? (
+                            <div className="w-24 h-32 bg-gray-200 flex items-center justify-center">
+                              <span className="material-symbols-sharp text-4xl text-black/30">hourglass_empty</span>
+                            </div>
+                          ) : poster && poster.posterUrl ? (
+                            <img
+                              src={poster.posterUrl}
+                              alt={poster.title}
+                              className="w-24 h-32 object-cover shadow-[0_0_0_1px_#000000]"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="w-24 h-32 bg-gray-200 flex items-center justify-center shadow-[0_0_0_1px_#000000]">
+                              <span className="material-symbols-sharp text-4xl text-black/30">screenshot_frame</span>
+                            </div>
+                          )}
+
+                          <div className="w-full flex flex-col items-start justify-center gap-1">
+                            <div className="w-14 text-left uppercase font-bold max-xl:text-sm">
+                              #{stats.moviePositions[index]}
+                            </div>
+                            <div className="w-full text-left font-jim xl:text-5xl xl:leading-10 text-4xl leading-8 leading-10 text-pretty">
+                              {movie}
+                            </div>
+                            <div className="w-14 text-right">
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+
+                  </div>
 
                 </>
               )}

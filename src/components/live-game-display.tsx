@@ -101,9 +101,9 @@ export function LiveGameDisplay({ gameId }: LiveGameDisplayProps) {
       {/* Away Team Block */}
       <div className="flex md:flex-row flex-col justify-evenly items-center flex-1 xl:px-6 xl:py-4 p-2 text-white relative shadow-[inset_0_0_0_1px_#000000]" style={{ background: awayTeamStyle.background }}>
         {getTeamLogo(game.awayTeam, awayTeamStyle.logoType) ? (
-          <img src={getTeamLogo(game.awayTeam, awayTeamStyle.logoType)} alt={game.awayTeam.abbreviation} className="aspect-square max:w-12 w-8 z-20 relative" />
+          <img src={getTeamLogo(game.awayTeam, awayTeamStyle.logoType)} alt={game.awayTeam.abbreviation} className="aspect-square xl:w-12 w-8 z-20 relative" />
         ) : (
-          <div className="aspect-square max:w-12 w-8 z-20 relative" />
+          <div className="aspect-square xl:w-12 w-8 z-20 relative" />
         )}
         <div className="flex flex-col justify-center items-center z-20 relative">
           <span className="xl:text-3xl text-sm font-bold text-center uppercase leading-none max-md:mt-2">{getTeamDisplayName(game.awayTeam.abbreviation)}</span>
@@ -133,9 +133,9 @@ export function LiveGameDisplay({ gameId }: LiveGameDisplayProps) {
           <span className="xl:text-3xl text-sm font-bold text-center uppercase leading-none max-md:mt-2">{getTeamDisplayName(game.homeTeam.abbreviation)}</span>
         </div>
         {getTeamLogo(game.homeTeam, homeTeamStyle.logoType) ? (
-          <img src={getTeamLogo(game.homeTeam, homeTeamStyle.logoType)} alt={game.homeTeam.abbreviation} className="aspect-square max:w-12 w-8 z-20 relative" />
+          <img src={getTeamLogo(game.homeTeam, homeTeamStyle.logoType)} alt={game.homeTeam.abbreviation} className="aspect-square xl:w-12 w-8 z-20 relative" />
         ) : (
-          <div className="aspect-square max:w-12 w-8 z-20 relative" />
+          <div className="aspect-square xl:w-12 w-8 z-20 relative" />
         )}
       </div>
 

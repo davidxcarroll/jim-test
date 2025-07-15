@@ -2,13 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/firebase'
 import { collection, getDocs, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { espnApi } from '@/lib/espn-api'
-import { getMLBSeasonStart, getSeasonAndWeek } from '@/utils/date-helpers'
-
-function getSeasonAndWeek(sunday: Date, seasonStart: Date) {
-  const season = String(seasonStart.getFullYear())
-  const week = Math.ceil((sunday.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
-  return { season, week: `week-${week}` }
-}
+import { getMLBSeasonStart, getSeasonAndWeek, dateHelpers } from '@/utils/date-helpers'
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +13,7 @@ export async function POST(request: NextRequest) {
     const seasonStart = getMLBSeasonStart()
     const weekStart = new Date(seasonStart.getTime() + (7 * 24 * 60 * 60 * 1000) * weekOffset)
     const { start, end } = dateHelpers.getSundayWeekRange(weekStart)
-    const { season, week } = getSeasonAndWeek(weekStart, seasonStart)
+    const { season, week } = getSeasonAndWeek(weekStart)
     const weekId = `${season}_${week}`
 
     console.log(`🔄 Calculating recap for week ${weekId} (${start.toISOString()} to ${end.toISOString()})`)

@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useAuthStore } from '@/store/auth-store'
 import { useGamesForWeek } from '@/hooks/use-mlb-data'
-import { getMLBSeasonStart, getSeasonAndWeek } from '@/utils/date-helpers'
+import { getMLBSeasonStart, getSeasonAndWeek, dateHelpers } from '@/utils/date-helpers'
 import { getTeamDisplayNameFromTeam } from '@/utils/team-names'
 import { getTeamCircleSize } from '@/utils/team-utils'
 import { format, parseISO, isBefore } from 'date-fns'

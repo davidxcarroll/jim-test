@@ -37,8 +37,8 @@ export async function POST(request: NextRequest) {
       // Ignore if no body or invalid JSON
     }
 
-    // Use manual week number if provided, otherwise use calculated week number
-    const finalWeekNumber = manualWeekNumber || week
+    // Use manual week number if provided, otherwise extract number from week string
+    const finalWeekNumber = manualWeekNumber || parseInt(week.replace('week-', ''), 10)
 
     // Get all users who have opted in to email notifications
     const usersRef = collection(db, 'users')

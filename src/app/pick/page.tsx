@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useAuthStore } from '@/store/auth-store'
 import { useGamesForWeek } from '@/hooks/use-mlb-data'
-import { dateHelpers } from '@/utils/date-helpers'
+import { getMLBSeasonStart, getSeasonAndWeek } from '@/utils/date-helpers'
 import { getTeamDisplayNameFromTeam } from '@/utils/team-names'
 import { getTeamCircleSize } from '@/utils/team-utils'
 import { format, parseISO, isBefore } from 'date-fns'
@@ -15,18 +15,10 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 // @ts-ignore
 import * as Circles from '@/components/circles'
 
-const MLB_SEASON_START = new Date('2024-03-28')
-
 function getCurrentWeekStart() {
   const today = new Date()
   const { start } = dateHelpers.getSundayWeekRange(today)
   return start
-}
-
-function getSeasonAndWeek(sunday: Date) {
-  const season = String(sunday.getFullYear())
-  const week = Math.ceil((sunday.getTime() - MLB_SEASON_START.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
-  return { season, week: `week-${week}` }
 }
 
 type TeamCircleSize = 'sm' | 'md' | 'lg'
@@ -47,14 +39,12 @@ function PickPage() {
   const { user } = useAuthStore()
   const today = new Date()
   const startOfWeek = getCurrentWeekStart()
-  const { start, end } = dateHelpers.getSundayWeekRange(startOfWeek)
-  const { data: games, isLoading } = useGamesForWeek(start, end)
+  const { season, week } = getSeasonAndWeek(startOfWeek)
+  const { data: games, isLoading } = useGamesForWeek(startOfWeek, startOfWeek)
   const [userPicks, setUserPicks] = useState<{ [gameId: string]: { pickedTeam: string, pickedAt: any } }>({})
   const [loadingPicks, setLoadingPicks] = useState(true)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
-
-  const { season, week } = getSeasonAndWeek(startOfWeek)
 
   // Load user picks from Firestore for the current week
   useEffect(() => {

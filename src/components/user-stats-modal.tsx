@@ -5,7 +5,7 @@ import { doc, getDoc, collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { format } from 'date-fns'
 import { espnApi } from '@/lib/espn-api'
-import { dateHelpers } from '@/utils/date-helpers'
+import { dateHelpers, getMLBSeasonStart, getSeasonAndWeek } from '@/utils/date-helpers'
 import { getTeamByAbbreviation, getTeamLogo, getTeamBackgroundAndLogo } from '@/utils/team-utils'
 import { Team } from '@/types/mlb'
 import { loadTeamColorMappings } from '@/store/team-color-mapping-store'
@@ -36,6 +36,7 @@ interface UserStats {
     correct: number
     total: number
     percentage: number
+    isTopScore: boolean
   }>
   movies: string[]
   moviePositions: number[]
@@ -262,11 +263,11 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
       const picksSnapshot = await getDocs(picksCollection)
       console.log('📊 Picks snapshot size:', picksSnapshot.size)
 
-      const weeklyStats: Record<string, { correct: number; total: number }> = {}
+      const weeklyStats: Record<string, { correct: number; total: number; isTopScore: boolean }> = {}
       let overallCorrect = 0
       let overallTotal = 0
 
-      // Process each week's picks
+      // Process each week's picks and fetch pre-calculated recap data
       for (const pickDoc of picksSnapshot.docs) {
         const weekData = pickDoc.data()
         const weekId = pickDoc.id // Format: "2024_week-1"
@@ -274,62 +275,89 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
 
         let weekCorrect = 0
         let weekTotal = 0
+        let isTopScore = false
 
-        // Get week dates for fetching games
-        const [season, weekStr] = weekId.split('_')
-        const weekNumber = parseInt(weekStr.replace('week-', ''))
-        console.log(`📅 Week number: ${weekNumber}`)
-
-        // Calculate week start date (MLB season started March 28, 2024)
-        const seasonStart = new Date('2024-03-28')
-        const weekStart = new Date(seasonStart.getTime() + (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000)
-        const { start, end } = dateHelpers.getSundayWeekRange(weekStart)
-        console.log(`📅 Week date range: ${start.toISOString()} to ${end.toISOString()}`)
-
-        // Fetch games for this week
-        let weekGames: any[] = []
+        // Try to get pre-calculated recap data first
         try {
-          console.log(`🎮 Fetching games for week ${weekId}`)
-          weekGames = await espnApi.getGamesForDateRange(start, end)
-          console.log(`🎮 Found ${weekGames.length} games for week ${weekId}`)
-        } catch (error) {
-          console.error(`❌ Error fetching games for ${weekId}:`, error)
-        }
-
-        // Count picks for this week and check correctness
-        Object.entries(weekData).forEach(([gameId, pick]: [string, any]) => {
-          if (pick.pickedTeam && gameId) {
-            weekTotal++
-            console.log(`🎯 Game ${gameId}: picked ${pick.pickedTeam}`)
-
-            // Find the corresponding game
-            const game = weekGames.find(g => g.id === gameId)
-            if (game && (game.status === 'final' || game.status === 'post')) {
-              const homeScore = Number(game.homeScore) || 0
-              const awayScore = Number(game.awayScore) || 0
-              console.log(`🎯 Game ${gameId}: ${game.awayTeam.abbreviation} ${awayScore} @ ${game.homeTeam.abbreviation} ${homeScore}`)
-
-              // Determine if pick was correct
-              const homeWon = homeScore > awayScore
-              const pickCorrect = (pick.pickedTeam === 'home' && homeWon) ||
-                (pick.pickedTeam === 'away' && !homeWon)
-
-              if (pickCorrect) {
-                weekCorrect++
-                console.log(`✅ Correct pick for game ${gameId}`)
-              } else {
-                console.log(`❌ Incorrect pick for game ${gameId}`)
-              }
-            } else {
-              console.log(`⏳ Game ${gameId} not finished yet (status: ${game?.status})`)
+          const weekRecapDoc = await getDoc(doc(db, 'weekRecaps', weekId))
+          if (weekRecapDoc.exists()) {
+            const recapData = weekRecapDoc.data()
+            const userRecap = recapData.userStats?.find((stat: any) => stat.userId === userId)
+            if (userRecap) {
+              weekCorrect = userRecap.correct
+              weekTotal = userRecap.total
+              isTopScore = userRecap.isTopScore
+              console.log(`📊 Using pre-calculated data for week ${weekId}: ${weekCorrect}/${weekTotal} correct, isTopScore: ${isTopScore}`)
             }
           }
-        })
+        } catch (error) {
+          console.warn(`⚠️ Could not fetch pre-calculated recap for week ${weekId}, falling back to manual calculation:`, error)
+        }
 
-        weeklyStats[weekId] = { correct: weekCorrect, total: weekTotal }
+        // If no pre-calculated data, fall back to manual calculation
+        if (weekTotal === 0) {
+          console.log(`📊 No pre-calculated data for week ${weekId}, calculating manually...`)
+          
+          // Get week dates for fetching games
+          const [season, weekStr] = weekId.split('_')
+          const weekNumber = parseInt(weekStr.replace('week-', ''))
+          console.log(`📅 Week number: ${weekNumber}`)
+
+          // Calculate week start date (MLB season started March 28, 2024)
+          const seasonStart = getMLBSeasonStart()
+          const weekStart = new Date(seasonStart.getTime() + (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000)
+          const { start, end } = dateHelpers.getSundayWeekRange(weekStart)
+          console.log(`📅 Week date range: ${start.toISOString()} to ${end.toISOString()}`)
+
+          // Fetch games for this week
+          let weekGames: any[] = []
+          try {
+            console.log(`🎮 Fetching games for week ${weekId}`)
+            weekGames = await espnApi.getGamesForDateRange(start, end)
+            console.log(`🎮 Found ${weekGames.length} games for week ${weekId}`)
+          } catch (error) {
+            console.error(`❌ Error fetching games for ${weekId}:`, error)
+          }
+
+          // Count picks for this week and check correctness
+          Object.entries(weekData).forEach(([gameId, pick]: [string, any]) => {
+            if (pick.pickedTeam && gameId) {
+              weekTotal++
+              console.log(`🎯 Game ${gameId}: picked ${pick.pickedTeam}`)
+
+              // Find the corresponding game
+              const game = weekGames.find(g => g.id === gameId)
+              if (game && (game.status === 'final' || game.status === 'post')) {
+                const homeScore = Number(game.homeScore) || 0
+                const awayScore = Number(game.awayScore) || 0
+                console.log(`🎯 Game ${gameId}: ${game.awayTeam.abbreviation} ${awayScore} @ ${game.homeTeam.abbreviation} ${homeScore}`)
+
+                // Determine if pick was correct
+                const homeWon = homeScore > awayScore
+                const pickCorrect = (pick.pickedTeam === 'home' && homeWon) ||
+                  (pick.pickedTeam === 'away' && !homeWon)
+
+                if (pickCorrect) {
+                  weekCorrect++
+                  console.log(`✅ Correct pick for game ${gameId}`)
+                } else {
+                  console.log(`❌ Incorrect pick for game ${gameId}`)
+                }
+              } else {
+                console.log(`⏳ Game ${gameId} not finished yet (status: ${game?.status})`)
+              }
+            }
+          })
+
+          // For manual calculation, we can't determine top score without calculating for all users
+          // So we'll set isTopScore to false and let the user know this data might be incomplete
+          isTopScore = false
+        }
+
+        weeklyStats[weekId] = { correct: weekCorrect, total: weekTotal, isTopScore }
         overallCorrect += weekCorrect
         overallTotal += weekTotal
-        console.log(`📊 Week ${weekId}: ${weekCorrect}/${weekTotal} correct`)
+        console.log(`📊 Week ${weekId}: ${weekCorrect}/${weekTotal} correct, isTopScore: ${isTopScore}`)
       }
 
       console.log(`📊 Overall stats: ${overallCorrect}/${overallTotal} correct`)
@@ -343,7 +371,8 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
             week: `Week ${weekNumber}`,
             correct: stats.correct,
             total: stats.total,
-            percentage: stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0
+            percentage: stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0,
+            isTopScore: stats.isTopScore
           }
         })
         .sort((a, b) => {
@@ -487,7 +516,12 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
                     {week.week}
                   </div>
                   <div className="w-full text-center">
-                    {week.percentage}%
+                    <span className="inline-flex items-center justify-center gap-1">
+                      {week.percentage}%
+                      {week.isTopScore && (
+                        <span title="Top Score" className="ml-0.5" role="img">🔥</span>
+                      )}
+                    </span>
                   </div>
                   <div className="w-full text-right leading-none">
                     {week.correct}/{week.total}

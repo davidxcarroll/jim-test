@@ -20,6 +20,7 @@ import * as Checks from '@/components/checks'
 import * as Circles from '@/components/circles'
 import React from 'react'
 import { LiveGameDisplay } from '@/components/live-game-display'
+import { getMLBSeasonStart, getSeasonAndWeek } from '@/utils/date-helpers'
 
 const NUM_WEEKS = 5
 
@@ -32,12 +33,6 @@ function getStartOfWeekNDaysAgo(weeksAgo: number) {
     new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7 * weeksAgo)
   )
   return start
-}
-
-function getSeasonAndWeek(sunday: Date) {
-  const season = String(sunday.getFullYear())
-  const week = Math.ceil((sunday.getTime() - MLB_SEASON_START.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
-  return { season, week: `week-${week}` }
 }
 
 // Function to get a random check number (1-7)
@@ -226,8 +221,9 @@ function WeeklyMatchesPage() {
   const [weekOffset, setWeekOffset] = useState(0)
   const [isWeekDropdownOpen, setIsWeekDropdownOpen] = useState(false)
   const startOfWeek = getStartOfWeekNDaysAgo(weekOffset)
-  const { start, end } = dateHelpers.getSundayWeekRange(startOfWeek)
-  const { data: games, isLoading } = useGamesForWeek(start, end)
+  const { season, week } = getSeasonAndWeek(startOfWeek)
+  const { end: endOfWeek } = dateHelpers.getSundayWeekRange(startOfWeek)
+  const { data: games, isLoading } = useGamesForWeek(startOfWeek, endOfWeek)
 
   const [users, setUsers] = useState<any[]>([])
   const [userPicksByUser, setUserPicksByUser] = useState<Record<string, any>>({})
@@ -254,8 +250,6 @@ function WeeklyMatchesPage() {
     const timer = setTimeout(() => setLoadTimeout(true), 10000) // 10 seconds
     return () => clearTimeout(timer)
   }, [isLoading, loadingUsers, loadingPicks, clipboardLoading])
-
-  const { season, week } = getSeasonAndWeek(startOfWeek)
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -504,7 +498,7 @@ function WeeklyMatchesPage() {
                     >
                       {/* label */}
                       {(() => {
-                        const seasonStart = new Date('2024-03-28')
+                        const seasonStart = getMLBSeasonStart()
                         const weekStart = getStartOfWeekNDaysAgo(weekOffset)
                         const weekNumber = Math.ceil((weekStart.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
                         return `${weekOffset === 0 ? ' 🏈' : ''} Week ${weekNumber}`
@@ -517,7 +511,7 @@ function WeeklyMatchesPage() {
                     {isWeekDropdownOpen && (
                       <div className="absolute top-full left-1/2 right-0 -translate-x-1/2 -translate-y-2 w-[calc(100%-20px)] max-xl:text-sm bg-white shadow-[inset_0_0_0_1px_#000000] z-[70] shadow-2xl overflow-clip">
                         {Array.from({ length: NUM_WEEKS }, (_, i) => {
-                          const seasonStart = new Date('2024-03-28')
+                          const seasonStart = getMLBSeasonStart()
                           const weekStart = getStartOfWeekNDaysAgo(i)
                           const weekNumber = Math.ceil((weekStart.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
                           return (
@@ -558,6 +552,96 @@ function WeeklyMatchesPage() {
               </tr>
             </thead>
             <tbody>
+
+
+            {/* weekly recap here */}
+
+            {(() => {
+              // Only show recap if all games are finished
+              const allGames = games || [];
+              const allGamesFinished = allGames.length > 0 && allGames.every(g => g.status === 'final' || g.status === 'post');
+              if (!allGamesFinished) return null;
+
+              // Compute recap stats for each user
+              const playedGames = allGames.filter(g => g.status === 'final' || g.status === 'post');
+              const recapStats = visibleUsers.map(user => {
+                let correct = 0;
+                // For each played game, check if user picked and if correct
+                playedGames.forEach(game => {
+                  const pick = userPicksByUser[user.id]?.[game.id]?.pickedTeam;
+                  const homeScore = Number(game.homeScore) ?? 0;
+                  const awayScore = Number(game.awayScore) ?? 0;
+                  const homeWon = homeScore > awayScore;
+                  const pickCorrect = (pick === 'home' && homeWon) || (pick === 'away' && !homeWon);
+                  if (pick && pickCorrect) correct++;
+                  // If no pick, counts as incorrect (do nothing)
+                });
+                const total = playedGames.length;
+                const percentage = total > 0 ? Math.round((correct / total) * 100) : 0;
+                return { userId: user.id, correct, total, percentage };
+              });
+
+              // Find the max correct picks
+              const maxCorrect = Math.max(...recapStats.map(s => s.correct));
+              // Find all winners (could be a tie)
+              const winnerIds = recapStats.filter(s => s.correct === maxCorrect && maxCorrect > 0).map(s => s.userId);
+
+              // Save week recap data to Firestore for modal use (only if not already saved)
+              const saveWeekRecap = async () => {
+                try {
+                  // Check if we already have recap data for this week
+                  const existingRecapDoc = await getDoc(doc(db, 'weekRecaps', `${season}_${week}`));
+                  if (existingRecapDoc.exists()) {
+                    console.log('💾 Week recap data already exists, skipping save');
+                    return;
+                  }
+
+                  const weekRecapData = {
+                    weekId: `${season}_${week}`,
+                    season,
+                    week,
+                    calculatedAt: serverTimestamp(),
+                    userStats: recapStats.map(stat => ({
+                      userId: stat.userId,
+                      correct: stat.correct,
+                      total: stat.total,
+                      percentage: stat.percentage,
+                      isTopScore: winnerIds.includes(stat.userId)
+                    }))
+                  };
+                  
+                  await setDoc(doc(db, 'weekRecaps', `${season}_${week}`), weekRecapData);
+                  console.log('💾 Saved week recap data for modal use');
+                } catch (error) {
+                  console.error('❌ Error saving week recap data:', error);
+                }
+              };
+              
+              // Save the recap data (don't await to avoid blocking the UI)
+              saveWeekRecap();
+
+              return (
+                <tr className="font-bold uppercase text-center max-xl:text-sm bg-yellow-200">
+                  <td className="sticky left-0 z-20 bg-yellow-200 text-center px-2 xl:h-16 h-12 align-middle font-bold text-lg xl:text-2xl max-xl:text-sm shadow-[1px_0_0_#000000]">
+                    RECAP
+                  </td>
+                  {recapStats.map((stat, idx) => (
+                    <td key={stat.userId} className="text-center align-middle font-bold xl:text-xl text-lg max-xl:text-sm shadow-[-1px_0_0_#000000]">
+                      <span className="inline-flex items-center justify-center gap-1">
+                        {stat.percentage}%
+                        {winnerIds.includes(stat.userId) && (
+                          <span title="Top Score" className="ml-0.5" role="img">🔥</span>
+                        )}
+                      </span>
+                      <br />
+                      {stat.correct}/{stat.total}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })()}
+
+
               <tr className="h-8"></tr>
               {Object.entries(gamesByDay).flatMap(([day, dayGames], dayIdx) => [
                 // Day header row

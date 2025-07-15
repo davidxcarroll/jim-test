@@ -86,3 +86,18 @@ export const dateHelpers = {
     return { start, end }
   }
 } 
+
+// MLB season start (update this for each new season)
+export function getMLBSeasonStart() {
+  // Change this date when a new MLB season starts
+  // 2024 MLB season: March 28, 2024
+  return new Date('2024-03-28')
+}
+
+// Returns { season, week } for any date
+export function getSeasonAndWeek(date: Date) {
+  const seasonStart = getMLBSeasonStart()
+  const season = String(seasonStart.getFullYear())
+  const week = Math.ceil((date.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
+  return { season, week: `week-${week}` }
+} 

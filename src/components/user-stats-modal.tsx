@@ -5,9 +5,9 @@ import { doc, getDoc, collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { format } from 'date-fns'
 import { espnApi } from '@/lib/espn-api'
-import { dateHelpers, getMLBSeasonStart, getSeasonAndWeek } from '@/utils/date-helpers'
+import { dateHelpers, getNFLSeasonStart, getSeasonAndWeek } from '@/utils/date-helpers'
 import { getTeamByAbbreviation, getTeamLogo, getTeamBackgroundAndLogo } from '@/utils/team-utils'
-import { Team } from '@/types/mlb'
+import { Team } from '@/types/nfl'
 import { loadTeamColorMappings } from '@/store/team-color-mapping-store'
 import { tmdbApi } from '@/lib/tmdb-api'
 
@@ -56,7 +56,7 @@ interface MoviePoster {
 export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsModalProps) {
   const [stats, setStats] = useState<UserStats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [worldSeriesTeam, setWorldSeriesTeam] = useState<Team | null>(null)
+  const [superBowlTeam, setSuperBowlTeam] = useState<Team | null>(null)
   const [mappingsLoaded, setMappingsLoaded] = useState(false)
   const [moviePosters, setMoviePosters] = useState<MoviePoster[]>([])
   const [postersLoading, setPostersLoading] = useState(false)
@@ -209,16 +209,16 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
 
       console.log('✅ Firebase is initialized, proceeding with data fetch')
 
-      // Fetch user data for movies and world series pick
+      // Fetch user data for movies and super bowl pick
       console.log('📋 Fetching user document for userId:', userId)
       const userDoc = await getDoc(doc(db, 'users', userId))
       const userData = userDoc.exists() ? userDoc.data() : {}
       console.log('📋 User data:', userData)
 
       const movies = userData.moviePicks || []
-      const worldSeriesPick = userData.worldSeriesPick || ''
+      const superBowlPick = userData.superBowlPick || ''
       console.log('🎬 Movies:', movies)
-      console.log('🏆 World Series Pick:', worldSeriesPick)
+              console.log('🏆 Super Bowl Pick:', superBowlPick)
 
       // Process movies - handle both old format (string[]) and new format (object[])
       const processedMovies: ProcessedMovie[] = movies.map((movie: any, index: number) => {
@@ -241,20 +241,20 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
 
       console.log('🎬 Processed movies:', processedMovies)
 
-      // Fetch world series team data if user has a pick
-      if (worldSeriesPick) {
+      // Fetch super bowl team data if user has a pick
+      if (superBowlPick) {
         try {
-          console.log('🏆 Fetching world series team for:', worldSeriesPick)
-          const team = await getTeamByAbbreviation(worldSeriesPick)
-          console.log('🏆 World series team found:', team)
-          setWorldSeriesTeam(team)
+          console.log('🏆 Fetching super bowl team for:', superBowlPick)
+          const team = await getTeamByAbbreviation(superBowlPick)
+                      console.log('🏆 Super bowl team found:', team)
+          setSuperBowlTeam(team)
         } catch (error) {
-          console.error('❌ Error fetching world series team:', error)
-          setWorldSeriesTeam(null)
+                      console.error('❌ Error fetching super bowl team:', error)
+          setSuperBowlTeam(null)
         }
       } else {
-        console.log('🏆 No world series pick found')
-        setWorldSeriesTeam(null)
+        console.log('🏆 No Super Bowl pick found')
+        setSuperBowlTeam(null)
       }
 
       // Fetch all picks for this user
@@ -303,8 +303,8 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
           const weekNumber = parseInt(weekStr.replace('week-', ''))
           console.log(`📅 Week number: ${weekNumber}`)
 
-          // Calculate week start date (MLB season started March 28, 2024)
-          const seasonStart = getMLBSeasonStart()
+                      // Calculate week start date (NFL season started September 5, 2024)
+          const seasonStart = getNFLSeasonStart()
           const weekStart = new Date(seasonStart.getTime() + (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000)
           const { start, end } = dateHelpers.getSundayWeekRange(weekStart)
           console.log(`📅 Week date range: ${start.toISOString()} to ${end.toISOString()}`)
@@ -420,7 +420,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
     userName,
     loading,
     stats,
-    worldSeriesTeam
+    superBowlTeam
   })
 
   const handleBackdropClick = (e: React.MouseEvent) => {
@@ -441,15 +441,15 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
           <div className="relative flex items-center justify-between">
 
             {(() => {
-              console.log('🎨 User Stats Modal - About to call getTeamBackgroundAndLogo for:', worldSeriesTeam?.abbreviation)
-              const teamStyle = worldSeriesTeam ? getTeamBackgroundAndLogo(worldSeriesTeam) : null
+              console.log('🎨 User Stats Modal - About to call getTeamBackgroundAndLogo for:', superBowlTeam?.abbreviation)
+              const teamStyle = superBowlTeam ? getTeamBackgroundAndLogo(superBowlTeam) : null
               console.log('🎨 User Stats Modal - Team Style Debug:', {
-                team: worldSeriesTeam?.abbreviation,
-                teamName: worldSeriesTeam?.name,
+                team: superBowlTeam?.abbreviation,
+                teamName: superBowlTeam?.name,
                 background: teamStyle?.background,
                 logoType: teamStyle?.logoType,
-                teamColor: worldSeriesTeam?.color,
-                teamAlternateColor: worldSeriesTeam?.alternateColor
+                teamColor: superBowlTeam?.color,
+                teamAlternateColor: superBowlTeam?.alternateColor
               })
               return (
                 <div
@@ -458,10 +458,10 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
                     backgroundColor: teamStyle ? teamStyle.background : 'transparent'
                   }}
                 >
-                  {worldSeriesTeam && (
+                  {superBowlTeam && (
                     <img
-                      src={getTeamLogo(worldSeriesTeam, teamStyle?.logoType || 'dark')}
-                      alt={worldSeriesTeam.name}
+                      src={getTeamLogo(superBowlTeam, teamStyle?.logoType || 'dark')}
+                      alt={superBowlTeam.name}
                       className="w-full h-full object-contain"
                     />
                   )}

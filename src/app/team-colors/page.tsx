@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useTeams } from '@/hooks/use-mlb-data'
+import { useTeams } from '@/hooks/use-nfl-data'
 import { getTeamDisplayName } from '@/utils/team-names'
 import { getTeamLogo } from '@/utils/team-utils'
 import { Toast } from '@/components/toast'

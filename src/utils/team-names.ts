@@ -1,36 +1,38 @@
-// Map of official MLB team abbreviations to colloquial display names
+// Map of official NFL team abbreviations to colloquial display names
 // This is for display purposes only - backend logic uses official abbreviations
 export const teamDisplayNames: Record<string, string> = {
-  'ARI': 'D Backs',         // Arizona Diamondbacks
-  'ATL': 'Braves',          // Atlanta Braves
-  'BAL': 'Orioles',         // Baltimore Orioles
-  'BOS': 'Sox',             // Boston Red Sox
-  'CHC': 'Cubs',            // Chicago Cubs
-  'CHW': 'White Sox',       // Chicago White Sox
-  'CIN': 'Reds',            // Cincinnati Reds
-  'CLE': 'Commanders',      // Cleveland Guardians
-  'COL': 'Rockies',         // Colorado Rockies
-  'DET': 'Tigers',          // Detroit Tigers
-  'HOU': 'Stros',           // Houston Astros
-  'KC': 'Royals',           // Kansas City Royals
-  'LAA': 'Angels',          // Los Angeles Angels
-  'LAD': 'Dodgers',         // Los Angeles Dodgers
-  'MIA': 'Marlins',         // Miami Marlins
-  'MIL': 'Brewers',         // Milwaukee Brewers
-  'MIN': 'Twins',           // Minnesota Twins
-  'NYM': 'Mets',            // New York Mets
-  'NYY': 'Yanks',           // New York Yankees
-  'ATH': 'Athletics',       // Oakland Athletics
-  'PHI': 'Phils',           // Philadelphia Phillies
-  'PIT': 'Bucs',            // Pittsburgh Pirates
-  'SD': 'Pads',             // San Diego Padres
-  'SEA': 'Mariners',        // Seattle Mariners
-  'SF': 'Giants',           // San Francisco Giants
-  'STL': 'Cards',           // St. Louis Cardinals
-  'TB': 'Rays',             // Tampa Bay Rays
-  'TEX': 'Rangers',         // Texas Rangers
-  'TOR': 'Jays',            // Toronto Blue Jays
-  'WSH': 'Nats',            // Washington Nationals
+  'ARI': 'Cards',          // Arizona Cardinals
+  'ATL': 'Falcons',        // Atlanta Falcons
+  'BAL': 'Ravens',         // Baltimore Ravens
+  'BUF': 'Bills',          // Buffalo Bills
+  'CAR': 'Panthers',       // Carolina Panthers
+  'CHI': 'Bears',          // Chicago Bears
+  'CIN': 'Bengals',        // Cincinnati Bengals
+  'CLE': 'Browns',         // Cleveland Browns
+  'DAL': 'Cowboys',        // Dallas Cowboys
+  'DEN': 'Broncos',        // Denver Broncos
+  'DET': 'Lions',          // Detroit Lions
+  'GB': 'Packers',         // Green Bay Packers
+  'HOU': 'Texans',         // Houston Texans
+  'IND': 'Colts',          // Indianapolis Colts
+  'JAX': 'Jags',           // Jacksonville Jaguars
+  'KC': 'Chiefs',          // Kansas City Chiefs
+  'LAC': 'Chargers',       // Los Angeles Chargers
+  'LAR': 'Rams',           // Los Angeles Rams
+  'LV': 'Raiders',         // Las Vegas Raiders
+  'MIA': 'Dolphins',       // Miami Dolphins
+  'MIN': 'Vikings',        // Minnesota Vikings
+  'NE': 'Pats',            // New England Patriots
+  'NO': 'Saints',          // New Orleans Saints
+  'NYG': 'Giants',         // New York Giants
+  'NYJ': 'Jets',           // New York Jets
+  'PHI': 'Eagles',         // Philadelphia Eagles
+  'PIT': 'Steelers',       // Pittsburgh Steelers
+  'SEA': 'Seahawks',       // Seattle Seahawks
+  'SF': '49ers',           // San Francisco 49ers
+  'TB': 'Bucs',            // Tampa Bay Buccaneers
+  'TEN': 'Titans',         // Tennessee Titans
+  'WSH': 'Commanders',     // Washington Commanders
 }
 
 /**

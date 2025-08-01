@@ -4,7 +4,7 @@ export interface Team {
   abbreviation: string
   city: string
   division: string
-  league: string
+  conference: string // AFC or NFC
   logo?: string
   logos?: {
     default?: string
@@ -16,24 +16,7 @@ export interface Team {
   alternateColor?: string
   wins?: number
   losses?: number
-}
-
-export interface Player {
-  id: string
-  name: string
-  position: string
-  teamId: string
-  stats?: PlayerStats
-}
-
-export interface PlayerStats {
-  battingAverage?: number
-  homeRuns?: number
-  rbi?: number
-  era?: number
-  wins?: number
-  losses?: number
-  saves?: number
+  ties?: number // NFL has ties
 }
 
 export interface Game {
@@ -44,20 +27,24 @@ export interface Game {
   homeScore?: number
   awayScore?: number
   status: 'scheduled' | 'live' | 'final' | 'post'
-  inning?: number
-  topInning?: boolean
+  quarter?: number // Replace inning with quarter
+  down?: number // 1st, 2nd, 3rd, 4th down
+  distance?: number // Yards needed for first down
+  fieldPosition?: string // e.g., "NE 45" for New England's 45-yard line
   venue?: string
   startTime?: string
 }
 
 export interface GameStats {
   gameId: string
-  homeHits: number
-  awayHits: number
-  homeErrors: number
-  awayErrors: number
-  homeRuns: number
-  awayRuns: number
+  homeTotalYards: number
+  awayTotalYards: number
+  homePassingYards: number
+  awayPassingYards: number
+  homeRushingYards: number
+  awayRushingYards: number
+  homeTurnovers: number
+  awayTurnovers: number
 }
 
 export interface UserPick {

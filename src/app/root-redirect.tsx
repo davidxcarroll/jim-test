@@ -3,7 +3,7 @@
 import { useAuthStore } from '@/store/auth-store'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import { useUserData } from '@/hooks/use-mlb-data'
+import { useUserData } from '@/hooks/use-nfl-data'
 import { hasCompletedProfile } from '@/utils/validation'
 
 export function RootRedirect() {

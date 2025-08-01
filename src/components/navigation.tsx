@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useUserData } from '@/hooks/use-mlb-data'
+import { useUserData } from '@/hooks/use-nfl-data'
 
 export function Navigation() {
   const pathname = usePathname()

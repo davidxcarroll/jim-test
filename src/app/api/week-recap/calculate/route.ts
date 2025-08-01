@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/firebase'
 import { collection, getDocs, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { espnApi } from '@/lib/espn-api'
-import { getMLBSeasonStart, getSeasonAndWeek, dateHelpers } from '@/utils/date-helpers'
+import { getNFLSeasonStart, getSeasonAndWeek, dateHelpers } from '@/utils/date-helpers'
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,9 +10,9 @@ export async function POST(request: NextRequest) {
     
     // Use the current season start
     const today = new Date()
-    const seasonStart = getMLBSeasonStart()
+    const seasonStart = getNFLSeasonStart()
     const weekStart = new Date(seasonStart.getTime() + (7 * 24 * 60 * 60 * 1000) * weekOffset)
-    const { start, end } = dateHelpers.getSundayWeekRange(weekStart)
+    const { start, end } = dateHelpers.getTuesdayWeekRange(weekStart)
     const { season, week } = getSeasonAndWeek(weekStart)
     const weekId = `${season}_${week}`
 

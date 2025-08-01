@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { emailService } from '@/lib/emails'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { getMLBSeasonStart, getSeasonAndWeek } from '@/utils/date-helpers'
+import { getNFLSeasonStart, getSeasonAndWeek } from '@/utils/date-helpers'
 
 export async function POST(request: NextRequest) {
   // Verify the request is from a legitimate cron service
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     const today = new Date()
-    const seasonStart = getMLBSeasonStart()
+    const seasonStart = getNFLSeasonStart()
     const { season, week } = getSeasonAndWeek(today)
 
     // Accept weekNumber from request body if provided (for manual override)

@@ -69,9 +69,19 @@ export function useUserData() {
         } else {
           setUserData(null)
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching user data:', error)
-        setUserData(null)
+        
+        // Handle specific Firebase offline errors
+        if (error.code === 'unavailable' || error.message?.includes('offline')) {
+          console.warn('Firebase is offline - user data will be loaded when connection is restored')
+          // Don't set userData to null when offline, keep existing data if available
+          if (!userData) {
+            setUserData(null)
+          }
+        } else {
+          setUserData(null)
+        }
       } finally {
         setLoading(false)
       }

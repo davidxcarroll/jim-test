@@ -42,7 +42,7 @@ Each team can be configured with:
 
 The system is used in:
 - **Live Game Display**: Shows team colors and logos based on admin mappings
-- **Settings Page**: World Series pick selector uses mapped team colors
+- **Settings Page**: Super Bowl pick selector uses mapped team colors
 - **Dashboard**: Any team displays use the admin-configured colors
 
 ### Technical Implementation

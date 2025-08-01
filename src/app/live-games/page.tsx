@@ -2,7 +2,7 @@
 
 import { useLiveGames } from '@/hooks/use-live-game'
 import { LiveGameDisplay } from '@/components/live-game-display'
-import { useTeams } from '@/hooks/use-mlb-data'
+import { useTeams } from '@/hooks/use-nfl-data'
 import { getTeamLogo, getTeamBackgroundAndLogo } from '@/utils/team-utils'
 
 export default function LiveGamesPage() {

@@ -1,7 +1,58 @@
-import { Game, Team } from '@/types/mlb'
+import { Game, Team } from '@/types/nfl'
 import { format as formatDate } from 'date-fns'
 
-const ESPN_BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb'
+const ESPN_BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl'
+
+// Retry configuration
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  baseDelay: 1000, // 1 second
+  maxDelay: 5000,  // 5 seconds
+}
+
+/**
+ * Fetch with retry logic
+ */
+async function fetchWithRetry(url: string, options: RequestInit = {}): Promise<Response> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      return response;
+    } catch (error: any) {
+      lastError = error;
+      
+      if (attempt === RETRY_CONFIG.maxRetries) {
+        break;
+      }
+      
+      // Calculate delay with exponential backoff
+      const delay = Math.min(
+        RETRY_CONFIG.baseDelay * Math.pow(2, attempt),
+        RETRY_CONFIG.maxDelay
+      );
+      
+      console.warn(`ESPN API attempt ${attempt + 1} failed, retrying in ${delay}ms:`, error.message);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  throw lastError || new Error('Request failed after all retries');
+}
 
 // Helper function to extract logo variations from ESPN API response
 function extractLogoVariations(logos: any[]): { default?: string; dark?: string; scoreboard?: string; darkScoreboard?: string } {
@@ -28,22 +79,11 @@ function extractLogoVariations(logos: any[]): { default?: string; dark?: string;
 
 // New interfaces for live data
 export interface LiveGameSituation {
-  balls: number
-  strikes: number
-  outs: number
-  pitcher?: {
-    playerId: string
-    name?: string
-    summary?: string
-  }
-  batter?: {
-    playerId: string
-    name?: string
-    summary?: string
-  }
-  onFirst?: boolean
-  onSecond?: boolean
-  onThird?: boolean
+  down: number
+  distance: number
+  fieldPosition: string
+  quarter: number
+  timeRemaining: string
   lastPlay?: {
     id: string
     text?: string
@@ -68,16 +108,9 @@ export interface Play {
   }
   scoringPlay: boolean
   wallclock: string
-  atBatId?: string
-  pitchCount?: {
-    balls: number
-    strikes: number
-  }
-  resultCount?: {
-    balls: number
-    strikes: number
-  }
-  outs: number
+  down?: number
+  distance?: number
+  fieldPosition?: string
 }
 
 export interface LiveGameDetails extends Game {
@@ -89,42 +122,57 @@ export interface LiveGameDetails extends Game {
 export const espnApi = {
   // Get today's games
   async getTodaysGames(): Promise<Game[]> {
-    const response = await fetch(`${ESPN_BASE_URL}/scoreboard`)
-    const data = await response.json()
-    
-    return data.events?.map((event: any) => ({
-      id: event.id,
-      date: event.date,
-      homeTeam: {
-        id: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.id,
-        name: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.name,
-        abbreviation: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.abbreviation,
-        city: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.location,
-        division: '',
-        league: '',
-                                logo: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.logos?.[0]?.href || '',
-            logos: extractLogoVariations(event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.logos || []),
-        color: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.color || '',
-        alternateColor: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.alternateColor || ''
-      },
-      awayTeam: {
-        id: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.id,
-        name: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.name,
-        abbreviation: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.abbreviation,
-        city: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.location,
-        division: '',
-        league: '',
-                                logo: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.logos?.[0]?.href || '',
-            logos: extractLogoVariations(event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.logos || []),
-        color: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.color || '',
-        alternateColor: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.alternateColor || ''
-      },
-      homeScore: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').score,
-      awayScore: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').score,
-      status: event.status.type.state === 'in' ? 'live' : event.status.type.state === 'pre' ? 'scheduled' : event.status.type.state,
-      venue: event.competitions[0].venue?.fullName,
-      startTime: event.date
-    })) || []
+    try {
+      const response = await fetchWithRetry(`${ESPN_BASE_URL}/scoreboard`)
+      const data = await response.json()
+      
+      return data.events?.map((event: any) => {
+        const competition = event.competitions?.[0] || {}
+        const home = competition.competitors?.find((c: any) => c.homeAway === 'home') || { team: {} }
+        const away = competition.competitors?.find((c: any) => c.homeAway === 'away') || { team: {} }
+        const homeTeam = home.team || {}
+        const awayTeam = away.team || {}
+        const status = event.status || {}
+        
+        return {
+          id: event.id,
+          date: event.date,
+          homeTeam: {
+            id: homeTeam.id || '',
+            name: homeTeam.name || '',
+            abbreviation: homeTeam.abbreviation || '',
+            city: homeTeam.location || '',
+            division: '',
+            conference: '',
+            logo: homeTeam.logos?.[0]?.href || '',
+            logos: extractLogoVariations(homeTeam.logos || []),
+            color: homeTeam.color || '',
+            alternateColor: homeTeam.alternateColor || ''
+          },
+          awayTeam: {
+            id: awayTeam.id || '',
+            name: awayTeam.name || '',
+            abbreviation: awayTeam.abbreviation || '',
+            city: awayTeam.location || '',
+            division: '',
+            conference: '',
+            logo: awayTeam.logos?.[0]?.href || '',
+            logos: extractLogoVariations(awayTeam.logos || []),
+            color: awayTeam.color || '',
+            alternateColor: awayTeam.alternateColor || ''
+          },
+          homeScore: home.score || 0,
+          awayScore: away.score || 0,
+          status: status.type?.state === 'in' ? 'live' : status.type?.state === 'pre' ? 'scheduled' : status.type?.state || 'unknown',
+          quarter: status.period || 0,
+          venue: competition.venue?.fullName || '',
+          startTime: event.date
+        }
+      }) || []
+    } catch (error) {
+      console.error('Error fetching today\'s games:', error)
+      return []
+    }
   },
 
   // Get specific game details
@@ -157,7 +205,7 @@ export const espnApi = {
         abbreviation: homeTeam.abbreviation || '',
         city: homeTeam.location || '',
         division: '',
-        league: '',
+        conference: '',
         logo: homeTeam.logos?.[0]?.href || '',
         logos: extractLogoVariations(homeTeam.logos || []),
         color: homeTeam.color || '',
@@ -169,7 +217,7 @@ export const espnApi = {
         abbreviation: awayTeam.abbreviation || '',
         city: awayTeam.location || '',
         division: '',
-        league: '',
+        conference: '',
         logo: awayTeam.logos?.[0]?.href || '',
         logos: extractLogoVariations(awayTeam.logos || []),
         color: awayTeam.color || '',
@@ -180,8 +228,7 @@ export const espnApi = {
       status: data.header.status?.type?.state
         ? data.header.status.type.state
         : 'unknown',
-      inning,
-      topInning,
+      quarter: status.period || 0,
       venue: competition.venue?.fullName || '',
       startTime: data.header.date || ''
     }
@@ -203,24 +250,13 @@ export const espnApi = {
     const inning = status.period || 0
     const topInning = status.periodPrefix ? (status.periodPrefix.toLowerCase().startsWith('top') ? true : status.periodPrefix.toLowerCase().startsWith('bot') ? false : undefined) : undefined
 
-    // Extract live situation data
+    // Extract live situation data for NFL
     const situation: LiveGameSituation | undefined = data.situation ? {
-      balls: data.situation.balls || 0,
-      strikes: data.situation.strikes || 0,
-      outs: data.situation.outs || 0,
-      pitcher: data.situation.pitcher ? {
-        playerId: data.situation.pitcher.playerId,
-        name: data.situation.pitcher.athlete?.displayName,
-        summary: data.situation.pitcher.summary
-      } : undefined,
-      batter: data.situation.batter ? {
-        playerId: data.situation.batter.playerId,
-        name: data.situation.batter.athlete?.displayName,
-        summary: data.situation.batter.summary
-      } : undefined,
-      onFirst: data.situation.onFirst || false,
-      onSecond: data.situation.onSecond || false,
-      onThird: data.situation.onThird || false,
+      down: data.situation.down || 1,
+      distance: data.situation.distance || 10,
+      fieldPosition: data.situation.possessionText || data.situation.yardLine || '',
+      quarter: data.situation.period || status.period || 1,
+      timeRemaining: data.situation.clock ? `${Math.floor(data.situation.clock / 60)}:${(data.situation.clock % 60).toString().padStart(2, '0')}` : '',
       lastPlay: data.situation.lastPlay ? {
         id: data.situation.lastPlay.id,
         text: data.situation.lastPlay.text
@@ -254,8 +290,7 @@ export const espnApi = {
 
     return {
       ...baseGame,
-      inning,
-      topInning,
+      quarter: status.period || 0,
       situation,
       plays,
       lastUpdated: new Date().toISOString()
@@ -270,22 +305,11 @@ export const espnApi = {
     if (!data.situation) return null
     
     return {
-      balls: data.situation.balls || 0,
-      strikes: data.situation.strikes || 0,
-      outs: data.situation.outs || 0,
-      pitcher: data.situation.pitcher ? {
-        playerId: data.situation.pitcher.playerId,
-        name: data.situation.pitcher.athlete?.displayName,
-        summary: data.situation.pitcher.summary
-      } : undefined,
-      batter: data.situation.batter ? {
-        playerId: data.situation.batter.playerId,
-        name: data.situation.batter.athlete?.displayName,
-        summary: data.situation.batter.summary
-      } : undefined,
-      onFirst: data.situation.onFirst || false,
-      onSecond: data.situation.onSecond || false,
-      onThird: data.situation.onThird || false,
+      down: data.situation.down || 1,
+      distance: data.situation.distance || 10,
+      fieldPosition: data.situation.possessionText || data.situation.yardLine || '',
+      quarter: data.situation.period || 1,
+      timeRemaining: data.situation.clock ? `${Math.floor(data.situation.clock / 60)}:${(data.situation.clock % 60).toString().padStart(2, '0')}` : '',
       lastPlay: data.situation.lastPlay ? {
         id: data.situation.lastPlay.id,
         text: data.situation.lastPlay.text
@@ -333,26 +357,39 @@ export const espnApi = {
 
   // Get all teams
   async getTeams(): Promise<Team[]> {
-    const response = await fetch(`${ESPN_BASE_URL}/teams`)
-    const data = await response.json()
-    if (data.sports && data.sports[0] && data.sports[0].leagues && data.sports[0].leagues[0] && data.sports[0].leagues[0].teams) {
-      // Print the raw ESPN team.team object for debugging
-      console.log('Raw ESPN team.team object:', JSON.stringify(data.sports[0].leagues[0].teams[0].team, null, 2));
+    try {
+      const response = await fetchWithRetry(`${ESPN_BASE_URL}/teams`)
+      const data = await response.json()
+      
+      if (!data.sports || !data.sports[0] || !data.sports[0].leagues || !data.sports[0].leagues[0] || !data.sports[0].leagues[0].teams) {
+        throw new Error('Invalid data structure from ESPN API')
+      }
+      
+      if (data.sports[0].leagues[0].teams.length > 0) {
+        // Print the raw ESPN team.team object for debugging
+        console.log('Raw ESPN team.team object:', JSON.stringify(data.sports[0].leagues[0].teams[0].team, null, 2));
+      }
+      
+      return data.sports[0].leagues[0].teams.map((team: any) => ({
+        id: team.team.id,
+        name: team.team.name,
+        abbreviation: team.team.abbreviation,
+        city: team.team.location,
+        division: team.team.division?.name || '',
+        conference: team.team.conference?.name || '',
+        logo: team.team.logos?.[0]?.href || '',
+        logos: extractLogoVariations(team.team.logos || []),
+        color: team.team.color || '',
+        alternateColor: team.team.alternateColor || '',
+        wins: team.team.record?.items?.[0]?.stats?.find((s: any) => s.name === 'wins')?.value || team.team.record?.items?.[0]?.summary?.split('-')[0] || undefined,
+        losses: team.team.record?.items?.[0]?.stats?.find((s: any) => s.name === 'losses')?.value || team.team.record?.items?.[0]?.summary?.split('-')[1] || undefined,
+        ties: team.team.record?.items?.[0]?.stats?.find((s: any) => s.name === 'ties')?.value || 0,
+      }))
+    } catch (error) {
+      console.error('Error fetching teams from ESPN API:', error)
+      // Return empty array instead of throwing to prevent app crashes
+      return []
     }
-    return data.sports[0].leagues[0].teams.map((team: any) => ({
-      id: team.team.id,
-      name: team.team.name,
-      abbreviation: team.team.abbreviation,
-      city: team.team.location,
-      division: team.team.division?.name || '',
-      league: team.team.league?.name || '',
-      logo: team.team.logos?.[0]?.href || '',
-      logos: extractLogoVariations(team.team.logos || []),
-      color: team.team.color || '',
-      alternateColor: team.team.alternateColor || '',
-      wins: team.team.record?.items?.[0]?.stats?.find((s: any) => s.name === 'wins')?.value || team.team.record?.items?.[0]?.summary?.split('-')[0] || undefined,
-      losses: team.team.record?.items?.[0]?.stats?.find((s: any) => s.name === 'losses')?.value || team.team.record?.items?.[0]?.summary?.split('-')[1] || undefined,
-    }))
   },
 
   // Get games for a date range (week)
@@ -364,37 +401,47 @@ export const espnApi = {
       const response = await fetch(`${ESPN_BASE_URL}/scoreboard?dates=${dateStr}`);
       const data = await response.json();
       if (data.events) {
-        games.push(...data.events.map((event: any) => ({
-          id: event.id,
-          date: event.date,
-          homeTeam: {
-            id: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.id,
-            name: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.name,
-            abbreviation: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.abbreviation,
-            city: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.location,
-            division: '',
-            league: '',
-            logo: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.logos?.[0]?.href || '',
-            color: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.color || '',
-            alternateColor: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').team.alternateColor || ''
-          },
-          awayTeam: {
-            id: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.id,
-            name: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.name,
-            abbreviation: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.abbreviation,
-            city: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.location,
-            division: '',
-            league: '',
-            logo: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.logos?.[0]?.href || '',
-            color: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.color || '',
-            alternateColor: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').team.alternateColor || ''
-          },
-          homeScore: event.competitions[0].competitors.find((c: any) => c.homeAway === 'home').score,
-          awayScore: event.competitions[0].competitors.find((c: any) => c.homeAway === 'away').score,
-          status: event.status.type.state === 'in' ? 'live' : event.status.type.state === 'pre' ? 'scheduled' : event.status.type.state,
-          venue: event.competitions[0].venue?.fullName,
-          startTime: event.date
-        })));
+        games.push(...data.events.map((event: any) => {
+          const competition = event.competitions?.[0] || {}
+          const home = competition.competitors?.find((c: any) => c.homeAway === 'home') || { team: {} }
+          const away = competition.competitors?.find((c: any) => c.homeAway === 'away') || { team: {} }
+          const homeTeam = home.team || {}
+          const awayTeam = away.team || {}
+          const status = event.status || {}
+          
+          return {
+            id: event.id,
+            date: event.date,
+            homeTeam: {
+              id: homeTeam.id || '',
+              name: homeTeam.name || '',
+              abbreviation: homeTeam.abbreviation || '',
+              city: homeTeam.location || '',
+              division: '',
+              conference: '',
+              logo: homeTeam.logos?.[0]?.href || '',
+              color: homeTeam.color || '',
+              alternateColor: homeTeam.alternateColor || ''
+            },
+            awayTeam: {
+              id: awayTeam.id || '',
+              name: awayTeam.name || '',
+              abbreviation: awayTeam.abbreviation || '',
+              city: awayTeam.location || '',
+              division: '',
+              conference: '',
+              logo: awayTeam.logos?.[0]?.href || '',
+              color: awayTeam.color || '',
+              alternateColor: awayTeam.alternateColor || ''
+            },
+            homeScore: home.score || 0,
+            awayScore: away.score || 0,
+            status: status.type?.state === 'in' ? 'live' : status.type?.state === 'pre' ? 'scheduled' : status.type?.state || 'unknown',
+            quarter: status.period || 0,
+            venue: competition.venue?.fullName || '',
+            startTime: event.date
+          }
+        }));
       }
       current.setDate(current.getDate() + 1);
     }

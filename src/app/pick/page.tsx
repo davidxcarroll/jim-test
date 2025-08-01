@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useAuthStore } from '@/store/auth-store'
-import { useGamesForWeek } from '@/hooks/use-mlb-data'
-import { getMLBSeasonStart, getSeasonAndWeek, dateHelpers } from '@/utils/date-helpers'
+import { useGamesForWeek } from '@/hooks/use-nfl-data'
+import { getNFLSeasonStart, getSeasonAndWeek, dateHelpers } from '@/utils/date-helpers'
 import { getTeamDisplayNameFromTeam } from '@/utils/team-names'
 import { getTeamCircleSize } from '@/utils/team-utils'
 import { format, parseISO, isBefore } from 'date-fns'
@@ -17,7 +17,7 @@ import * as Circles from '@/components/circles'
 
 function getCurrentWeekStart() {
   const today = new Date()
-  const { start } = dateHelpers.getSundayWeekRange(today)
+  const { start } = dateHelpers.getTuesdayWeekRange(today)
   return start
 }
 

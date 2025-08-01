@@ -5,16 +5,17 @@ import { collection, getDocs, query, orderBy } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { teamDisplayNames } from '@/utils/team-names'
 import { getTeamByAbbreviation, getTeamLogo } from '@/utils/team-utils'
-import { Team } from '@/types/mlb'
+import { Team } from '@/types/nfl'
 import { loadTeamColorMappings, getTeamColorMapping } from '@/store/team-color-mapping-store'
 import { useClipboardVisibilityStore } from '@/store/clipboard-visibility-store'
 import { useAuthStore } from '@/store/auth-store'
+import { PHIL_USER } from '@/utils/phil-user'
 
 interface User {
   uid: string
   email: string
   displayName: string
-  worldSeriesPick: string
+  superBowlPick: string
   createdAt?: any
   updatedAt?: any
 }
@@ -61,6 +62,17 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
   const otherUserIds = allUserIds.filter(id => id !== currentUser?.uid)
   const isAllSelected = otherUserIds.length > 0 && otherUserIds.every(id => selectedUsers.has(id))
   const isIndeterminate = otherUserIds.some(id => selectedUsers.has(id)) && !isAllSelected
+
+  // Calculate message based on selection state
+  const getSelectionMessage = () => {
+    if (isAllSelected) {
+      return "Showing everyone's picks on my dashboard"
+    } else if (otherUserIds.every(id => !selectedUsers.has(id))) {
+      return "Showing just my picks on my dashboard"
+    } else {
+      return "Showing some people's picks on my dashboard"
+    }
+  }
 
   const handleMasterCheckboxChange = async (checked: boolean) => {
     const newSelectedUsers = new Set(selectedUsers)
@@ -146,23 +158,38 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
           uid: doc.id,
           email: data.email || '',
           displayName: data.displayName || 'Unknown',
-          worldSeriesPick: data.worldSeriesPick || '',
+          superBowlPick: data.superBowlPick || '',
           createdAt: data.createdAt,
           updatedAt: data.updatedAt
         })
       })
 
-      // Reorder users so current user appears first
+      // Add Phil to the users list
+      const philUser: User = {
+        uid: PHIL_USER.uid,
+        email: PHIL_USER.email,
+        displayName: PHIL_USER.displayName,
+        superBowlPick: PHIL_USER.superBowlPick,
+        createdAt: PHIL_USER.createdAt,
+        updatedAt: PHIL_USER.updatedAt
+      }
+      
+      // Add Phil to the users data
+      usersData.push(philUser)
+
+      // Reorder users so current user appears first, then Phil
       const reorderedUsers = usersData.sort((a, b) => {
         if (a.uid === currentUser?.uid) return -1
         if (b.uid === currentUser?.uid) return 1
+        if (a.uid === PHIL_USER.uid) return -1
+        if (b.uid === PHIL_USER.uid) return 1
         return 0
       })
 
       setUsers(reorderedUsers)
 
-      // Load team data for users with World Series picks
-      const uniqueTeams = Array.from(new Set(reorderedUsers.map(user => user.worldSeriesPick).filter(Boolean)))
+      // Load team data for users with Superbowl picks
+      const uniqueTeams = Array.from(new Set(reorderedUsers.map(user => user.superBowlPick).filter(Boolean)))
       await loadTeamDataForUsers(uniqueTeams)
 
     } catch (error) {
@@ -185,7 +212,7 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
 
           // Get team style based on color mapping
           const mapping = getTeamColorMapping(team.abbreviation)
-          let background = '#F5F5F5'
+          let background = '#1a1a1a' // Default dark background
           let logoType: 'default' | 'dark' | 'scoreboard' | 'darkScoreboard' = 'dark'
 
           if (mapping) {
@@ -197,6 +224,11 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
               background = team.color.startsWith('#') ? team.color : `#${team.color}`
             }
             logoType = mapping.logoType || 'dark'
+          } else {
+            // No mapping exists, use team's primary color
+            if (team.color) {
+              background = team.color.startsWith('#') ? team.color : `#${team.color}`
+            }
           }
 
           teamStylesMap[abbreviation] = { background, logoType }
@@ -244,8 +276,8 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
       ) : (
         <div className="space-y-2">
 
-          <div className="flex flex-row gap-2 items-center justify-end uppercase font-bold max-xl:text-base">
-            <div className="">Show Picks</div>
+          <div className="flex flex-row gap-4 items-center justify-center sm:py-4 py-2 uppercase font-bold max-xl:text-base">
+            <div className="leading-none">{getSelectionMessage()}</div>
             <input 
               type="checkbox" 
               className="w-4 h-4 xl:mr-4 mr-2 accent-black" 
@@ -260,8 +292,8 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
           </div>
 
           {users.map((user, index) => {
-            const team = user.worldSeriesPick ? teamData[user.worldSeriesPick] : null
-            const teamStyle = user.worldSeriesPick ? teamStyles[user.worldSeriesPick] : null
+            const team = user.superBowlPick ? teamData[user.superBowlPick] : null
+            const teamStyle = user.superBowlPick ? teamStyles[user.superBowlPick] : null
 
             return (
               <div key={user.uid} className="w-full p-2 shadow-[0_0_0_1px_#000000]">
@@ -270,7 +302,7 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
 
                   <div className="flex flex-1 flex-row items-center justify-start gap-4">
 
-                    {/* World Series Pick */}
+                    {/* Superbowl Pick */}
                     <div className="flex flex-col items-center">
                       {team && teamStyle ? (
                         <div
@@ -284,8 +316,10 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
                           />
                         </div>
                       ) : (
-                        <div className="text-sm font-bold text-black/30 uppercase">
-                          No pick yet
+                        <div className="xl:w-20 xl:h-20 w-10 h-10 flex items-center justify-center p-1 rounded-full shadow-[0_0_0_1px_#000000]">
+                          {/* <div className="text-xs font-bold text-black uppercase text-center leading-none">
+                            NO<br/>PICK<br/>YET
+                          </div> */}
                         </div>
                       )}
                     </div>

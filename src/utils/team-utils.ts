@@ -1,7 +1,8 @@
-import { Team } from '@/types/mlb'
+import { Team, Game } from '@/types/nfl'
 import { espnApi } from '@/lib/espn-api'
 import { getTeamDisplayNameFromTeam } from './team-names'
 import { getTeamColorMappings } from '@/store/team-color-mapping-store'
+import { getTeamBackgroundColor, getTeamLogoType } from './team-color-mapping'
 
 // Helper function to get the best logo for a given context
 export function getTeamLogo(team: Team, context: 'default' | 'dark' | 'scoreboard' | 'darkScoreboard' = 'default'): string | undefined {
@@ -49,8 +50,6 @@ export function getTeamBackgroundAndLogo(team: Team): {
   logoType: 'default' | 'dark' | 'scoreboard' | 'darkScoreboard'
   useGradient: boolean
 } {
-  // Import the mapping functions
-  const { getTeamBackgroundColor, getTeamLogoType } = require('./team-color-mapping')
   const mappings = getTeamColorMappings()
   console.log('🎨 getTeamBackgroundAndLogo Debug:', {
     team: team.abbreviation,
@@ -133,10 +132,10 @@ export function getTeamCircleSize(team: { abbreviation: string }): 'lg' | 'md' |
 }
 
 /**
- * Fetch team records (wins/losses) from ESPN MLB standings endpoint
+ * Fetch team records (wins/losses/ties) from ESPN NFL standings endpoint
  */
 export async function fetchTeamRecordsFromStandings() {
-  const response = await fetch('https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/standings')
+  const response = await fetch('https://site.api.espn.com/apis/site/v2/sports/football/nfl/standings')
   const data = await response.json()
   // Find the first team entry for debugging
   if (data.standings && data.standings.entries && data.standings.entries.length > 0) {
@@ -144,17 +143,59 @@ export async function fetchTeamRecordsFromStandings() {
   } else {
     console.error('Standings API response missing expected structure:', JSON.stringify(data, null, 2));
   }
-  // Build a map of abbreviation -> { wins, losses }
-  const records: Record<string, { wins: number, losses: number }> = {}
+  // Build a map of abbreviation -> { wins, losses, ties }
+  const records: Record<string, { wins: number, losses: number, ties: number }> = {}
   for (const entry of data.standings.entries) {
     const team = entry.team
     const stats = entry.stats
     const abbreviation = team.abbreviation
     const wins = stats.find((s: any) => s.name === 'wins')?.value
     const losses = stats.find((s: any) => s.name === 'losses')?.value
+    const ties = stats.find((s: any) => s.name === 'ties')?.value
     if (abbreviation && typeof wins === 'number' && typeof losses === 'number') {
-      records[abbreviation] = { wins, losses }
+      records[abbreviation] = { wins, losses, ties: ties || 0 }
     }
   }
   return records
+} 
+
+/**
+ * Determine the favorite team for a matchup based on win-loss records
+ * Returns 'home' or 'away' based on which team has the better record
+ * If records are equal, defaults to 'home'
+ */
+export function getFavoriteTeam(homeTeam: Team, awayTeam: Team): 'home' | 'away' {
+  // If either team doesn't have record data, default to home
+  if (homeTeam.wins === undefined || homeTeam.losses === undefined || 
+      awayTeam.wins === undefined || awayTeam.losses === undefined) {
+    return 'home'
+  }
+
+  // Calculate win percentages
+  const homeGames = homeTeam.wins + homeTeam.losses + (homeTeam.ties || 0)
+  const awayGames = awayTeam.wins + awayTeam.losses + (awayTeam.ties || 0)
+  
+  const homeWinPct = homeGames > 0 ? (homeTeam.wins + (homeTeam.ties || 0) * 0.5) / homeGames : 0
+  const awayWinPct = awayGames > 0 ? (awayTeam.wins + (awayTeam.ties || 0) * 0.5) / awayGames : 0
+
+  // Return the team with better win percentage
+  return awayWinPct > homeWinPct ? 'away' : 'home'
+} 
+
+/**
+ * Generate Phil's picks for a given week
+ * Phil always picks the favorite team for each matchup
+ */
+export function generatePhilPicks(games: Game[]): Record<string, { pickedTeam: 'home' | 'away', pickedAt: any }> {
+  const philPicks: Record<string, { pickedTeam: 'home' | 'away', pickedAt: any }> = {}
+  
+  games.forEach(game => {
+    const favoriteTeam = getFavoriteTeam(game.homeTeam, game.awayTeam)
+    philPicks[game.id] = {
+      pickedTeam: favoriteTeam,
+      pickedAt: new Date() // Use current timestamp for Phil's picks
+    }
+  })
+  
+  return philPicks
 } 

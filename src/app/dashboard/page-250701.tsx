@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
-import { useGamesForWeek } from "@/hooks/use-mlb-data"
+import { useGamesForWeek } from "@/hooks/use-nfl-data"
 import { dateHelpers } from "@/utils/date-helpers"
 import { getTeamDisplayNameFromTeam } from "@/utils/team-names"
 import { getTeamCircleSize } from "@/utils/team-utils"
@@ -19,12 +19,12 @@ import * as Circles from '@/components/circles'
 
 const NUM_WEEKS = 5
 
-// MLB season start (adjust as needed)
-const MLB_SEASON_START = new Date('2024-03-28')
+  // NFL season start (adjust as needed)
+  const NFL_SEASON_START = new Date('2025-09-04')
 
 function getStartOfWeekNDaysAgo(weeksAgo: number) {
   const today = new Date()
-  const { start } = dateHelpers.getSundayWeekRange(
+  const { start } = dateHelpers.getTuesdayWeekRange(
     new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7 * weeksAgo)
   )
   return start
@@ -32,7 +32,7 @@ function getStartOfWeekNDaysAgo(weeksAgo: number) {
 
 function getSeasonAndWeek(sunday: Date) {
   const season = String(sunday.getFullYear())
-  const week = Math.ceil((sunday.getTime() - MLB_SEASON_START.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
+      const week = Math.ceil((sunday.getTime() - NFL_SEASON_START.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
   return { season, week: `week-${week}` }
 }
 
@@ -294,7 +294,7 @@ function WeeklyMatchesPage() {
                 >
                   {/* label */}
                   {(() => {
-                    const seasonStart = new Date('2024-03-28')
+                    const seasonStart = new Date('2025-09-04')
                     const weekStart = getStartOfWeekNDaysAgo(weekOffset)
                     const weekNumber = Math.ceil((weekStart.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
                     return `Week ${weekNumber}`
@@ -307,24 +307,48 @@ function WeeklyMatchesPage() {
                 {/* Dropdown overlay */}
                 {isWeekDropdownOpen && (
                   <div className="absolute top-full left-0 right-0 translate-x-2 -translate-y-2 max-xl:text-sm bg-white border border-black z-50 rounded-2xl shadow-2xl overflow-clip">
-                    {Array.from({ length: NUM_WEEKS }, (_, i) => {
-                      // Calculate the actual MLB season week number
-                      const seasonStart = new Date('2024-03-28')
-                      const weekStart = getStartOfWeekNDaysAgo(i)
-                      const weekNumber = Math.ceil((weekStart.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
-                      return (
-                        <div
-                          key={i}
-                          className={`px-3 py-2 cursor-pointer hover:bg-black/10 font-bold text-center uppercase ${i === weekOffset ? 'bg-black/5' : ''}`}
-                          onClick={() => {
-                            setWeekOffset(i)
-                            setIsWeekDropdownOpen(false)
-                          }}
-                        >
-                          Week {weekNumber}
-                        </div>
-                      )
-                    })}
+                    {(() => {
+                      const currentDate = new Date()
+                      const availableWeeks = []
+                      const preseasonStart = new Date('2025-08-01')
+                      const regularSeasonStart = new Date('2025-09-04')
+                      
+                      for (let i = 0; i < 20; i++) {
+                        const weekStart = getStartOfWeekNDaysAgo(i)
+                        const seasonStart = new Date('2025-09-04')
+                        const weekNumber = Math.ceil((weekStart.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
+                        
+                        // Check if this week is in preseason or regular season
+                        const isPreseason = weekStart >= preseasonStart && weekStart < regularSeasonStart
+                        const isWeekInPastOrCurrent = weekStart <= currentDate
+                        
+                        // Only show weeks that are in the past or current (not future)
+                        if (isWeekInPastOrCurrent) {
+                          let weekDisplay
+                          if (isPreseason) {
+                            const preseasonWeek = Math.floor((weekStart.getTime() - preseasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
+                            weekDisplay = `PRESEASON ${preseasonWeek}`
+                          } else {
+                            weekDisplay = `WEEK ${weekNumber}`
+                          }
+                          
+                          availableWeeks.push(
+                            <div
+                              key={i}
+                              className={`px-3 py-2 cursor-pointer hover:bg-black/10 font-bold text-center uppercase ${i === weekOffset ? 'bg-black/5' : ''}`}
+                              onClick={() => {
+                                setWeekOffset(i)
+                                setIsWeekDropdownOpen(false)
+                              }}
+                            >
+                              {weekDisplay}
+                            </div>
+                          )
+                        }
+                      }
+                      
+                      return availableWeeks
+                    })()}
                   </div>
                 )}
               </div>

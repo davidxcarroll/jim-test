@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
-import { useGamesForWeek } from "@/hooks/use-mlb-data"
+import { useGamesForWeek } from "@/hooks/use-nfl-data"
 import { dateHelpers } from "@/utils/date-helpers"
 import { getTeamDisplayNameFromTeam } from "@/utils/team-names"
 import { getTeamCircleSize } from "@/utils/team-utils"
@@ -12,6 +12,7 @@ import { collection, getDocs, doc, getDoc, setDoc, serverTimestamp } from 'fireb
 import { useAuthStore } from '@/store/auth-store'
 import { useClipboardVisibilityStore } from '@/store/clipboard-visibility-store'
 import { Toast } from '@/components/toast'
+import { PHIL_USER, getPhilPicks, isPhil } from '@/utils/phil-user'
 import { Tooltip } from '@/components/tooltip'
 import { UserStatsModal } from '@/components/user-stats-modal'
 // @ts-ignore
@@ -20,16 +21,16 @@ import * as Checks from '@/components/checks'
 import * as Circles from '@/components/circles'
 import React from 'react'
 import { LiveGameDisplay } from '@/components/live-game-display'
-import { getMLBSeasonStart, getSeasonAndWeek } from '@/utils/date-helpers'
+import { getNFLSeasonStart, getNFLPreseasonStart, getSeasonAndWeek, getCurrentWeekNumber, isPreseason, getPreseasonWeek, getRegularSeasonWeek, isWeekComplete, shouldWaitUntilNextMorning } from '@/utils/date-helpers'
 
 const NUM_WEEKS = 5
 
-// MLB season start (adjust as needed)
-const MLB_SEASON_START = new Date('2024-03-28')
+  // NFL season start (adjust as needed)
+  const NFL_SEASON_START = new Date('2025-09-04')
 
 function getStartOfWeekNDaysAgo(weeksAgo: number) {
   const today = new Date()
-  const { start } = dateHelpers.getSundayWeekRange(
+  const { start } = dateHelpers.getTuesdayWeekRange(
     new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7 * weeksAgo)
   )
   return start
@@ -222,7 +223,7 @@ function WeeklyMatchesPage() {
   const [isWeekDropdownOpen, setIsWeekDropdownOpen] = useState(false)
   const startOfWeek = getStartOfWeekNDaysAgo(weekOffset)
   const { season, week } = getSeasonAndWeek(startOfWeek)
-  const { end: endOfWeek } = dateHelpers.getSundayWeekRange(startOfWeek)
+  const { end: endOfWeek } = dateHelpers.getTuesdayWeekRange(startOfWeek)
   const { data: games, isLoading } = useGamesForWeek(startOfWeek, endOfWeek)
 
   const [users, setUsers] = useState<any[]>([])
@@ -298,10 +299,26 @@ function WeeklyMatchesPage() {
           ...doc.data()
         } as any)).filter((user: any) => user.displayName) // Only include users with display names
 
-        // Reorder users so current user appears first
+        // Add Phil to the users list
+        const philUser = {
+          id: PHIL_USER.id,
+          uid: PHIL_USER.uid,
+          displayName: PHIL_USER.displayName,
+          email: PHIL_USER.email,
+          superBowlPick: PHIL_USER.superBowlPick,
+          createdAt: PHIL_USER.createdAt,
+          updatedAt: PHIL_USER.updatedAt
+        }
+        
+        // Add Phil to the users data
+        usersData.push(philUser)
+
+        // Reorder users so current user appears first, then Phil
         const reorderedUsers = usersData.sort((a, b) => {
           if (a.id === currentUser?.uid) return -1
           if (b.id === currentUser?.uid) return 1
+          if (a.id === PHIL_USER.id) return -1
+          if (b.id === PHIL_USER.id) return 1
           return 0
         })
 
@@ -333,10 +350,20 @@ function WeeklyMatchesPage() {
           }
 
           const picksPromises = visibleUsers.map(async (user) => {
-            const picksDoc = await getDoc(doc(db, 'users', user.id, 'picks', `${season}_${week}`))
-            return {
-              userId: user.id,
-              picks: picksDoc.exists() ? picksDoc.data() : {}
+            // If this is Phil, generate his picks based on favorite teams
+            if (isPhil(user.id)) {
+              const philPicks = getPhilPicks(games || [])
+              return {
+                userId: user.id,
+                picks: philPicks
+              }
+            } else {
+              // Regular user - fetch from Firestore
+              const picksDoc = await getDoc(doc(db, 'users', user.id, 'picks', `${season}_${week}`))
+              return {
+                userId: user.id,
+                picks: picksDoc.exists() ? picksDoc.data() : {}
+              }
             }
           })
 
@@ -454,6 +481,78 @@ function WeeklyMatchesPage() {
     }
   }
 
+  // Get available weeks (only completed weeks and current week if complete)
+  const getAvailableWeeks = () => {
+    const weeks = []
+    const currentDate = new Date()
+    
+    // Get the actual NFL season and preseason start dates
+    const preseasonStart = getNFLPreseasonStart()
+    const regularSeasonStart = getNFLSeasonStart()
+    
+    // Only show current week and past weeks (no future weeks)
+    for (let i = 0; i < 20; i++) { // Increased limit to catch more weeks
+      const weekStart = getStartOfWeekNDaysAgo(i)
+      const { end: weekEnd } = dateHelpers.getTuesdayWeekRange(weekStart)
+      const { season: weekSeason, week: weekKey } = getSeasonAndWeek(weekStart)
+      
+      const isCurrentWeek = i === 0
+      const isCurrentPreseason = isPreseason(currentDate)
+      
+      // Calculate the actual week number for this week
+      let weekNumber
+      let isWeekInPastOrCurrent = false
+      
+      if (isCurrentPreseason) {
+        // During preseason, use a more lenient approach for the current week
+        // For the current week (i === 0), always include it during preseason
+        if (i === 0) {
+          weekNumber = getPreseasonWeek(weekStart)
+          isWeekInPastOrCurrent = true
+        } else {
+          // For past weeks, check if they're in the preseason period
+          const weekInPreseason = weekStart >= preseasonStart && weekStart < regularSeasonStart
+          
+          if (weekInPreseason) {
+            weekNumber = getPreseasonWeek(weekStart)
+            isWeekInPastOrCurrent = weekStart <= currentDate
+          } else {
+            // Skip weeks outside of preseason
+            continue
+          }
+        }
+      } else {
+        // During regular season, show all past weeks
+        weekNumber = getRegularSeasonWeek(weekStart)
+        isWeekInPastOrCurrent = weekStart <= currentDate
+      }
+      
+      // For the current week, always include it during preseason
+      if (isCurrentWeek) {
+        weeks.push({
+          index: i,
+          weekNumber,
+          isCurrentWeek,
+          isCurrentPreseason,
+          weekKey: `${weekSeason}_${weekKey}`
+        })
+      } else if (isWeekInPastOrCurrent) {
+        // For past weeks, only include them if they're actually in the past or current
+        weeks.push({
+          index: i,
+          weekNumber,
+          isCurrentWeek,
+          isCurrentPreseason,
+          weekKey: `${weekSeason}_${weekKey}`
+        })
+      }
+    }
+    
+    return weeks // Return all available weeks, not limited to NUM_WEEKS
+  }
+
+  const availableWeeks = getAvailableWeeks()
+
   // Show skeleton while loading
   if ((isLoading || loadingUsers || loadingPicks || clipboardLoading) && !loadTimeout) {
     return <DashboardSkeleton />
@@ -498,10 +597,36 @@ function WeeklyMatchesPage() {
                     >
                       {/* label */}
                       {(() => {
-                        const seasonStart = getMLBSeasonStart()
-                        const weekStart = getStartOfWeekNDaysAgo(weekOffset)
-                        const weekNumber = Math.ceil((weekStart.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
-                        return `${weekOffset === 0 ? ' 🏈' : ''} Week ${weekNumber}`
+                        // Find the current week info from available weeks
+                        const currentWeekInfo = availableWeeks.find(w => w.index === weekOffset)
+                        const isTuesday = dateHelpers.isPickDay(new Date())
+                        
+                        if (currentWeekInfo) {
+                          // Handle preseason vs regular season week display
+                          let label
+                          if (currentWeekInfo.isCurrentPreseason) {
+                            label = `PRESEASON ${Math.abs(currentWeekInfo.weekNumber)}`
+                          } else {
+                            label = `WEEK ${Math.abs(currentWeekInfo.weekNumber)}`
+                          }
+                          
+                          const tuesdayIndicator = currentWeekInfo.isCurrentWeek && isTuesday ? '📅 ' : ''
+                          return `${currentWeekInfo.isCurrentWeek ? '🏈' : ''} ${tuesdayIndicator}${label}`
+                        }
+                        
+                        // Check if current week is still in progress
+                        const currentWeekGames = games || []
+                        const isCurrentWeekComplete = isWeekComplete(currentWeekGames)
+                        const shouldWait = shouldWaitUntilNextMorning(currentWeekGames)
+                        
+                        if (!isCurrentWeekComplete) {
+                          return '🏈 Games in Progress...'
+                        } else if (shouldWait) {
+                          return '🏈 Week Complete - Available Tomorrow'
+                        }
+                        
+                        // Fallback if week not found
+                        return 'Loading...'
                       })()}
                       <span className={`material-symbols-sharp transition-transform`}>
                         arrow_drop_down
@@ -510,23 +635,31 @@ function WeeklyMatchesPage() {
                     {/* Dropdown overlay */}
                     {isWeekDropdownOpen && (
                       <div className="absolute top-full left-1/2 right-0 -translate-x-1/2 -translate-y-2 w-[calc(100%-20px)] max-xl:text-sm bg-white shadow-[inset_0_0_0_1px_#000000] z-[70] shadow-2xl overflow-clip">
-                        {Array.from({ length: NUM_WEEKS }, (_, i) => {
-                          const seasonStart = getMLBSeasonStart()
-                          const weekStart = getStartOfWeekNDaysAgo(i)
-                          const weekNumber = Math.ceil((weekStart.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
-                          return (
+                        {availableWeeks.map((weekInfo, index) => (
                             <div
-                              key={i}
-                              className={`px-3 py-2 cursor-pointer hover:bg-black hover:text-white font-bold text-center uppercase ${i === weekOffset ? 'bg-black/10' : ''}`}
+                              key={weekInfo.index}
+                              className={`px-3 py-2 cursor-pointer hover:bg-black hover:text-white font-bold text-center uppercase ${weekInfo.index === weekOffset ? 'bg-black/10' : ''}`}
                               onClick={() => {
-                                setWeekOffset(i)
+                                setWeekOffset(weekInfo.index)
                                 setIsWeekDropdownOpen(false)
                               }}
                             >
-                              {i === 0 ? '🏈' : ''} Week {weekNumber}
-                            </div>
-                          )
-                        })}
+                                                          {(() => {
+                              const isTuesday = dateHelpers.isPickDay(new Date())
+                              const tuesdayIndicator = weekInfo.isCurrentWeek && isTuesday ? '📅 ' : ''
+                              
+                              // Handle preseason vs regular season week display
+                              let weekDisplay
+                              if (weekInfo.isCurrentPreseason) {
+                                weekDisplay = `PRESEASON ${Math.abs(weekInfo.weekNumber)}`
+                              } else {
+                                weekDisplay = `WEEK ${Math.abs(weekInfo.weekNumber)}`
+                              }
+                              
+                              return `${weekInfo.isCurrentWeek ? '🏈' : ''} ${tuesdayIndicator}${weekDisplay}`
+                            })()}
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -541,7 +674,6 @@ function WeeklyMatchesPage() {
                     <div
                       className="w-full h-16 flex lg:items-center items-end justify-center font-jim xl:text-5xl text-3xl cursor-pointer"
                       onClick={() => {
-                        console.log('👤 User clicked:', { id: visibleUsers[userIndex].id, name })
                         setSelectedUser({ id: visibleUsers[userIndex].id, name })
                       }}
                     >
@@ -725,7 +857,7 @@ function WeeklyMatchesPage() {
                           ) : game.status === "live" && (
                             <div className="absolute right-[-18.5px] top-[-1.5px] -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-green-400 shadow-[0_0_0_1px_#000000] rounded-full">
                               <Tooltip content="Game in Progress" position="right">
-                                <span className="material-symbols-sharp !text-sm mb-[1px] animate-ping">sports_baseball</span>
+                                <span className="material-symbols-sharp !text-sm mb-[1px] animate-ping">sports_football</span>
                               </Tooltip>
                             </div>
                           ))}

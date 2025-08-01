@@ -1,6 +1,6 @@
 "use client"
 import { useState } from "react"
-import { useGamesForWeek } from "@/hooks/use-mlb-data"
+import { useGamesForWeek } from "@/hooks/use-nfl-data"
 import { dateHelpers } from "@/utils/date-helpers"
 import { getTeamDisplayNameFromTeam } from "@/utils/team-names"
 import { format, parseISO } from "date-fns"
@@ -9,7 +9,7 @@ const NUM_WEEKS = 5
 
 function getStartOfWeekNDaysAgo(weeksAgo: number) {
   const today = new Date()
-  const { start } = dateHelpers.getSundayWeekRange(
+  const { start } = dateHelpers.getTuesdayWeekRange(
     new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7 * weeksAgo)
   )
   return start

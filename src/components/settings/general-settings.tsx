@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { signOut } from 'firebase/auth'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { auth, db } from '@/lib/firebase'
@@ -9,13 +9,14 @@ import { useAuthStore } from '@/store/auth-store'
 import { Toast } from '@/components/toast'
 import { teamDisplayNames } from '@/utils/team-names'
 import { getTeamByAbbreviation, getTeamLogo } from '@/utils/team-utils'
-import { Team } from '@/types/mlb'
+import { Team } from '@/types/nfl'
 import { espnApi } from '@/lib/espn-api'
 import { loadTeamColorMappings, subscribeToTeamColorMappingChanges, getTeamColorMapping } from '@/store/team-color-mapping-store'
+import { isOnline, getNetworkStatusMessage } from '@/utils/network-utils'
 
 interface UserSettings {
   displayName: string
-  worldSeriesPick: string
+  superBowlPick: string
   emailNotifications: boolean
 }
 
@@ -27,7 +28,7 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
   const { user } = useAuthStore()
   const [settings, setSettings] = useState<UserSettings>({
     displayName: '',
-    worldSeriesPick: '',
+    superBowlPick: '',
     emailNotifications: false
   })
   const [originalUserData, setOriginalUserData] = useState<any>(null)
@@ -36,21 +37,36 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
   const [selectedTeamStyle, setSelectedTeamStyle] = useState<{ background: string; logoType: 'default' | 'dark' | 'scoreboard' | 'darkScoreboard' }>({ background: '#F5F5F5', logoType: 'dark' })
   const [teams, setTeams] = useState<Team[]>([])
+  const [networkStatus, setNetworkStatus] = useState<string>('')
   const router = useRouter()
 
   // Fetch official, active teams from ESPN API on mount
   useEffect(() => {
     async function fetchTeams() {
       try {
+        console.log('Fetching teams from ESPN API...')
         const apiTeams = await espnApi.getTeams()
+        
+        if (apiTeams.length === 0) {
+          console.warn('No teams returned from ESPN API - this may indicate a network issue')
+          setTeams([])
+          return
+        }
+        
         // Remove duplicates by abbreviation (shouldn't be any, but just in case)
         const uniqueTeams = Array.from(
           new Map(apiTeams.map(team => [team.abbreviation, team])).values()
         )
+        console.log(`Successfully loaded ${uniqueTeams.length} teams`)
         setTeams(uniqueTeams)
       } catch (error) {
         console.error('Error fetching teams:', error)
         setTeams([])
+        // Show user-friendly error message
+        onToast({ 
+          message: 'Unable to load team data. Please check your internet connection and try again.', 
+          type: 'error' 
+        })
       }
     }
     fetchTeams()
@@ -65,18 +81,18 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
     }
   }, [user])
 
-  // Load team data when world series pick changes
+  // Load team data when Super Bowl pick changes
   useEffect(() => {
     const loadTeamDataAndStyle = async () => {
-      if (settings.worldSeriesPick) {
-        await loadTeamData(settings.worldSeriesPick)
+          if (settings.superBowlPick) {
+      await loadTeamData(settings.superBowlPick)
       } else {
         setSelectedTeam(null)
         setSelectedTeamStyle({ background: '#F5F5F5', logoType: 'dark' })
       }
     }
     loadTeamDataAndStyle()
-  }, [settings.worldSeriesPick])
+      }, [settings.superBowlPick])
 
   // Subscribe to mapping changes and update team style if needed
   useEffect(() => {
@@ -85,9 +101,11 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
       if (selectedTeam) {
         const mapping = getTeamColorMapping(selectedTeam.abbreviation)
         // Use mapping to determine background and logoType
-        let background = '#F5F5F5'
+        let background = '#1a1a1a' // Default dark background
         let logoType: 'default' | 'dark' | 'scoreboard' | 'darkScoreboard' = 'dark'
+        
         if (mapping) {
+          // Use mapping configuration
           if (mapping.backgroundColorChoice === 'custom' && mapping.customColor) {
             background = mapping.customColor
           } else if (mapping.backgroundColorChoice === 'secondary' && selectedTeam.alternateColor) {
@@ -96,12 +114,47 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
             background = selectedTeam.color.startsWith('#') ? selectedTeam.color : `#${selectedTeam.color}`
           }
           logoType = mapping.logoType || 'dark'
+        } else {
+          // No mapping exists, use team's primary color
+          if (selectedTeam.color) {
+            background = selectedTeam.color.startsWith('#') ? selectedTeam.color : `#${selectedTeam.color}`
+          }
         }
+        
+        console.log('🎨 Team style updated from mapping change:', { team: selectedTeam.abbreviation, background, logoType, mapping: !!mapping })
         setSelectedTeamStyle({ background, logoType })
       }
     })
     return unsubscribe
   }, [selectedTeam])
+
+  // Monitor network status - only show warnings for offline state
+  useEffect(() => {
+    const updateNetworkStatus = () => {
+      const isConnected = isOnline()
+      setNetworkStatus(isConnected ? '' : 'Offline - Some features may not work')
+      
+      // Show offline warning if needed
+      if (!isConnected) {
+        onToast({ 
+          message: 'You are currently offline. Some features may not work properly.', 
+          type: 'error' 
+        })
+      }
+    }
+
+    // Update immediately
+    updateNetworkStatus()
+
+    // Listen for online/offline events
+    window.addEventListener('online', updateNetworkStatus)
+    window.addEventListener('offline', updateNetworkStatus)
+
+    return () => {
+      window.removeEventListener('online', updateNetworkStatus)
+      window.removeEventListener('offline', updateNetworkStatus)
+    }
+  }, [onToast])
 
   const loadUserSettings = async () => {
     if (!user) return
@@ -120,12 +173,26 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
         
         setSettings({
           displayName: data.displayName || '',
-          worldSeriesPick: data.worldSeriesPick || '',
+          superBowlPick: data.superBowlPick || '',
           emailNotifications: data.emailNotifications || false
         })
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading user settings:', error)
+      
+      // Handle specific Firebase offline errors
+      if (error.code === 'unavailable' || error.message?.includes('offline')) {
+        console.warn('Firebase is offline - settings will be loaded when connection is restored')
+        onToast({ 
+          message: 'Settings are currently offline. Changes will sync when connection is restored.', 
+          type: 'error' 
+        })
+      } else {
+        onToast({ 
+          message: 'Failed to load user settings. Please try again.', 
+          type: 'error' 
+        })
+      }
     }
   }
 
@@ -136,9 +203,11 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
       if (team) {
         const mapping = getTeamColorMapping(team.abbreviation)
         // Use mapping to determine background and logoType
-        let background = '#F5F5F5'
+        let background = '#1a1a1a' // Default dark background
         let logoType: 'default' | 'dark' | 'scoreboard' | 'darkScoreboard' = 'dark'
+        
         if (mapping) {
+          // Use mapping configuration
           if (mapping.backgroundColorChoice === 'custom' && mapping.customColor) {
             background = mapping.customColor
           } else if (mapping.backgroundColorChoice === 'secondary' && team.alternateColor) {
@@ -147,13 +216,20 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
             background = team.color.startsWith('#') ? team.color : `#${team.color}`
           }
           logoType = mapping.logoType || 'dark'
+        } else {
+          // No mapping exists, use team's primary color
+          if (team.color) {
+            background = team.color.startsWith('#') ? team.color : `#${team.color}`
+          }
         }
+        
+        console.log('🎨 Team style calculated:', { team: team.abbreviation, background, logoType, mapping: !!mapping })
         setSelectedTeamStyle({ background, logoType })
       }
     } catch (error) {
       console.error('Error loading team data:', error)
       setSelectedTeam(null)
-      setSelectedTeamStyle({ background: '#F5F5F5', logoType: 'dark' })
+      setSelectedTeamStyle({ background: '#1a1a1a', logoType: 'dark' })
     }
   }
 
@@ -178,13 +254,13 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
     }
   }
 
-  const saveWorldSeriesPick = async (teamAbbreviation: string) => {
-    const success = await saveField('worldSeriesPick', teamAbbreviation)
+  const saveSuperBowlPick = async (teamAbbreviation: string) => {
+    const success = await saveField('superBowlPick', teamAbbreviation)
     if (success) {
       const teamName = teamDisplayNames[teamAbbreviation] || teams.find(t => t.abbreviation === teamAbbreviation)?.name || teamAbbreviation
-      onToast({ message: `World Series pick saved: ${teamName}!`, type: 'success' })
+      onToast({ message: `Super Bowl pick saved: ${teamName}!`, type: 'success' })
     } else {
-      onToast({ message: 'Error saving World Series pick. Please try again.', type: 'error' })
+      onToast({ message: 'Error saving Super Bowl pick. Please try again.', type: 'error' })
     }
   }
 
@@ -222,10 +298,10 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
     }
   }
 
-  const handleWorldSeriesPickChange = (teamAbbreviation: string) => {
-    setSettings(prev => ({ ...prev, worldSeriesPick: teamAbbreviation }))
+  const handleSuperBowlPickChange = (teamAbbreviation: string) => {
+    setSettings(prev => ({ ...prev, superBowlPick: teamAbbreviation }))
     if (teamAbbreviation) {
-      saveWorldSeriesPick(teamAbbreviation)
+      saveSuperBowlPick(teamAbbreviation)
     }
   }
 
@@ -253,6 +329,13 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
 
   return (
     <div className="w-full max-w-[800px] mx-auto bg-neutral-100 space-y-6 text-center">
+      {/* Network Status Indicator - only show when offline */}
+      {networkStatus && (
+        <div className="p-3 text-center text-sm font-bold uppercase bg-red-100 text-red-800">
+          {networkStatus}
+        </div>
+      )}
+
       <div className="w-full flex lg:flex-row flex-col items-center justify-center gap-x-6 gap-y-6 mt-4">
         
         <div className="w-full">
@@ -267,7 +350,6 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
               {loading ? 'Signing out...' : '(Sign Out)'}
             </button>
           </div>
-          
           <input
             id="email"
             type="email"
@@ -295,13 +377,13 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
       </div>
 
       <div className="relative">
-        <label htmlFor="worldSeriesPick" className="block text-center text-sm font-bold text-black uppercase mb-1">
-          World Series Pick
+        <label htmlFor="superBowlPick" className="block text-center text-sm font-bold text-black uppercase mb-1">
+          Super Bowl Pick
         </label>
         <select
-          id="worldSeriesPick"
-          value={settings.worldSeriesPick}
-          onChange={(e) => handleWorldSeriesPickChange(e.target.value)}
+          id="superBowlPick"
+          value={settings.superBowlPick}
+          onChange={(e) => handleSuperBowlPickChange(e.target.value)}
           className="absolute inset-0 opacity-0 cursor-pointer z-20"
         >
           <option value="">Select a team</option>

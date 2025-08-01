@@ -13,8 +13,8 @@ const config: Config = {
         'chakra': ['var(--font-chakra-petch)', 'sans-serif'],
       },
       colors: {
-        'mlb-blue': '#002D72',
-        'mlb-red': '#D50032',
+        'nfl-blue': '#013369',
+        'nfl-red': '#D50A0A',
         'baseball-green': '#0F5132',
         'diamond-white': '#F8F9FA',
       },

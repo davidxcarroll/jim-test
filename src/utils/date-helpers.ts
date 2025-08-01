@@ -1,14 +1,14 @@
 import { format, parseISO, isToday, isTomorrow, isYesterday, addDays, startOfWeek, endOfWeek } from 'date-fns'
 import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz'
 
-// MLB timezone (Pacific Time as default)
-const MLB_TIMEZONE = 'America/Los_Angeles'
+// NFL timezone (Eastern Time as default for most games)
+const NFL_TIMEZONE = 'America/New_York'
 
 export const dateHelpers = {
   // Format game date for display
   formatGameDate(dateString: string): string {
     const date = parseISO(dateString)
-    const zonedDate = utcToZonedTime(date, MLB_TIMEZONE)
+    const zonedDate = utcToZonedTime(date, NFL_TIMEZONE)
     
     if (isToday(zonedDate)) {
       return `Today at ${format(zonedDate, 'h:mm a')}`
@@ -24,7 +24,7 @@ export const dateHelpers = {
   // Get relative time for live games
   getRelativeTime(dateString: string): string {
     const date = parseISO(dateString)
-    const zonedDate = utcToZonedTime(date, MLB_TIMEZONE)
+    const zonedDate = utcToZonedTime(date, NFL_TIMEZONE)
     const now = new Date()
     
     const diffInMinutes = Math.floor((now.getTime() - zonedDate.getTime()) / (1000 * 60))
@@ -40,10 +40,10 @@ export const dateHelpers = {
     }
   },
 
-  // Get week range for weekly picks
+  // Get week range for weekly picks (Tuesday-based)
   getWeekRange(date: Date = new Date()) {
-    const start = startOfWeek(date, { weekStartsOn: 1 }) // Monday
-    const end = endOfWeek(date, { weekStartsOn: 1 }) // Sunday
+    const start = startOfWeek(date, { weekStartsOn: 2 }) // Tuesday
+    const end = endOfWeek(date, { weekStartsOn: 2 }) // Monday
     return { start, end }
   },
 
@@ -57,7 +57,7 @@ export const dateHelpers = {
     if (status === 'live') return true
     
     const gameStart = parseISO(startTime)
-    const zonedGameStart = utcToZonedTime(gameStart, MLB_TIMEZONE)
+    const zonedGameStart = utcToZonedTime(gameStart, NFL_TIMEZONE)
     const now = new Date()
     
     // Game is live if it started within the last 4 hours
@@ -75,29 +75,144 @@ export const dateHelpers = {
   // Format timezone-aware time
   formatTimeWithTimezone(dateString: string): string {
     const date = parseISO(dateString)
-    const zonedDate = utcToZonedTime(date, MLB_TIMEZONE)
+    const zonedDate = utcToZonedTime(date, NFL_TIMEZONE)
     return format(zonedDate, 'h:mm a zzz')
   },
 
-  // Get week range starting on Sunday
+  // Get week range starting on Sunday (legacy - keeping for backward compatibility)
   getSundayWeekRange(date: Date = new Date()) {
     const start = startOfWeek(date, { weekStartsOn: 0 }) // Sunday
     const end = endOfWeek(date, { weekStartsOn: 0 }) // Saturday
     return { start, end }
+  },
+
+  // Get Tuesday-based week range (new primary method)
+  getTuesdayWeekRange(date: Date = new Date()) {
+    const start = startOfWeek(date, { weekStartsOn: 2 }) // Tuesday
+    const end = endOfWeek(date, { weekStartsOn: 2 }) // Monday
+    return { start, end }
+  },
+
+  // Check if today is Tuesday (pick day)
+  isPickDay(date: Date = new Date()): boolean {
+    return date.getDay() === 2 // Tuesday is day 2 (0 = Sunday, 1 = Monday, 2 = Tuesday)
+  },
+
+  // Get the next Tuesday (next pick day)
+  getNextPickDay(date: Date = new Date()): Date {
+    const today = date
+    const daysUntilTuesday = (2 - today.getDay() + 7) % 7
+    return addDays(today, daysUntilTuesday)
+  },
+
+  // Get the current Tuesday-based week start
+  getCurrentWeekStart(date: Date = new Date()): Date {
+    const { start } = this.getTuesdayWeekRange(date)
+    return start
+  },
+
+  // Check if a date is in the current Tuesday-based week
+  isInCurrentWeek(date: Date, currentDate: Date = new Date()): boolean {
+    const { start, end } = this.getTuesdayWeekRange(currentDate)
+    return date >= start && date <= end
   }
 } 
 
-// MLB season start (update this for each new season)
-export function getMLBSeasonStart() {
-  // Change this date when a new MLB season starts
-  // 2024 MLB season: March 28, 2024
-  return new Date('2024-03-28')
+// NFL season start (update this for each new season)
+export function getNFLSeasonStart() {
+  // Change this date when a new NFL season starts
+  // 2025 NFL season: September 4, 2025 (Thursday Night Football opener)
+  return new Date('2025-09-04')
 }
+
+// NFL preseason start (update this for each new season)
+export function getNFLPreseasonStart() {
+  // 2025 NFL preseason: Hall of Fame Game on August 1, 2025
+  return new Date('2025-08-01')
+}
+
+// Check if we're currently in preseason
+export function isPreseason(date: Date = new Date()): boolean {
+  const preseasonStart = getNFLPreseasonStart()
+  const regularSeasonStart = getNFLSeasonStart()
+  return date >= preseasonStart && date < regularSeasonStart
+}
+
+// Get preseason week number (negative numbers for preseason)
+export function getPreseasonWeek(date: Date = new Date()): number {
+  const preseasonStart = getNFLPreseasonStart()
+  const weekNumber = Math.ceil((date.getTime() - preseasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000))
+  // Ensure the first week is always week 1, not week 0
+  const adjustedWeekNumber = weekNumber === 0 ? 1 : weekNumber
+  return -adjustedWeekNumber // Negative to indicate preseason
+}
+
+// Get regular season week number
+export function getRegularSeasonWeek(date: Date = new Date()): number {
+  const seasonStart = getNFLSeasonStart()
+  const weekNumber = Math.ceil((date.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
+  return weekNumber
+}
+
+// Get the appropriate week number (preseason or regular season)
+export function getCurrentWeekNumber(date: Date = new Date()): number {
+  if (isPreseason(date)) {
+    return getPreseasonWeek(date)
+  } else {
+    return getRegularSeasonWeek(date)
+  }
+} 
 
 // Returns { season, week } for any date
 export function getSeasonAndWeek(date: Date) {
-  const seasonStart = getMLBSeasonStart()
+  const seasonStart = getNFLSeasonStart()
   const season = String(seasonStart.getFullYear())
-  const week = Math.ceil((date.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
-  return { season, week: `week-${week}` }
+  const weekNumber = getCurrentWeekNumber(date)
+  const week = weekNumber < 0 ? `preseason-${Math.abs(weekNumber)}` : `week-${weekNumber}`
+  return { season, week }
+}
+
+// Check if a week is complete (all games finished)
+export function isWeekComplete(games: any[]): boolean {
+  if (!games || games.length === 0) return false
+  
+  // Check if all games are finished (final or post status)
+  return games.every(game => game.status === 'final' || game.status === 'post')
+}
+
+// Get the most recent completed week
+export function getMostRecentCompletedWeek(gamesByWeek: Record<string, any[]>): string | null {
+  const weekKeys = Object.keys(gamesByWeek).sort().reverse()
+  
+  for (const weekKey of weekKeys) {
+    const games = gamesByWeek[weekKey]
+    if (isWeekComplete(games)) {
+      return weekKey
+    }
+  }
+  
+  return null
+}
+
+// Check if we should wait until next morning before showing a completed week
+export function shouldWaitUntilNextMorning(games: any[]): boolean {
+  if (!games || games.length === 0) return false
+  
+  // Check if all games are finished
+  const allFinished = isWeekComplete(games)
+  if (!allFinished) return false
+  
+  // Get the latest game end time
+  const latestGameEnd = games
+    .filter(game => game.status === 'final' || game.status === 'post')
+    .map(game => new Date(game.date))
+    .sort((a, b) => b.getTime() - a.getTime())[0]
+  
+  if (!latestGameEnd) return false
+  
+  // Check if it's been less than 12 hours since the last game ended
+  const now = new Date()
+  const hoursSinceLastGame = (now.getTime() - latestGameEnd.getTime()) / (1000 * 60 * 60)
+  
+  return hoursSinceLastGame < 12
 } 

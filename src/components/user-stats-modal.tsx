@@ -10,6 +10,7 @@ import { getTeamByAbbreviation, getTeamLogo, getTeamBackgroundAndLogo } from '@/
 import { Team } from '@/types/nfl'
 import { loadTeamColorMappings } from '@/store/team-color-mapping-store'
 import { tmdbApi } from '@/lib/tmdb-api'
+import { PHIL_USER, isPhil, getPhilPicks } from '@/utils/phil-user'
 
 interface UserStatsModalProps {
   isOpen: boolean
@@ -211,12 +212,26 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
 
       // Fetch user data for movies and super bowl pick
       console.log('📋 Fetching user document for userId:', userId)
-      const userDoc = await getDoc(doc(db, 'users', userId))
-      const userData = userDoc.exists() ? userDoc.data() : {}
+      
+      let userData: any = {}
+      let movies: any[] = []
+      let superBowlPick: string = ''
+      
+      // Check if this is Phil (hardcoded user)
+      if (isPhil(userId)) {
+        console.log('🏈 This is Phil - using hardcoded data')
+        userData = PHIL_USER
+        movies = userData.moviePicks || []
+        superBowlPick = userData.superBowlPick || ''
+      } else {
+        // Regular user - fetch from Firebase
+        const userDoc = await getDoc(doc(db, 'users', userId))
+        userData = userDoc.exists() ? userDoc.data() : {}
+        movies = userData.moviePicks || []
+        superBowlPick = userData.superBowlPick || ''
+      }
+      
       console.log('📋 User data:', userData)
-
-      const movies = userData.moviePicks || []
-      const superBowlPick = userData.superBowlPick || ''
       console.log('🎬 Movies:', movies)
       console.log('🏆 Super Bowl Pick:', superBowlPick)
 
@@ -258,10 +273,10 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
         try {
           console.log('🏆 Fetching super bowl team for:', superBowlPick)
           const team = await getTeamByAbbreviation(superBowlPick)
-                      console.log('🏆 Super bowl team found:', team)
+          console.log('🏆 Super bowl team found:', team)
           setSuperBowlTeam(team)
         } catch (error) {
-                      console.error('❌ Error fetching super bowl team:', error)
+          console.error('❌ Error fetching super bowl team:', error)
           setSuperBowlTeam(null)
         }
       } else {
@@ -271,8 +286,21 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
 
       // Fetch all picks for this user
       console.log('📊 Fetching picks collection for userId:', userId)
-      const picksCollection = collection(db, 'users', userId, 'picks')
-      const picksSnapshot = await getDocs(picksCollection)
+      
+      let picksSnapshot: any
+      
+      // Check if this is Phil (hardcoded user)
+      if (isPhil(userId)) {
+        console.log('🏈 This is Phil - using hardcoded picks data')
+        // For Phil, we'll create an empty snapshot since he doesn't have picks in Firebase
+        // Phil's picks are generated dynamically based on current games
+        picksSnapshot = { docs: [], size: 0 }
+      } else {
+        // Regular user - fetch from Firebase
+        const picksCollection = collection(db, 'users', userId, 'picks')
+        picksSnapshot = await getDocs(picksCollection)
+      }
+      
       console.log('📊 Picks snapshot size:', picksSnapshot.size)
 
       const weeklyStats: Record<string, { correct: number; total: number; isTopScore: boolean }> = {}
@@ -478,22 +506,13 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
         <div className="sticky top-0 bg-neutral-100 shadow-[0_1px_0_#000000] p-1">
           <div className="relative flex items-center justify-between">
 
-            {(() => {
-              console.log('🎨 User Stats Modal - About to call getTeamBackgroundAndLogo for:', superBowlTeam?.abbreviation)
+                        {(() => {
               const teamStyle = superBowlTeam ? getTeamBackgroundAndLogo(superBowlTeam) : null
-              console.log('🎨 User Stats Modal - Team Style Debug:', {
-                team: superBowlTeam?.abbreviation,
-                teamName: superBowlTeam?.name,
-                background: teamStyle?.background,
-                logoType: teamStyle?.logoType,
-                teamColor: superBowlTeam?.color,
-                teamAlternateColor: superBowlTeam?.alternateColor
-              })
               return (
                 <div
                   className="xl:w-20 xl:h-20 w-10 h-10 flex items-center justify-center p-1 rounded-full shadow-[0_0_0_1px_#000000]"
                   style={{
-                    backgroundColor: teamStyle ? teamStyle.background : 'transparent'
+                    backgroundColor: teamStyle ? teamStyle.background : (superBowlTeam?.color ? `#${superBowlTeam.color}` : '#1a1a1a')
                   }}
                 >
                   {superBowlTeam && (
@@ -501,6 +520,9 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
                       src={getTeamLogo(superBowlTeam, teamStyle?.logoType || 'dark')}
                       alt={superBowlTeam.name}
                       className="w-full h-full object-contain"
+                      onError={(e) => {
+                        console.error('❌ Failed to load team logo:', superBowlTeam.name, e)
+                      }}
                     />
                   )}
                 </div>

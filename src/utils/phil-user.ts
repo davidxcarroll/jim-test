@@ -7,7 +7,7 @@ export const PHIL_USER = {
   uid: 'phil-hardcoded',
   displayName: 'Phil',
   email: 'phil@example.com',
-  superBowlPick: '',
+  superBowlPick: 'CAR', // Carolina Panthers
   createdAt: new Date('2024-01-01'),
   updatedAt: new Date('2024-01-01')
 }

@@ -33,17 +33,15 @@ export const emailService = {
         </head>
         <body>
           <div class="container">
-            <div class="header">
-              <h1>Welcome (back) to<br/>Jim's Clipboard!</h1>
-            </div>
             <div class="content">
               <h2>Hey ${displayName || 'there'}!</h2>
               <p>David Carroll here. If you're like me, football season isn't the same without Jim's Clipboard. This app is my attempt to scratch that itch.</p>
-              <p>I tried to make it as true to the original as possible. The only thing you <i>need</i> to do to get going (besides creating an account, which you've already done) is add your first name. Each week, during the regular season, you can make picks. Caution! When a game starts, picking is locked, so get there while you can.</p>
-              <p>In settings, add your prediction for who will win the Super Bowl, and if you want to be reminded to make your picks each week. Or maybe save the app to your browser bookmarks for easy access.</p>
+              <p>I tried to make it as true to the original as possible. The only remaining thing required for setup is to login and add your first name in settings.</p>
+              <p>Every Tuesday starts a fresh week and you can make your picks. Note: When a game starts, picking is locked.</p>
+              <p>Other steps you can take in settings: add your prediction for who will win the Super Bowl, and if you want to be reminded to make your picks each week.</p>
               <p>That's pretty much it! If you notice any bugs or have any feedback feel free to <a class="email-link" href="mailto:david@hazeltine.co">email me</a>.</p>
-              <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://jimsclipboard.com'}" class="button magic-link">👉 To the App!</a></p>
-              <p>Oh PS: Jim! I built this without you knowing so if I'm ruining your legacy just say the word and I'll pull the plug! ;)</p>
+              <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://jimsclipboard.com'}/signin" class="button magic-link">📋 TO THE CLIPBOARD!</a></p>
+              <p>PS: Jim! I built this without you knowing so if I'm ruining your legacy just say the word and I'll pull the plug! ;)</p>
             </div>
             <div class="footer">
               <p style="font-style: italic;">I promise I won't bug you with a bunch of emails!</p>
@@ -62,8 +60,10 @@ export const emailService = {
   },
 
   async sendWeeklyReminder(email: string, displayName?: string, weekNumber?: number) {
-    const weekText = weekNumber ? `Week ${weekNumber} is up!` : 'A new week is up';
+    console.log('sendWeeklyReminder called with:', { email, displayName, weekNumber })
+    const weekText = weekNumber ? `Week ${weekNumber} is up!` : 'A new week is up!';
     const subject = weekNumber ? `Week ${weekNumber} 📋🏈✅ Make Your Picks!` : 'New Week 📋🏈✅ Make Your Picks!';
+    console.log('Email template variables:', { displayName, weekText, finalHeading: displayName ? `${displayName}! ${weekText}` : `Hiya! ${weekText}` })
     const html = `
       <!DOCTYPE html>
       <html>
@@ -83,18 +83,13 @@ export const emailService = {
         </head>
         <body>
           <div class="container">
-            <div class="header">
-              <h1>${weekText}</h1>
-            </div>
-            <div class="content">
-              <h2>Hey ${displayName || 'there'}!</h2>
-              <p>A new week us up on Jim's Clipboard!</p>
+            <div class="content" style="text-align: center;">
+              <h2>${displayName ? `${displayName}! ${weekText}` : `Hiya! ${weekText}`}</h2>
               <p>Reminder, when a game starts, picking is locked, so get there while you can!</p>
-              <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://jimsclipboard.com'}/signin" class="button magic-link">🏈 Sign In & Make Your Picks</a></p>
-              <p><small>Use the "Sign in with Email Link" option for quick passwordless access.</small></p>
+              <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://jimsclipboard.com'}/signin" class="button magic-link">📋 MAKE YOUR PICKS!</a></p>
             </div>
             <div class="footer">
-              <p style="font-style: italic;">Good luck this week :)</p>
+              <p style="font-style: italic;">Good luck :)</p>
             </div>
           </div>
         </body>

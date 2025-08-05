@@ -218,26 +218,38 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
       const movies = userData.moviePicks || []
       const superBowlPick = userData.superBowlPick || ''
       console.log('🎬 Movies:', movies)
-              console.log('🏆 Super Bowl Pick:', superBowlPick)
+      console.log('🏆 Super Bowl Pick:', superBowlPick)
 
       // Process movies - handle both old format (string[]) and new format (object[])
       const processedMovies: ProcessedMovie[] = movies.map((movie: any, index: number) => {
+        console.log(`🎬 Processing movie ${index + 1}:`, movie)
+        
         if (typeof movie === 'string') {
           // Old format - just a string
-          return { title: movie.trim(), position: index + 1 }
+          const result = { title: movie.trim(), position: index + 1 }
+          console.log(`🎬 Old format result:`, result)
+          return result
         } else if (movie && typeof movie === 'object') {
           // New format - object with title, tmdbId, posterPath
-          return {
+          const result = {
             title: movie.title?.trim() || '',
             position: index + 1,
             tmdbId: movie.tmdbId,
             posterPath: movie.posterPath
           }
+          console.log(`🎬 New format result:`, result)
+          return result
         } else {
           // Invalid format
-          return { title: '', position: index + 1 }
+          const result = { title: '', position: index + 1 }
+          console.log(`🎬 Invalid format result:`, result)
+          return result
         }
-      }).filter((item: ProcessedMovie) => item.title !== '')
+      }).filter((item: ProcessedMovie) => {
+        const shouldKeep = item.title !== ''
+        console.log(`🎬 Filtering "${item.title}" (position ${item.position}): ${shouldKeep ? 'KEEP' : 'REMOVE'}`)
+        return shouldKeep
+      })
 
       console.log('🎬 Processed movies:', processedMovies)
 
@@ -300,7 +312,18 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
           
           // Get week dates for fetching games
           const [season, weekStr] = weekId.split('_')
-          const weekNumber = parseInt(weekStr.replace('week-', ''))
+          let weekNumber: number
+          
+          // Handle both regular weeks (week-X) and preseason weeks (preseason-X)
+          if (weekStr.startsWith('week-')) {
+            weekNumber = parseInt(weekStr.replace('week-', ''))
+          } else if (weekStr.startsWith('preseason-')) {
+            weekNumber = parseInt(weekStr.replace('preseason-', ''))
+          } else {
+            console.warn(`⚠️ Unknown week format: ${weekStr}, skipping week ${weekId}`)
+            continue
+          }
+          
           console.log(`📅 Week number: ${weekNumber}`)
 
                       // Calculate week start date (NFL season started September 5, 2024)
@@ -365,10 +388,20 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
       // Convert to sorted array format
       const weeklyArray = Object.entries(weeklyStats)
         .map(([week, stats]) => {
-          // Extract just the week number from "2024_week-1" format
-          const weekNumber = week.match(/week-(\d+)/)?.[1] || '0'
+          // Extract week number from "2024_week-1" or "2025_preseason-1" format
+          let weekNumber: string
+          let weekLabel: string
+          
+          if (week.includes('preseason-')) {
+            weekNumber = week.match(/preseason-(\d+)/)?.[1] || '0'
+            weekLabel = `Preseason ${weekNumber}`
+          } else {
+            weekNumber = week.match(/week-(\d+)/)?.[1] || '0'
+            weekLabel = `Week ${weekNumber}`
+          }
+          
           return {
-            week: `Week ${weekNumber}`,
+            week: weekLabel,
             correct: stats.correct,
             total: stats.total,
             percentage: stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0,
@@ -376,9 +409,11 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
           }
         })
         .sort((a, b) => {
-          // Sort by week number (extract number from "Week X")
-          const aNum = parseInt(a.week.match(/Week (\d+)/)?.[1] || '0')
-          const bNum = parseInt(b.week.match(/Week (\d+)/)?.[1] || '0')
+          // Sort by week number (extract number from "Week X" or "Preseason X")
+          const aMatch = a.week.match(/(?:Week|Preseason) (\d+)/)
+          const bMatch = b.week.match(/(?:Week|Preseason) (\d+)/)
+          const aNum = parseInt(aMatch?.[1] || '0')
+          const bNum = parseInt(bMatch?.[1] || '0')
           return bNum - aNum // Most recent first
         })
 
@@ -403,6 +438,9 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
       }
 
       console.log('📊 Final stats object:', finalStats)
+      console.log('🎬 Movies array length:', finalStats.movies.length)
+      console.log('🎬 Movies array:', finalStats.movies)
+      console.log('🎬 Movie positions:', finalStats.moviePositions)
       setStats(finalStats)
     } catch (error) {
       console.error('❌ Error fetching user stats:', error)
@@ -535,7 +573,15 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
               )}
 
               {/* Top 10 Movies */}
-              {stats?.movies && stats.movies.length > 0 && (
+              {(() => {
+                console.log('🎭 Rendering movies section check:', {
+                  hasStats: !!stats,
+                  hasMovies: !!stats?.movies,
+                  moviesLength: stats?.movies?.length,
+                  movies: stats?.movies
+                })
+                return stats?.movies && stats.movies.length > 0
+              })() && (
                 <>
                   <hr className="border-t-[1px] border-black" />
 

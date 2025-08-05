@@ -310,7 +310,7 @@ function WeeklyMatchesPage() {
                     {(() => {
                       const currentDate = new Date()
                       const availableWeeks = []
-                      const preseasonStart = new Date('2025-08-01')
+                      const preseasonStart = new Date('2025-07-25')
                       const regularSeasonStart = new Date('2025-09-04')
                       
                       for (let i = 0; i < 20; i++) {

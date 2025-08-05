@@ -1,5 +1,6 @@
 import { Game, Team } from '@/types/nfl'
 import { format as formatDate } from 'date-fns'
+import { getFavoriteTeam } from '@/utils/team-utils'
 
 const ESPN_BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl'
 
@@ -134,39 +135,44 @@ export const espnApi = {
         const awayTeam = away.team || {}
         const status = event.status || {}
         
+        const homeTeamData = {
+          id: homeTeam.id || '',
+          name: homeTeam.name || '',
+          abbreviation: homeTeam.abbreviation || '',
+          city: homeTeam.location || '',
+          division: '',
+          conference: '',
+          logo: homeTeam.logos?.[0]?.href || '',
+          logos: extractLogoVariations(homeTeam.logos || []),
+          color: homeTeam.color || '',
+          alternateColor: homeTeam.alternateColor || ''
+        }
+        
+        const awayTeamData = {
+          id: awayTeam.id || '',
+          name: awayTeam.name || '',
+          abbreviation: awayTeam.abbreviation || '',
+          city: awayTeam.location || '',
+          division: '',
+          conference: '',
+          logo: awayTeam.logos?.[0]?.href || '',
+          logos: extractLogoVariations(awayTeam.logos || []),
+          color: awayTeam.color || '',
+          alternateColor: awayTeam.alternateColor || ''
+        }
+        
         return {
           id: event.id,
           date: event.date,
-          homeTeam: {
-            id: homeTeam.id || '',
-            name: homeTeam.name || '',
-            abbreviation: homeTeam.abbreviation || '',
-            city: homeTeam.location || '',
-            division: '',
-            conference: '',
-            logo: homeTeam.logos?.[0]?.href || '',
-            logos: extractLogoVariations(homeTeam.logos || []),
-            color: homeTeam.color || '',
-            alternateColor: homeTeam.alternateColor || ''
-          },
-          awayTeam: {
-            id: awayTeam.id || '',
-            name: awayTeam.name || '',
-            abbreviation: awayTeam.abbreviation || '',
-            city: awayTeam.location || '',
-            division: '',
-            conference: '',
-            logo: awayTeam.logos?.[0]?.href || '',
-            logos: extractLogoVariations(awayTeam.logos || []),
-            color: awayTeam.color || '',
-            alternateColor: awayTeam.alternateColor || ''
-          },
+          homeTeam: homeTeamData,
+          awayTeam: awayTeamData,
           homeScore: home.score || 0,
           awayScore: away.score || 0,
           status: status.type?.state === 'in' ? 'live' : status.type?.state === 'pre' ? 'scheduled' : status.type?.state || 'unknown',
           quarter: status.period || 0,
           venue: competition.venue?.fullName || '',
-          startTime: event.date
+          startTime: event.date,
+          favoriteTeam: getFavoriteTeam(homeTeamData, awayTeamData)
         }
       }) || []
     } catch (error) {
@@ -196,33 +202,37 @@ export const espnApi = {
     const topInning = status.periodPrefix ? (status.periodPrefix.toLowerCase().startsWith('top') ? true : status.periodPrefix.toLowerCase().startsWith('bot') ? false : undefined) : undefined
     // Optionally, displayPeriod (e.g. "3rd") and detail (e.g. "Top 3rd")
 
+    const homeTeamData = {
+      id: homeTeam.id || '',
+      name: homeTeam.name || '',
+      abbreviation: homeTeam.abbreviation || '',
+      city: homeTeam.location || '',
+      division: '',
+      conference: '',
+      logo: homeTeam.logos?.[0]?.href || '',
+      logos: extractLogoVariations(homeTeam.logos || []),
+      color: homeTeam.color || '',
+      alternateColor: homeTeam.alternateColor || ''
+    }
+
+    const awayTeamData = {
+      id: awayTeam.id || '',
+      name: awayTeam.name || '',
+      abbreviation: awayTeam.abbreviation || '',
+      city: awayTeam.location || '',
+      division: '',
+      conference: '',
+      logo: awayTeam.logos?.[0]?.href || '',
+      logos: extractLogoVariations(awayTeam.logos || []),
+      color: awayTeam.color || '',
+      alternateColor: awayTeam.alternateColor || ''
+    }
+
     return {
       id: data.header.id || '',
       date: data.header.date || '',
-      homeTeam: {
-        id: homeTeam.id || '',
-        name: homeTeam.name || '',
-        abbreviation: homeTeam.abbreviation || '',
-        city: homeTeam.location || '',
-        division: '',
-        conference: '',
-        logo: homeTeam.logos?.[0]?.href || '',
-        logos: extractLogoVariations(homeTeam.logos || []),
-        color: homeTeam.color || '',
-        alternateColor: homeTeam.alternateColor || ''
-      },
-      awayTeam: {
-        id: awayTeam.id || '',
-        name: awayTeam.name || '',
-        abbreviation: awayTeam.abbreviation || '',
-        city: awayTeam.location || '',
-        division: '',
-        conference: '',
-        logo: awayTeam.logos?.[0]?.href || '',
-        logos: extractLogoVariations(awayTeam.logos || []),
-        color: awayTeam.color || '',
-        alternateColor: awayTeam.alternateColor || ''
-      },
+      homeTeam: homeTeamData,
+      awayTeam: awayTeamData,
       homeScore: home.score || 0,
       awayScore: away.score || 0,
       status: data.header.status?.type?.state
@@ -230,7 +240,8 @@ export const espnApi = {
         : 'unknown',
       quarter: status.period || 0,
       venue: competition.venue?.fullName || '',
-      startTime: data.header.date || ''
+      startTime: data.header.date || '',
+      favoriteTeam: getFavoriteTeam(homeTeamData, awayTeamData)
     }
   },
 
@@ -409,37 +420,42 @@ export const espnApi = {
           const awayTeam = away.team || {}
           const status = event.status || {}
           
+          const homeTeamData = {
+            id: homeTeam.id || '',
+            name: homeTeam.name || '',
+            abbreviation: homeTeam.abbreviation || '',
+            city: homeTeam.location || '',
+            division: '',
+            conference: '',
+            logo: homeTeam.logos?.[0]?.href || '',
+            color: homeTeam.color || '',
+            alternateColor: homeTeam.alternateColor || ''
+          }
+          
+          const awayTeamData = {
+            id: awayTeam.id || '',
+            name: awayTeam.name || '',
+            abbreviation: awayTeam.abbreviation || '',
+            city: awayTeam.location || '',
+            division: '',
+            conference: '',
+            logo: awayTeam.logos?.[0]?.href || '',
+            color: awayTeam.color || '',
+            alternateColor: awayTeam.alternateColor || ''
+          }
+          
           return {
             id: event.id,
             date: event.date,
-            homeTeam: {
-              id: homeTeam.id || '',
-              name: homeTeam.name || '',
-              abbreviation: homeTeam.abbreviation || '',
-              city: homeTeam.location || '',
-              division: '',
-              conference: '',
-              logo: homeTeam.logos?.[0]?.href || '',
-              color: homeTeam.color || '',
-              alternateColor: homeTeam.alternateColor || ''
-            },
-            awayTeam: {
-              id: awayTeam.id || '',
-              name: awayTeam.name || '',
-              abbreviation: awayTeam.abbreviation || '',
-              city: awayTeam.location || '',
-              division: '',
-              conference: '',
-              logo: awayTeam.logos?.[0]?.href || '',
-              color: awayTeam.color || '',
-              alternateColor: awayTeam.alternateColor || ''
-            },
+            homeTeam: homeTeamData,
+            awayTeam: awayTeamData,
             homeScore: home.score || 0,
             awayScore: away.score || 0,
             status: status.type?.state === 'in' ? 'live' : status.type?.state === 'pre' ? 'scheduled' : status.type?.state || 'unknown',
             quarter: status.period || 0,
             venue: competition.venue?.fullName || '',
-            startTime: event.date
+            startTime: event.date,
+            favoriteTeam: getFavoriteTeam(homeTeamData, awayTeamData)
           }
         }));
       }

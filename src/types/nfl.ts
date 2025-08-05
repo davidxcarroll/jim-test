@@ -33,6 +33,7 @@ export interface Game {
   fieldPosition?: string // e.g., "NE 45" for New England's 45-yard line
   venue?: string
   startTime?: string
+  favoriteTeam?: 'home' | 'away' // Which team is favored to win
 }
 
 export interface GameStats {

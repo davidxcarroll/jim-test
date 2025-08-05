@@ -128,7 +128,8 @@ export function getNFLSeasonStart() {
 // NFL preseason start (update this for each new season)
 export function getNFLPreseasonStart() {
   // 2025 NFL preseason: Hall of Fame Game on August 1, 2025
-  return new Date('2025-08-01')
+  // But preseason period starts earlier to include the week of the Hall of Fame Game
+  return new Date('2025-07-25')
 }
 
 // Check if we're currently in preseason
@@ -141,10 +142,17 @@ export function isPreseason(date: Date = new Date()): boolean {
 // Get preseason week number (negative numbers for preseason)
 export function getPreseasonWeek(date: Date = new Date()): number {
   const preseasonStart = getNFLPreseasonStart()
-  const weekNumber = Math.ceil((date.getTime() - preseasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000))
-  // Ensure the first week is always week 1, not week 0
-  const adjustedWeekNumber = weekNumber === 0 ? 1 : weekNumber
-  return -adjustedWeekNumber // Negative to indicate preseason
+  const daysSinceStart = Math.floor((date.getTime() - preseasonStart.getTime()) / (24 * 60 * 60 * 1000))
+  const weekNumber = Math.floor(daysSinceStart / 7) + 1
+  return -weekNumber // Negative to indicate preseason
+}
+
+// Get preseason week number for display (positive numbers)
+export function getPreseasonWeekDisplay(date: Date = new Date()): number {
+  const preseasonStart = getNFLPreseasonStart()
+  const daysSinceStart = Math.floor((date.getTime() - preseasonStart.getTime()) / (24 * 60 * 60 * 1000))
+  const weekNumber = Math.floor(daysSinceStart / 7) + 1
+  return weekNumber
 }
 
 // Get regular season week number

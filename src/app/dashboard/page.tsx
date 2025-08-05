@@ -3,7 +3,7 @@ import { useState, useEffect } from "react"
 import { useGamesForWeek } from "@/hooks/use-nfl-data"
 import { dateHelpers } from "@/utils/date-helpers"
 import { getTeamDisplayNameFromTeam } from "@/utils/team-names"
-import { getTeamCircleSize } from "@/utils/team-utils"
+import { getTeamCircleSize, getTeamDisplayNameWithFavorite } from "@/utils/team-utils"
 import { format, parseISO, isBefore } from "date-fns"
 import { ProtectedRoute } from "@/components/protected-route"
 import { Navigation } from "@/components/navigation"
@@ -21,7 +21,7 @@ import * as Checks from '@/components/checks'
 import * as Circles from '@/components/circles'
 import React from 'react'
 import { LiveGameDisplay } from '@/components/live-game-display'
-import { getNFLSeasonStart, getNFLPreseasonStart, getSeasonAndWeek, getCurrentWeekNumber, isPreseason, getPreseasonWeek, getRegularSeasonWeek, isWeekComplete, shouldWaitUntilNextMorning } from '@/utils/date-helpers'
+import { getNFLSeasonStart, getNFLPreseasonStart, getSeasonAndWeek, getCurrentWeekNumber, isPreseason, getPreseasonWeek, getPreseasonWeekDisplay, getRegularSeasonWeek, isWeekComplete, shouldWaitUntilNextMorning } from '@/utils/date-helpers'
 
 const NUM_WEEKS = 5
 
@@ -507,14 +507,14 @@ function WeeklyMatchesPage() {
         // During preseason, use a more lenient approach for the current week
         // For the current week (i === 0), always include it during preseason
         if (i === 0) {
-          weekNumber = getPreseasonWeek(weekStart)
+          weekNumber = getPreseasonWeekDisplay(weekStart)
           isWeekInPastOrCurrent = true
         } else {
           // For past weeks, check if they're in the preseason period
           const weekInPreseason = weekStart >= preseasonStart && weekStart < regularSeasonStart
           
           if (weekInPreseason) {
-            weekNumber = getPreseasonWeek(weekStart)
+            weekNumber = getPreseasonWeekDisplay(weekStart)
             isWeekInPastOrCurrent = weekStart <= currentDate
           } else {
             // Skip weeks outside of preseason
@@ -605,13 +605,12 @@ function WeeklyMatchesPage() {
                           // Handle preseason vs regular season week display
                           let label
                           if (currentWeekInfo.isCurrentPreseason) {
-                            label = `PRESEASON ${Math.abs(currentWeekInfo.weekNumber)}`
+                            label = `PRESEASON ${currentWeekInfo.weekNumber}`
                           } else {
-                            label = `WEEK ${Math.abs(currentWeekInfo.weekNumber)}`
+                            label = `WEEK ${currentWeekInfo.weekNumber}`
                           }
                           
-                          const tuesdayIndicator = currentWeekInfo.isCurrentWeek && isTuesday ? '📅 ' : ''
-                          return `${currentWeekInfo.isCurrentWeek ? '🏈' : ''} ${tuesdayIndicator}${label}`
+                          return `${currentWeekInfo.isCurrentWeek ? '🏈' : ''} ${label}`
                         }
                         
                         // Check if current week is still in progress
@@ -645,18 +644,15 @@ function WeeklyMatchesPage() {
                               }}
                             >
                                                           {(() => {
-                              const isTuesday = dateHelpers.isPickDay(new Date())
-                              const tuesdayIndicator = weekInfo.isCurrentWeek && isTuesday ? '📅 ' : ''
-                              
                               // Handle preseason vs regular season week display
                               let weekDisplay
                               if (weekInfo.isCurrentPreseason) {
-                                weekDisplay = `PRESEASON ${Math.abs(weekInfo.weekNumber)}`
+                                weekDisplay = `PRESEASON ${weekInfo.weekNumber}`
                               } else {
-                                weekDisplay = `WEEK ${Math.abs(weekInfo.weekNumber)}`
+                                weekDisplay = `WEEK ${weekInfo.weekNumber}`
                               }
                               
-                              return `${weekInfo.isCurrentWeek ? '🏈' : ''} ${tuesdayIndicator}${weekDisplay}`
+                              return `${weekInfo.isCurrentWeek ? '🏈' : ''} ${weekDisplay}`
                             })()}
                           </div>
                         ))}
@@ -806,7 +802,7 @@ function WeeklyMatchesPage() {
                             return null
                           })()}
                           <span className="text-black">
-                            {getTeamDisplayNameFromTeam(game.awayTeam)}
+                            {getTeamDisplayNameWithFavorite(game.awayTeam, game, false)}
                           </span>
                         </div>
                       </td>
@@ -871,7 +867,7 @@ function WeeklyMatchesPage() {
                             return null
                           })()}
                           <span className="text-black">
-                            {getTeamDisplayNameFromTeam(game.homeTeam)}
+                            {getTeamDisplayNameWithFavorite(game.homeTeam, game, true)}
                           </span>
                         </div>
                       </td>

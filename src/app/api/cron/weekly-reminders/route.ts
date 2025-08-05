@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
     
     const emailPromises = querySnapshot.docs.map(doc => {
       const userData = doc.data()
+      console.log('Sending email to user:', { email: userData.email, displayName: userData.displayName })
       return emailService.sendWeeklyReminder(
         userData.email,
         userData.displayName,

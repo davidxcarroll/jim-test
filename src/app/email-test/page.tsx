@@ -69,7 +69,7 @@ export default function EmailTestPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, displayName }),
       })
 
       const data = await response.json()
@@ -132,7 +132,7 @@ export default function EmailTestPage() {
         fetch('/api/email/weekly-reminder', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ email, displayName }),
         })
       ])
 

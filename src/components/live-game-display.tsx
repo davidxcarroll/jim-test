@@ -3,7 +3,7 @@
 import { useLiveGame } from '@/hooks/use-live-game'
 import { format } from 'date-fns'
 import { getTeamDisplayName } from '@/utils/team-names'
-import { formatHexColor, getTeamLogo, getTeamBackgroundAndLogo } from '@/utils/team-utils'
+import { formatHexColor, getTeamLogo, getTeamBackgroundAndLogo, getTeamDisplayNameWithFavorite } from '@/utils/team-utils'
 import React, { useEffect, useState } from 'react'
 import { subscribeToTeamColorMappingChanges, loadTeamColorMappings } from '@/store/team-color-mapping-store'
 
@@ -98,7 +98,7 @@ export function LiveGameDisplay({ gameId }: LiveGameDisplayProps) {
           <div className="aspect-square xl:w-12 w-8 z-20 relative" />
         )}
         <div className="flex flex-col justify-center items-center z-20 relative">
-          <span className="xl:text-3xl text-sm font-bold text-center uppercase leading-none max-md:mt-2">{getTeamDisplayName(game.awayTeam.abbreviation)}</span>
+          <span className="xl:text-3xl text-sm font-bold text-center uppercase leading-none max-md:mt-2">{getTeamDisplayNameWithFavorite(game.awayTeam, game, false)}</span>
         </div>
         <span className="xl:text-5xl text-2xl font-bold z-20 relative">{game.awayScore}</span>
       </div>
@@ -110,7 +110,7 @@ export function LiveGameDisplay({ gameId }: LiveGameDisplayProps) {
       <div className="flex md:flex-row max-md:flex-col-reverse flex-col justify-evenly items-center flex-1 xl:px-6 xl:py-4 p-2 text-white relative shadow-[inset_0_0_0_1px_#000000]" style={{ background: homeTeamStyle.background }}>
         <span className="xl:text-5xl text-2xl font-bold z-20 relative">{game.homeScore}</span>
         <div className="flex flex-col justify-center items-center z-20 relative">
-          <span className="xl:text-3xl text-sm font-bold text-center uppercase leading-none max-md:mt-2">{getTeamDisplayName(game.homeTeam.abbreviation)}</span>
+          <span className="xl:text-3xl text-sm font-bold text-center uppercase leading-none max-md:mt-2">{getTeamDisplayNameWithFavorite(game.homeTeam, game, true)}</span>
         </div>
         {getTeamLogo(game.homeTeam, homeTeamStyle.logoType) ? (
           <img src={getTeamLogo(game.homeTeam, homeTeamStyle.logoType)} alt={game.homeTeam.abbreviation} className="aspect-square xl:w-12 w-8 z-20 relative" />

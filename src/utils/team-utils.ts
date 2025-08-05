@@ -199,3 +199,21 @@ export function generatePhilPicks(games: Game[]): Record<string, { pickedTeam: '
   
   return philPicks
 } 
+
+/**
+ * Get team display name with favorite indicator
+ * @param team - The team object
+ * @param game - The game object containing favoriteTeam information
+ * @param isHome - Whether this is the home team
+ * @returns Team name with • indicator if favored
+ */
+export function getTeamDisplayNameWithFavorite(team: Team, game: Game, isHome: boolean): string {
+  const baseName = getTeamDisplayNameFromTeam(team)
+  
+  // Check if this team is the favorite
+  if (game.favoriteTeam === (isHome ? 'home' : 'away')) {
+    return `• ${baseName}`
+  }
+  
+  return baseName
+} 

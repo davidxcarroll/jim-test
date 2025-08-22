@@ -352,7 +352,7 @@ function WeeklyMatchesPage() {
           const picksPromises = visibleUsers.map(async (user) => {
             // If this is Phil, generate his picks based on favorite teams
             if (isPhil(user.id)) {
-              const philPicks = getPhilPicks(games || [])
+              const philPicks = getPhilPicks(games || [], `${season}_${week}`)
               return {
                 userId: user.id,
                 picks: philPicks
@@ -415,8 +415,8 @@ function WeeklyMatchesPage() {
 
   // Helper to truncate text if longer than 8 characters
   function truncateName(name: string): string {
-    if (name.length > 7) {
-      return name.substring(0, 7) + '...'
+    if (name.length > 8) {
+      return name.substring(0, 8) + '...'
     }
     return name
   }
@@ -664,7 +664,7 @@ function WeeklyMatchesPage() {
                 {userDisplayNames.map((name, userIndex) => (
                   <th
                     key={userIndex}
-                    className="sticky top-0 z-50 bg-neutral-100 shadow-[-1px_0_0_#000000] w-32 min-w-14 h-16 align-middle p-0"
+                    className="sticky top-0 z-50 bg-neutral-100 shadow-[-1px_0_0_#000000] h-16 align-middle px-2"
                     style={{ willChange: 'transform' }}
                   >
                     <div
@@ -673,7 +673,7 @@ function WeeklyMatchesPage() {
                         setSelectedUser({ id: visibleUsers[userIndex].id, name })
                       }}
                     >
-                      <span className="max-w-8 flex lg:justify-center justify-start font-light max-lg:-rotate-90">{name}</span>
+                      <span className="max-lg:max-w-8 flex lg:justify-center justify-start font-light max-lg:-rotate-90">{name}</span>
                     </div>
                   </th>
                 ))}
@@ -838,7 +838,7 @@ function WeeklyMatchesPage() {
                     <tr key={game.id + '-' + game.date + '-home'}>
                       {/* Sticky left: Home team info */}
                       <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_-1px_0_#000000,1px_0_0_#000000] px-2 xl:h-16 h-10 align-middle font-jim xl:text-5xl text-3xl">
-                        <div className="relative flex items-center justify-center h-full">
+                        <div className="relative flex items-center justify-center h-full whitespace-nowrap">
                           {/* Show warning icon if needed, else live icon if live */}
                           {((statusWarningMap[game.status?.toLowerCase?.()] || isLikelyPostponed(game)) ? (
                             <div className="absolute right-[-18.5px] top-[-1.5px] -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-yellow-400 rounded-full">

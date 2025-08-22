@@ -407,6 +407,7 @@ export const espnApi = {
   async getGamesForDateRange(startDate: Date, endDate: Date): Promise<Game[]> {
     const games: Game[] = [];
     let current = new Date(startDate);
+    
     while (current <= endDate) {
       const dateStr = formatDate(current, 'yyyyMMdd'); // YYYYMMDD
       const response = await fetch(`${ESPN_BASE_URL}/scoreboard?dates=${dateStr}`);

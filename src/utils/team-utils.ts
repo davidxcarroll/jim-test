@@ -185,12 +185,15 @@ export function getFavoriteTeam(homeTeam: Team, awayTeam: Team): 'home' | 'away'
 /**
  * Generate Phil's picks for a given week
  * Phil always picks the favorite team for each matchup
+ * Uses the existing game.favoriteTeam value for consistency
  */
 export function generatePhilPicks(games: Game[]): Record<string, { pickedTeam: 'home' | 'away', pickedAt: any }> {
   const philPicks: Record<string, { pickedTeam: 'home' | 'away', pickedAt: any }> = {}
   
   games.forEach(game => {
-    const favoriteTeam = getFavoriteTeam(game.homeTeam, game.awayTeam)
+    // Use the existing favoriteTeam value from the game object
+    // This ensures Phil's picks always match the dots displayed next to team names
+    const favoriteTeam = game.favoriteTeam || 'home' // Default to home if not set
     philPicks[game.id] = {
       pickedTeam: favoriteTeam,
       pickedAt: new Date() // Use current timestamp for Phil's picks

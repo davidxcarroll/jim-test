@@ -581,7 +581,7 @@ function WeeklyMatchesPage() {
       {toast && (
         <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
       )}
-
+      
       <div className="flex flex-col pt-10 lg:mx-8 md:mx-4 sm:mx-2 bg-neutral-100">
         {/* Main scrollable container */}
         <div className="md:pb-8 pb-4">
@@ -775,7 +775,7 @@ function WeeklyMatchesPage() {
                 // Day header row
                 <tr key={day + '-header'}>
                   <td
-                    className="sticky top-16 left-0 z-30 max-xl:text-sm bg-neutral-100 shadow-[inset_0_1px_0_#000000,inset_0_-1px_0_#000000] font-bold uppercase text-center p-2 align-middle"
+                    className="sticky top-[66px] left-0 z-30 max-xl:text-sm bg-neutral-100 shadow-[inset_0_1px_0_#000000,inset_0_-1px_0_#000000] font-bold uppercase text-center p-2 align-middle"
                     colSpan={1 + userDisplayNames.length}
                   >
                     {day}

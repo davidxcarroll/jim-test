@@ -32,7 +32,7 @@ export const teamDisplayNames: Record<string, string> = {
   'SF': '49ers',           // San Francisco 49ers
   'TB': 'Bucs',            // Tampa Bay Buccaneers
   'TEN': 'Titans',         // Tennessee Titans
-  'WSH': 'Commsanders',    // Washington Commanders
+  'WSH': 'Commanders',     // Washington Commanders
 }
 
 /**

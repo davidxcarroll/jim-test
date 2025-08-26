@@ -145,7 +145,7 @@ function DashboardSkeleton() {
                 {/* Week selector skeleton */}
                 <th className="sticky top-0 left-0 z-50 bg-neutral-100 shadow-[1px_0_0_#cccccc] w-48 min-w-fit h-16 align-middle p-0">
                   <div className="week-selector h-16 flex items-center justify-center relative">
-                    <div className="w-full h-full flex items-center justify-center gap-1 font-bold uppercase max-xl:text-sm">
+                    <div className="w-full h-full flex items-center justify-center gap-1 font-bold uppercase xl:text-base text-sm">
                       <div className="w-24 h-6 bg-black/10 animate-pulse"></div>
                     </div>
                   </div>
@@ -574,7 +574,7 @@ function WeeklyMatchesPage() {
   }
 
   return (
-    <div className="min-w-fit font-chakra text-2xl pb-16 select-none">
+    <div className="min-w-fit font-chakra pb-16 select-none">
       
       <Navigation />
 
@@ -592,7 +592,7 @@ function WeeklyMatchesPage() {
                 <th className="sticky top-0 left-0 z-[60] bg-neutral-100 shadow-[1px_0_0_#000000] w-48 min-w-fit h-16 align-middle p-0" style={{ willChange: 'transform' }}>
                   <div className="week-selector h-16 flex items-center justify-center relative cursor-pointer">
                     <div
-                      className="w-full h-full flex items-center justify-center gap-1 font-bold uppercase max-xl:text-sm"
+                      className="w-full h-full flex items-center justify-center gap-1 font-bold uppercase xl:text-base text-sm"
                       onClick={() => setIsWeekDropdownOpen(!isWeekDropdownOpen)}
                     >
                       {/* label */}
@@ -633,7 +633,7 @@ function WeeklyMatchesPage() {
                     </div>
                     {/* Dropdown overlay */}
                     {isWeekDropdownOpen && (
-                      <div className="absolute top-full left-1/2 right-0 -translate-x-1/2 -translate-y-2 w-[calc(100%-20px)] max-xl:text-sm bg-white shadow-[inset_0_0_0_1px_#000000] z-[70] shadow-2xl overflow-clip">
+                      <div className="absolute top-full left-1/2 right-0 -translate-x-1/2 -translate-y-2 w-[calc(100%-20px)] xl:text-base text-sm bg-white shadow-[inset_0_0_0_1px_#000000] z-[70] shadow-2xl overflow-clip">
                         {availableWeeks.map((weekInfo, index) => (
                             <div
                               key={weekInfo.index}
@@ -668,7 +668,7 @@ function WeeklyMatchesPage() {
                     style={{ willChange: 'transform' }}
                   >
                     <div
-                      className="w-full h-16 flex lg:items-center items-end justify-center font-jim xl:text-5xl text-3xl cursor-pointer"
+                      className="w-full h-16 flex lg:items-center items-end justify-center font-jim xl:text-4xl text-3xl cursor-pointer"
                       onClick={() => {
                         setSelectedUser({ id: visibleUsers[userIndex].id, name })
                       }}
@@ -749,12 +749,12 @@ function WeeklyMatchesPage() {
               saveWeekRecap();
 
               return (
-                <tr className="font-bold uppercase text-center max-xl:text-sm bg-yellow-200">
-                  <td className="sticky left-0 z-20 bg-yellow-200 text-center px-2 xl:h-16 h-12 align-middle font-bold text-lg xl:text-2xl max-xl:text-sm shadow-[1px_0_0_#000000]">
+                <tr className="font-bold uppercase text-center xl:text-base text-sm bg-yellow-200">
+                  <td className="sticky left-0 z-20 bg-yellow-200 text-center px-2 xl:h-16 h-12 align-middle font-bold xl:text-base text-sm shadow-[1px_0_0_#000000]">
                     RECAP
                   </td>
                   {recapStats.map((stat, idx) => (
-                    <td key={stat.userId} className="text-center align-middle font-bold xl:text-xl text-lg max-xl:text-sm shadow-[-1px_0_0_#000000]">
+                    <td key={stat.userId} className="text-center align-middle font-bold xl:text-base text-sm shadow-[-1px_0_0_#000000]">
                       <span className="inline-flex items-center justify-center gap-1">
                         {stat.percentage}%
                         {winnerIds.includes(stat.userId) && (
@@ -775,7 +775,7 @@ function WeeklyMatchesPage() {
                 // Day header row
                 <tr key={day + '-header'}>
                   <td
-                    className="sticky top-[66px] left-0 z-30 max-xl:text-sm bg-neutral-100 shadow-[inset_0_1px_0_#000000,inset_0_-1px_0_#000000] font-bold uppercase text-center p-2 align-middle"
+                    className="sticky top-[66px] left-0 z-30 xl:text-base text-sm bg-neutral-100 shadow-[inset_0_1px_0_#000000,inset_0_-1px_0_#000000] font-bold uppercase p-2"
                     colSpan={1 + userDisplayNames.length}
                   >
                     {day}
@@ -790,7 +790,7 @@ function WeeklyMatchesPage() {
                   return [
                     <tr key={game.id + '-' + game.date + '-away'}>
                       {/* Sticky left: Away team info */}
-                      <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_1px_0_#000000,1px_0_0_#000000] px-2 xl:h-16 h-10 align-middle font-jim xl:text-5xl text-3xl">
+                      <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_1px_0_#000000,1px_0_0_#000000] px-2 xl:h-16 h-10 align-middle font-jim xl:text-4xl text-3xl">
                         <div className="relative flex items-center justify-center h-full">
                           {(() => {
                             const isFinal = game.status === 'final' || game.status === 'post'
@@ -817,7 +817,7 @@ function WeeklyMatchesPage() {
                         return (
                           <td
                             key={userIndex}
-                            className={`shadow-[inset_1px_0_0_#000000,inset_0_-1px_0_#000000] px-0 xl:h-16 h-10 align-middle font-jim xl:text-5xl text-3xl min-w-14 ${isCurrentUser && game.status === 'scheduled' && !saving
+                            className={`shadow-[inset_1px_0_0_#000000,inset_0_-1px_0_#000000] px-0 xl:h-16 h-10 align-middle font-jim xl:text-4xl text-3xl min-w-14 ${isCurrentUser && game.status === 'scheduled' && !saving
                               ? 'cursor-pointer hover:bg-white'
                               : isCurrentUser && game.status !== 'scheduled'
                                 ? 'cursor-not-allowed'
@@ -827,7 +827,7 @@ function WeeklyMatchesPage() {
                           >
                             {pick === 'away' && (
                               <div className="relative flex items-center justify-center h-full">
-                                <AwayCheck className="w-10 h-10 xl:w-12 xl:h-12 transform translate-x-3 -translate-y-2" />
+                                <AwayCheck className="xl:w-9 xl:h-9 w-7 h-7 transform translate-x-1 -translate-y-1" />
                                 {awayCorrect && isGameFinished && <AwayCircleCheck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-12 xl:w-20 xl:h-15" />}
                               </div>
                             )}
@@ -837,7 +837,7 @@ function WeeklyMatchesPage() {
                     </tr>,
                     <tr key={game.id + '-' + game.date + '-home'}>
                       {/* Sticky left: Home team info */}
-                      <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_-1px_0_#000000,1px_0_0_#000000] px-2 xl:h-16 h-10 align-middle font-jim xl:text-5xl text-3xl">
+                      <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_-1px_0_#000000,1px_0_0_#000000] px-2 xl:h-16 h-10 align-middle font-jim xl:text-4xl text-3xl">
                         <div className="relative flex items-center justify-center h-full whitespace-nowrap">
                           {/* Show warning icon if needed, else live icon if live */}
                           {((statusWarningMap[game.status?.toLowerCase?.()] || isLikelyPostponed(game)) ? (
@@ -882,7 +882,7 @@ function WeeklyMatchesPage() {
                         return (
                           <td
                             key={userIndex}
-                            className={`shadow-[inset_1px_0_0_#000000] px-0 xl:h-16 h-10 align-middle font-jim xl:text-5xl text-3xl min-w-14 ${isCurrentUser && game.status === 'scheduled' && !saving
+                            className={`shadow-[inset_1px_0_0_#000000] px-0 xl:h-16 h-10 align-middle font-jim xl:text-4xl text-3xl min-w-14 ${isCurrentUser && game.status === 'scheduled' && !saving
                               ? 'cursor-pointer hover:bg-white'
                               : isCurrentUser && game.status !== 'scheduled'
                                 ? 'cursor-not-allowed'
@@ -892,7 +892,7 @@ function WeeklyMatchesPage() {
                           >
                             {pick === 'home' && (
                               <div className="relative flex items-center justify-center h-full">
-                                <HomeCheck className="w-10 h-10 xl:w-12 xl:h-12 transform translate-x-2" />
+                                <HomeCheck className="xl:w-9 xl:h-9 w-7 h-7 transform translate-x-1" />
                                 {homeCorrect && isGameFinished && <HomeCircleCheck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-12 xl:w-20 xl:h-15" />}
                               </div>
                             )}

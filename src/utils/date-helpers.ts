@@ -121,15 +121,15 @@ export const dateHelpers = {
 // NFL season start (update this for each new season)
 export function getNFLSeasonStart() {
   // Change this date when a new NFL season starts
-  // 2025 NFL season: September 4, 2025 (Thursday Night Football opener)
-  return new Date('2025-09-04')
+  // 2025 NFL season: Starting August 26, 2025 (Tuesday - first pick day)
+  return new Date(2025, 7, 26); // Month is 0-indexed, so 7 = August
 }
 
 // NFL preseason start (update this for each new season)
 export function getNFLPreseasonStart() {
-  // 2025 NFL preseason: Hall of Fame Game on August 1, 2025
-  // But preseason period starts earlier to include the week of the Hall of Fame Game
-  return new Date('2025-07-25')
+  // 2025 NFL preseason: Ended August 25, 2025
+  // Regular season starts August 26, 2025
+  return new Date('2025-07-25T00:00:00.000Z')
 }
 
 // Check if we're currently in preseason

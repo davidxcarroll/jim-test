@@ -78,6 +78,20 @@ function extractLogoVariations(logos: any[]): { default?: string; dark?: string;
   return variations
 }
 
+// Helper function to determine favorite based on betting odds
+function getFavoriteFromOdds(odds: any[]): 'home' | 'away' | null {
+  if (!odds || odds.length === 0) return null
+  
+  const firstOdds = odds[0]
+  if (firstOdds.homeTeamOdds?.favorite === true) {
+    return 'home'
+  } else if (firstOdds.awayTeamOdds?.favorite === true) {
+    return 'away'
+  }
+  
+  return null
+}
+
 // New interfaces for live data
 export interface LiveGameSituation {
   down: number
@@ -161,6 +175,10 @@ export const espnApi = {
           alternateColor: awayTeam.alternateColor || ''
         }
         
+        // Use betting odds to determine favorite, fallback to win-loss records
+        const bettingFavorite = getFavoriteFromOdds(competition.odds)
+        const favoriteTeam = bettingFavorite || getFavoriteTeam(homeTeamData, awayTeamData)
+        
         return {
           id: event.id,
           date: event.date,
@@ -172,7 +190,7 @@ export const espnApi = {
           quarter: status.period || 0,
           venue: competition.venue?.fullName || '',
           startTime: event.date,
-          favoriteTeam: getFavoriteTeam(homeTeamData, awayTeamData)
+          favoriteTeam: favoriteTeam
         }
       }) || []
     } catch (error) {
@@ -228,6 +246,10 @@ export const espnApi = {
       alternateColor: awayTeam.alternateColor || ''
     }
 
+    // Use betting odds to determine favorite, fallback to win-loss records
+    const bettingFavorite = getFavoriteFromOdds(competition.odds)
+    const favoriteTeam = bettingFavorite || getFavoriteTeam(homeTeamData, awayTeamData)
+
     return {
       id: data.header.id || '',
       date: data.header.date || '',
@@ -241,7 +263,7 @@ export const espnApi = {
       quarter: status.period || 0,
       venue: competition.venue?.fullName || '',
       startTime: data.header.date || '',
-      favoriteTeam: getFavoriteTeam(homeTeamData, awayTeamData)
+      favoriteTeam: favoriteTeam
     }
   },
 
@@ -445,6 +467,10 @@ export const espnApi = {
             alternateColor: awayTeam.alternateColor || ''
           }
           
+          // Use betting odds to determine favorite, fallback to win-loss records
+          const bettingFavorite = getFavoriteFromOdds(competition.odds)
+          const favoriteTeam = bettingFavorite || getFavoriteTeam(homeTeamData, awayTeamData)
+          
           return {
             id: event.id,
             date: event.date,
@@ -456,7 +482,7 @@ export const espnApi = {
             quarter: status.period || 0,
             venue: competition.venue?.fullName || '',
             startTime: event.date,
-            favoriteTeam: getFavoriteTeam(homeTeamData, awayTeamData)
+            favoriteTeam: favoriteTeam
           }
         }));
       }

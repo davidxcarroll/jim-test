@@ -163,6 +163,9 @@ export async function fetchTeamRecordsFromStandings() {
  * Determine the favorite team for a matchup based on win-loss records
  * Returns 'home' or 'away' based on which team has the better record
  * If records are equal, defaults to 'home'
+ * 
+ * NOTE: This is now used as a fallback when betting odds are not available.
+ * The primary source for favorites is now betting odds from ESPN's API.
  */
 export function getFavoriteTeam(homeTeam: Team, awayTeam: Team): 'home' | 'away' {
   // If either team doesn't have record data, default to home

@@ -145,7 +145,7 @@ function DashboardSkeleton() {
                 {/* Week selector skeleton */}
                 <th className="sticky top-0 left-0 z-50 bg-neutral-100 shadow-[1px_0_0_#cccccc] w-48 min-w-fit h-16 align-middle p-0">
                   <div className="week-selector h-16 flex items-center justify-center relative">
-                    <div className="w-full h-full flex items-center justify-center gap-1 font-bold uppercase xl:text-base text-sm">
+                    <div className="w-full h-full flex items-center justify-center gap-1 whitespace-nowrap font-bold uppercase xl:text-base text-sm">
                       <div className="w-24 h-6 bg-black/10 animate-pulse"></div>
                     </div>
                   </div>
@@ -169,7 +169,7 @@ function DashboardSkeleton() {
               {Array.from({ length: 10 }, (_, matchupIndex) => [
                 // Home team row
                 <tr key={`skeleton-home-${matchupIndex}`}>
-                  <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_1px_0_#cccccc,1px_0_0_#cccccc] px-2 xl:h-16 h-10 align-middle">
+                  <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_1px_0_#cccccc,1px_0_0_#cccccc] px-2 xl:h-12 h-6 align-middle">
                     <div className="flex items-center justify-center h-full">
                       <div className="w-32 h-6 bg-black/10 animate-pulse"></div>
                     </div>
@@ -177,7 +177,7 @@ function DashboardSkeleton() {
                   {Array.from({ length: 5 }, (_, userIndex) => (
                     <td
                       key={userIndex}
-                      className="shadow-[inset_1px_0_0_#cccccc,inset_0_-1px_0_#cccccc] px-0 xl:h-16 h-10 align-middle"
+                      className="shadow-[inset_1px_0_0_#cccccc,inset_0_-1px_0_#cccccc] px-0 xl:h-12 h-6 align-middle"
                     >
                       <div className="w-8 h-8 bg-black/10 animate-pulse mx-auto"></div>
                     </td>
@@ -185,7 +185,7 @@ function DashboardSkeleton() {
                 </tr>,
                 // Away team row
                 <tr key={`skeleton-away-${matchupIndex}`}>
-                  <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_-1px_0_#cccccc,1px_0_0_#cccccc] px-2 xl:h-16 h-10 align-middle">
+                  <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_-1px_0_#cccccc,1px_0_0_#cccccc] px-2 xl:h-12 h-6 align-middle">
                     <div className="flex items-center justify-center h-full">
                       <div className="w-32 h-6 bg-black/10 animate-pulse"></div>
                     </div>
@@ -193,7 +193,7 @@ function DashboardSkeleton() {
                   {Array.from({ length: 5 }, (_, userIndex) => (
                     <td
                       key={userIndex}
-                      className="shadow-[inset_1px_0_0_#cccccc] px-0 xl:h-16 h-10 align-middle"
+                      className="shadow-[inset_1px_0_0_#cccccc] px-0 xl:h-12 h-6 align-middle"
                     >
                       <div className="w-8 h-8 bg-black/10 animate-pulse mx-auto"></div>
                     </td>
@@ -221,10 +221,12 @@ function WeeklyMatchesPage() {
   const { settings: clipboardSettings, isLoading: clipboardLoading, loadSettings, subscribeToChanges } = useClipboardVisibilityStore()
   const [weekOffset, setWeekOffset] = useState(0)
   const [isWeekDropdownOpen, setIsWeekDropdownOpen] = useState(false)
-  const startOfWeek = getStartOfWeekNDaysAgo(weekOffset)
+  // For now, use fixed Week 1 date range (September 4-8, 2025)
+  const week1Start = new Date(2025, 8, 4) // September 4, 2025
+  const week1End = new Date(2025, 8, 8)   // September 8, 2025
+  const startOfWeek = week1Start
   const { season, week } = getSeasonAndWeek(startOfWeek)
-  const { end: endOfWeek } = dateHelpers.getTuesdayWeekRange(startOfWeek)
-  const { data: games, isLoading } = useGamesForWeek(startOfWeek, endOfWeek)
+  const { data: games, isLoading } = useGamesForWeek(startOfWeek, week1End)
 
   const [users, setUsers] = useState<any[]>([])
   const [userPicksByUser, setUserPicksByUser] = useState<Record<string, any>>({})
@@ -481,74 +483,29 @@ function WeeklyMatchesPage() {
     }
   }
 
-  // Get available weeks (only completed weeks and current week if complete)
+  // Get available weeks (only show Week 1 for now)
   const getAvailableWeeks = () => {
     const weeks = []
-    const currentDate = new Date()
     
-    // Get the actual NFL season and preseason start dates
-    const preseasonStart = getNFLPreseasonStart()
-    const regularSeasonStart = getNFLSeasonStart()
+    // For now, only show Week 1
+    // This will be expanded later to show current week and past weeks
+    const weekStart = getStartOfWeekNDaysAgo(0) // Current week
+    const { season: weekSeason, week: weekKey } = getSeasonAndWeek(weekStart)
     
-    // Only show current week and past weeks (no future weeks)
-    for (let i = 0; i < 20; i++) { // Increased limit to catch more weeks
-      const weekStart = getStartOfWeekNDaysAgo(i)
-      const { end: weekEnd } = dateHelpers.getTuesdayWeekRange(weekStart)
-      const { season: weekSeason, week: weekKey } = getSeasonAndWeek(weekStart)
-      
-      const isCurrentWeek = i === 0
-      const isCurrentPreseason = isPreseason(currentDate)
-      
-      // Calculate the actual week number for this week
-      let weekNumber
-      let isWeekInPastOrCurrent = false
-      
-      if (isCurrentPreseason) {
-        // During preseason, use a more lenient approach for the current week
-        // For the current week (i === 0), always include it during preseason
-        if (i === 0) {
-          weekNumber = getPreseasonWeekDisplay(weekStart)
-          isWeekInPastOrCurrent = true
-        } else {
-          // For past weeks, check if they're in the preseason period
-          const weekInPreseason = weekStart >= preseasonStart && weekStart < regularSeasonStart
-          
-          if (weekInPreseason) {
-            weekNumber = getPreseasonWeekDisplay(weekStart)
-            isWeekInPastOrCurrent = weekStart <= currentDate
-          } else {
-            // Skip weeks outside of preseason
-            continue
-          }
-        }
-      } else {
-        // During regular season, show all past weeks
-        weekNumber = getRegularSeasonWeek(weekStart)
-        isWeekInPastOrCurrent = weekStart <= currentDate
-      }
-      
-      // For the current week, always include it during preseason
-      if (isCurrentWeek) {
-        weeks.push({
-          index: i,
-          weekNumber,
-          isCurrentWeek,
-          isCurrentPreseason,
-          weekKey: `${weekSeason}_${weekKey}`
-        })
-      } else if (isWeekInPastOrCurrent) {
-        // For past weeks, only include them if they're actually in the past or current
-        weeks.push({
-          index: i,
-          weekNumber,
-          isCurrentWeek,
-          isCurrentPreseason,
-          weekKey: `${weekSeason}_${weekKey}`
-        })
-      }
-    }
+    // Calculate week number - for now, always show as Week 1
+    const weekNumber = 1
+    const isCurrentWeek = true
+    const isCurrentPreseason = false
     
-    return weeks // Return all available weeks, not limited to NUM_WEEKS
+    weeks.push({
+      index: 0,
+      weekNumber,
+      isCurrentWeek,
+      isCurrentPreseason,
+      weekKey: `${weekSeason}_${weekKey}`
+    })
+    
+    return weeks
   }
 
   const availableWeeks = getAvailableWeeks()
@@ -592,7 +549,7 @@ function WeeklyMatchesPage() {
                 <th className="sticky top-0 left-0 z-[60] bg-neutral-100 shadow-[1px_0_0_#000000] w-48 min-w-fit h-16 align-middle p-0" style={{ willChange: 'transform' }}>
                   <div className="week-selector h-16 flex items-center justify-center relative cursor-pointer">
                     <div
-                      className="w-full h-full flex items-center justify-center gap-1 font-bold uppercase xl:text-base text-sm"
+                      className="w-full h-full flex items-center justify-center gap-1 whitespace-nowrap font-bold uppercase xl:text-base text-sm"
                       onClick={() => setIsWeekDropdownOpen(!isWeekDropdownOpen)}
                     >
                       {/* label */}
@@ -775,7 +732,7 @@ function WeeklyMatchesPage() {
                 // Day header row
                 <tr key={day + '-header'}>
                   <td
-                    className="sticky top-[66px] left-0 z-30 xl:text-base text-sm bg-neutral-100 shadow-[inset_0_1px_0_#000000,inset_0_-1px_0_#000000] font-bold uppercase p-2"
+                    className="sticky top-[66px] left-0 z-30 xl:text-base text-sm bg-neutral-100 shadow-[inset_0_1px_0_#000000,inset_0_-1px_0_#000000] font-bold uppercase py-2 px-4"
                     colSpan={1 + userDisplayNames.length}
                   >
                     {day}
@@ -790,8 +747,8 @@ function WeeklyMatchesPage() {
                   return [
                     <tr key={game.id + '-' + game.date + '-away'}>
                       {/* Sticky left: Away team info */}
-                      <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_1px_0_#000000,1px_0_0_#000000] px-2 xl:h-16 h-10 align-middle font-jim xl:text-4xl text-3xl">
-                        <div className="relative flex items-center justify-center h-full">
+                      <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_1px_0_#000000,1px_0_0_#000000] px-2 xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl">
+                        <div className="relative flex whitespace-nowrap items-center justify-center h-full">
                           {(() => {
                             const isFinal = game.status === 'final' || game.status === 'post'
                             const awayWon = isFinal && (game.awayScore ?? 0) > (game.homeScore ?? 0)
@@ -817,7 +774,7 @@ function WeeklyMatchesPage() {
                         return (
                           <td
                             key={userIndex}
-                            className={`shadow-[inset_1px_0_0_#000000,inset_0_-1px_0_#000000] px-0 xl:h-16 h-10 align-middle font-jim xl:text-4xl text-3xl min-w-14 ${isCurrentUser && game.status === 'scheduled' && !saving
+                            className={`shadow-[inset_1px_0_0_#000000,inset_0_-1px_0_#000000] px-0 xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl min-w-14 ${isCurrentUser && game.status === 'scheduled' && !saving
                               ? 'cursor-pointer hover:bg-white'
                               : isCurrentUser && game.status !== 'scheduled'
                                 ? 'cursor-not-allowed'
@@ -837,7 +794,7 @@ function WeeklyMatchesPage() {
                     </tr>,
                     <tr key={game.id + '-' + game.date + '-home'}>
                       {/* Sticky left: Home team info */}
-                      <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_-1px_0_#000000,1px_0_0_#000000] px-2 xl:h-16 h-10 align-middle font-jim xl:text-4xl text-3xl">
+                      <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_-1px_0_#000000,1px_0_0_#000000] px-2 xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl">
                         <div className="relative flex items-center justify-center h-full whitespace-nowrap">
                           {/* Show warning icon if needed, else live icon if live */}
                           {((statusWarningMap[game.status?.toLowerCase?.()] || isLikelyPostponed(game)) ? (
@@ -882,7 +839,7 @@ function WeeklyMatchesPage() {
                         return (
                           <td
                             key={userIndex}
-                            className={`shadow-[inset_1px_0_0_#000000] px-0 xl:h-16 h-10 align-middle font-jim xl:text-4xl text-3xl min-w-14 ${isCurrentUser && game.status === 'scheduled' && !saving
+                            className={`shadow-[inset_1px_0_0_#000000] px-0 xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl min-w-14 ${isCurrentUser && game.status === 'scheduled' && !saving
                               ? 'cursor-pointer hover:bg-white'
                               : isCurrentUser && game.status !== 'scheduled'
                                 ? 'cursor-not-allowed'

@@ -368,7 +368,7 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
               <div key={user.uid} className="w-full flex flex-row items-center justify-center">
                 {/* Main person button */}
                 <div 
-                  className={`w-full flex flex-row items-center justify-start gap-4 p-4 cursor-pointer ${
+                  className={`w-full flex flex-row items-center justify-start gap-4 p-4 cursor-pointer max-xl:ml-8 ${
                     selectedUsers.has(user.uid) ? 'shadow-[0_0_0_1px_#000000]' : 'text-black/50 bg-black/5'
                   }`}
                   onClick={() => {
@@ -395,7 +395,7 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
                     <div className="flex flex-col items-center">
                       {team && teamStyle ? (
                         <div
-                          className="xl:w-20 xl:h-20 w-10 h-10 flex items-center justify-center p-1 rounded-full shadow-[0_0_0_1px_#000000]"
+                          className="w-10 h-10 flex items-center justify-center p-1 rounded-full shadow-[0_0_0_1px_#000000]"
                           style={{ backgroundColor: teamStyle.background }}
                         >
                           <img
@@ -405,7 +405,7 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
                           />
                         </div>
                       ) : (
-                        <div className="xl:w-20 xl:h-20 w-10 h-10 flex items-center justify-center p-1 rounded-full shadow-[0_0_0_1px_#000000]">
+                        <div className="w-10 h-10 flex items-center justify-center p-1 rounded-full shadow-[0_0_0_1px_#000000]">
                           {/* <div className="text-xs font-bold text-black uppercase text-center leading-none">
                               NO<br/>PICK<br/>YET
                             </div> */}

@@ -143,7 +143,7 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
     if (!currentUser?.uid) {
       return
     }
-    
+
     try {
       await moveUserInOrder(currentUser.uid, userId, 'up')
       onToast({
@@ -159,7 +159,7 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
     if (!currentUser?.uid) {
       return
     }
-    
+
     try {
       await moveUserInOrder(currentUser.uid, userId, 'down')
       onToast({
@@ -279,10 +279,10 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
     if (!settings.userOrder.length) {
       return users
     }
-    
+
     // Create a map for quick lookup
     const orderMap = new Map(settings.userOrder.map((id, index) => [id, index]))
-    
+
     return [...users].sort((a, b) => {
       const aIndex = orderMap.get(a.uid) ?? Number.MAX_SAFE_INTEGER
       const bIndex = orderMap.get(b.uid) ?? Number.MAX_SAFE_INTEGER
@@ -305,9 +305,9 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
   return (
     <div className="w-full max-w-[1000px] mx-auto bg-neutral-100 space-y-4 text-center">
 
-      <div className="font-bold uppercase mt-4 max-xl:text-base leading-none">
+      {/* <div className="font-bold uppercase mt-4 text-sm leading-none">
         Manage whose picks you see
-      </div>
+      </div> */}
 
       {/* New User Visibility Setting */}
       {/* <div className="w-full p-4 pr-2 shadow-[0_0_0_1px_#000000]">
@@ -340,19 +340,27 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
       ) : (
         <div className="space-y-2">
 
-          <div className="flex flex-row gap-8 items-center justify-center px-4 mb-4 text-black/50 uppercase font-bold text-sm">
-            <button
-              onClick={handleSelectAll}
-              className="uppercase"
-            >
-              Select All
-            </button>
-            <button
-              onClick={handleSelectNone}
-              className="uppercase"
-            >
-              Select None
-            </button>
+          <div className="w-full flex flex-row flex-wrap items-center justify-center my-6 gap-4">
+
+            <div className="font-bold uppercase text-sm leading-none">
+              Manage whose picks you see
+            </div>
+
+            <div className="flex flex-row gap-8 items-center justify-center px-4 text-black/50 uppercase font-bold text-sm">
+              <button
+                onClick={handleSelectAll}
+                className="uppercase"
+              >
+                Select All
+              </button>
+              <button
+                onClick={handleSelectNone}
+                className="uppercase"
+              >
+                Select None
+              </button>
+            </div>
+
           </div>
 
           {sortedUsers.map((user, index) => {
@@ -361,16 +369,15 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
             const isCurrentUser = user.uid === currentUser?.uid
             const canMoveUp = !isCurrentUser && index > 1 // Can't move up if you're the second user (index 1)
             const canMoveDown = !isCurrentUser && index < sortedUsers.length - 1
-            
+
 
 
             return (
               <div key={user.uid} className="w-full flex flex-row items-center justify-center">
                 {/* Main person button */}
-                <div 
-                  className={`w-full flex flex-row items-center justify-start gap-4 p-4 cursor-pointer max-xl:ml-8 ${
-                    selectedUsers.has(user.uid) ? 'shadow-[0_0_0_1px_#000000]' : 'text-black/50 bg-black/5'
-                  }`}
+                <div
+                  className={`w-full flex flex-row items-center justify-start gap-4 p-4 cursor-pointer max-xl:ml-8 ${selectedUsers.has(user.uid) ? 'shadow-[0_0_0_1px_#000000]' : 'text-black/50 bg-black/5'
+                    }`}
                   onClick={() => {
                     if (user.uid !== currentUser?.uid) {
                       const newChecked = !selectedUsers.has(user.uid);

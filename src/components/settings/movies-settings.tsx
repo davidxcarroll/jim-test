@@ -140,7 +140,7 @@ export function MoviesSettings({ onToast }: MoviesSettingsProps) {
     }
 
     return (
-        <div className="w-full max-w-[800px] mx-auto bg-neutral-100 space-y-6 text-center">
+        <div className="w-full max-w-[1000px] mx-auto bg-neutral-100 space-y-6 text-center">
 
             <div className="w-full flex flex-col items-center justify-center py-4 gap-2">
 

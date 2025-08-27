@@ -6,6 +6,8 @@ import { auth } from '@/lib/firebase'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/auth-store'
 import { Toast } from '@/components/toast'
+import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 
 function AuthCompletePage() {
   const [loading, setLoading] = useState(true)
@@ -17,7 +19,7 @@ function AuthCompletePage() {
     const completeSignIn = async () => {
       try {
         // Check if Firebase is initialized
-        if (!auth) {
+        if (!auth || !db) {
           setError('Firebase not initialized. Please refresh the page.')
           setLoading(false)
           return
@@ -48,6 +50,51 @@ function AuthCompletePage() {
         
         // Clear the email from localStorage
         window.localStorage.removeItem('emailForSignIn')
+        
+        // Check if this is a new user by looking for their document in Firestore
+        const userDocRef = doc(db, 'users', result.user.uid)
+        const userDoc = await getDoc(userDocRef)
+        
+        if (!userDoc.exists()) {
+          // This is a new user, create their document
+          try {
+            await setDoc(userDocRef, {
+              email: email,
+              createdAt: new Date()
+            }, { merge: true })
+            
+            // Update all existing users' visibility settings to include the new user
+            try {
+              await fetch('/api/clipboard-visibility/add-new-user', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ newUserId: result.user.uid }),
+              })
+            } catch (visibilityError) {
+              console.error('Failed to update visibility settings for new user:', visibilityError)
+              // Don't fail the signup if visibility update fails
+            }
+
+            // Send welcome email
+            try {
+              await fetch('/api/email/welcome', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email }),
+              })
+            } catch (emailError) {
+              console.error('Failed to send welcome email:', emailError)
+              // Don't fail the signup if email fails
+            }
+          } catch (firestoreError) {
+            console.error('Failed to save user data to Firestore:', firestoreError)
+            // Don't fail the signup if Firestore save fails
+          }
+        }
         
         // Update the auth store
         setUser(result.user)

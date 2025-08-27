@@ -10,6 +10,7 @@ import { loadTeamColorMappings, getTeamColorMapping } from '@/store/team-color-m
 import { useClipboardVisibilityStore } from '@/store/clipboard-visibility-store'
 import { useAuthStore } from '@/store/auth-store'
 import { PHIL_USER } from '@/utils/phil-user'
+import React from 'react'
 
 interface User {
   uid: string
@@ -26,7 +27,7 @@ interface PeopleSettingsProps {
 
 export function PeopleSettings({ onToast }: PeopleSettingsProps) {
   const { user: currentUser } = useAuthStore()
-  const { settings, loadSettings, updateVisibleUsers } = useClipboardVisibilityStore()
+  const { settings, loadSettings, updateVisibleUsers, moveUserInOrder } = useClipboardVisibilityStore()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [teamData, setTeamData] = useState<Record<string, Team>>({})
@@ -38,11 +39,12 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
     loadTeamColorMappings(true)
   }, [])
 
-  // Load clipboard visibility settings when current user changes
+  // Load clipboard visibility settings when current user changes and users are loaded
   useEffect(() => {
-    if (currentUser?.uid) {
+    if (currentUser?.uid && users.length > 0) {
       // Pass all user IDs to ensure all users are visible by default
       const allUserIds = users.map(user => user.uid)
+
       loadSettings(currentUser.uid, allUserIds)
     }
   }, [currentUser?.uid, loadSettings, users])
@@ -57,48 +59,45 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
     setSelectedUsers(newSelectedUsers as Set<string>)
   }, [settings.visibleUsers, currentUser?.uid])
 
-  // Calculate master checkbox state
-  const allUserIds = users.map(user => user.uid)
-  const otherUserIds = allUserIds.filter(id => id !== currentUser?.uid)
-  const isAllSelected = otherUserIds.length > 0 && otherUserIds.every(id => selectedUsers.has(id))
-  const isIndeterminate = otherUserIds.some(id => selectedUsers.has(id)) && !isAllSelected
+  const handleSelectAll = async () => {
+    const newSelectedUsers = new Set<string>()
 
-  // Calculate message based on selection state
-  const getSelectionMessage = () => {
-    if (isAllSelected) {
-      return "Showing everyone's picks on my dashboard"
-    } else if (otherUserIds.every(id => !selectedUsers.has(id))) {
-      return "Showing just my picks on my dashboard"
-    } else {
-      return "Showing some people's picks on my dashboard"
+    // Add all users
+    users.forEach(user => {
+      newSelectedUsers.add(user.uid)
+    })
+
+    setSelectedUsers(newSelectedUsers)
+
+    if (currentUser?.uid) {
+      try {
+        await updateVisibleUsers(currentUser.uid, newSelectedUsers)
+        onToast({
+          message: 'All users will show on clipboard',
+          type: 'success'
+        })
+      } catch (error) {
+        onToast({ message: 'Error saving clipboard settings', type: 'error' })
+      }
     }
   }
 
-  const handleMasterCheckboxChange = async (checked: boolean) => {
-    const newSelectedUsers = new Set(selectedUsers)
-    
-    // Always keep current user selected
+  const handleSelectNone = async () => {
+    const newSelectedUsers = new Set<string>()
+
+    // Only keep current user selected
     if (currentUser?.uid) {
       newSelectedUsers.add(currentUser.uid)
     }
-    
-    // Toggle other users based on master checkbox
-    otherUserIds.forEach(userId => {
-      if (checked) {
-        newSelectedUsers.add(userId)
-      } else {
-        newSelectedUsers.delete(userId)
-      }
-    })
-    
-    setSelectedUsers(newSelectedUsers as Set<string>)
-    
+
+    setSelectedUsers(newSelectedUsers)
+
     if (currentUser?.uid) {
       try {
-        await updateVisibleUsers(currentUser.uid, newSelectedUsers as Set<string>)
-        onToast({ 
-          message: checked ? 'All users will show on clipboard' : 'Only your picks will show on clipboard', 
-          type: 'success' 
+        await updateVisibleUsers(currentUser.uid, newSelectedUsers)
+        onToast({
+          message: 'Only your picks will show on clipboard',
+          type: 'success'
         })
       } catch (error) {
         onToast({ message: 'Error saving clipboard settings', type: 'error' })
@@ -111,7 +110,7 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
     if (userId === currentUser?.uid && !checked) {
       return
     }
-    
+
     const newSelectedUsers = new Set(selectedUsers)
     if (checked) {
       newSelectedUsers.add(userId)
@@ -119,24 +118,56 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
       newSelectedUsers.delete(userId)
     }
     setSelectedUsers(newSelectedUsers as Set<string>)
-    
+
     if (currentUser?.uid) {
       try {
         await updateVisibleUsers(currentUser.uid, newSelectedUsers as Set<string>)
-        
+
         // Find the user's display name for the toast message
         const user = users.find(u => u.uid === userId)
         const userName = user?.displayName || 'Unknown user'
-        
-        onToast({ 
-          message: checked 
-            ? `${userName}'s picks will show on clipboard` 
-            : `${userName}'s picks will be hidden from clipboard`, 
-          type: 'success' 
+
+        onToast({
+          message: checked
+            ? `${userName}'s picks will show on clipboard`
+            : `${userName}'s picks will be hidden from clipboard`,
+          type: 'success'
         })
       } catch (error) {
         onToast({ message: 'Error saving clipboard settings', type: 'error' })
       }
+    }
+  }
+
+  const handleMoveUserUp = async (userId: string) => {
+    if (!currentUser?.uid) {
+      return
+    }
+    
+    try {
+      await moveUserInOrder(currentUser.uid, userId, 'up')
+      onToast({
+        message: 'User order updated',
+        type: 'success'
+      })
+    } catch (error) {
+      onToast({ message: 'Error updating user order', type: 'error' })
+    }
+  }
+
+  const handleMoveUserDown = async (userId: string) => {
+    if (!currentUser?.uid) {
+      return
+    }
+    
+    try {
+      await moveUserInOrder(currentUser.uid, userId, 'down')
+      onToast({
+        message: 'User order updated',
+        type: 'success'
+      })
+    } catch (error) {
+      onToast({ message: 'Error updating user order', type: 'error' })
     }
   }
 
@@ -173,23 +204,14 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
         createdAt: PHIL_USER.createdAt,
         updatedAt: PHIL_USER.updatedAt
       }
-      
+
       // Add Phil to the users data
       usersData.push(philUser)
 
-      // Reorder users so current user appears first, then Phil
-      const reorderedUsers = usersData.sort((a, b) => {
-        if (a.uid === currentUser?.uid) return -1
-        if (b.uid === currentUser?.uid) return 1
-        if (a.uid === PHIL_USER.uid) return -1
-        if (b.uid === PHIL_USER.uid) return 1
-        return 0
-      })
-
-      setUsers(reorderedUsers)
+      setUsers(usersData)
 
       // Load team data for users with Superbowl picks
-      const uniqueTeams = Array.from(new Set(reorderedUsers.map(user => user.superBowlPick).filter(Boolean)))
+      const uniqueTeams = Array.from(new Set(usersData.map(user => user.superBowlPick).filter(Boolean)))
       await loadTeamDataForUsers(uniqueTeams)
 
     } catch (error) {
@@ -252,9 +274,25 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
     })
   }
 
+  // Sort users based on the user order from settings
+  const sortedUsers = React.useMemo(() => {
+    if (!settings.userOrder.length) {
+      return users
+    }
+    
+    // Create a map for quick lookup
+    const orderMap = new Map(settings.userOrder.map((id, index) => [id, index]))
+    
+    return [...users].sort((a, b) => {
+      const aIndex = orderMap.get(a.uid) ?? Number.MAX_SAFE_INTEGER
+      const bIndex = orderMap.get(b.uid) ?? Number.MAX_SAFE_INTEGER
+      return aIndex - bIndex
+    })
+  }, [users, settings.userOrder])
+
   if (loading) {
     return (
-      <div className="w-full max-w-[800px] mx-auto bg-neutral-100 space-y-6 text-center">
+      <div className="w-full max-w-[1000px] mx-auto bg-neutral-100 space-y-6 text-center">
         <div className="flex items-center justify-center py-8">
           <div className="text-center uppercase font-bold max-xl:text-base">
             Loading users...
@@ -265,9 +303,35 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
   }
 
   return (
-    <div className="w-full max-w-[800px] mx-auto bg-neutral-100 space-y-6 text-center">
+    <div className="w-full max-w-[1000px] mx-auto bg-neutral-100 space-y-4 text-center">
 
-      {users.length === 0 ? (
+      <div className="font-bold uppercase mt-4 max-xl:text-base leading-none">
+        Manage whose picks you see
+      </div>
+
+      {/* New User Visibility Setting */}
+      {/* <div className="w-full p-4 pr-2 shadow-[0_0_0_1px_#000000]">
+        <div className="flex flex-row items-center justify-between">
+          <div className="flex flex-col items-start text-left">
+            <div className="font-bold uppercase max-xl:text-base leading-none">
+              See new users by default
+            </div>
+            <div className="text-sm font-bold text-black/50 uppercase leading-none mt-1">
+              When new people join, show their picks
+            </div>
+          </div>
+          <div className="flex flex-row items-center justify-center">
+            <input
+              type="checkbox"
+              className="w-4 h-4 accent-black"
+              checked={settings.showNewUsersByDefault}
+              onChange={(e) => handleShowNewUsersByDefaultChange(e.target.checked)}
+            />
+          </div>
+        </div>
+      </div> */}
+
+      {sortedUsers.length === 0 ? (
         <div className="text-center py-8">
           <div className="text-center uppercase font-bold max-xl:text-base text-black/50">
             No users found
@@ -276,32 +340,57 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
       ) : (
         <div className="space-y-2">
 
-          <div className="flex flex-row gap-4 items-center justify-center sm:py-4 py-2 uppercase font-bold max-xl:text-base">
-            <div className="leading-none">{getSelectionMessage()}</div>
-            <input 
-              type="checkbox" 
-              className="w-4 h-4 xl:mr-4 mr-2 accent-black" 
-              checked={isAllSelected}
-              ref={(el) => {
-                if (el) {
-                  el.indeterminate = isIndeterminate
-                }
-              }}
-              onChange={(e) => handleMasterCheckboxChange(e.target.checked)}
-            />
+          <div className="flex flex-row gap-8 items-center justify-center px-4 mb-4 text-black/50 uppercase font-bold text-sm">
+            <button
+              onClick={handleSelectAll}
+              className="uppercase"
+            >
+              Select All
+            </button>
+            <button
+              onClick={handleSelectNone}
+              className="uppercase"
+            >
+              Select None
+            </button>
           </div>
 
-          {users.map((user, index) => {
+          {sortedUsers.map((user, index) => {
             const team = user.superBowlPick ? teamData[user.superBowlPick] : null
             const teamStyle = user.superBowlPick ? teamStyles[user.superBowlPick] : null
+            const isCurrentUser = user.uid === currentUser?.uid
+            const canMoveUp = !isCurrentUser && index > 1 // Can't move up if you're the second user (index 1)
+            const canMoveDown = !isCurrentUser && index < sortedUsers.length - 1
+            
+
 
             return (
-              <div key={user.uid} className="w-full p-2 shadow-[0_0_0_1px_#000000]">
+              <div key={user.uid} className="w-full flex flex-row items-center justify-center">
+                {/* Main person button */}
+                <div 
+                  className={`w-full flex flex-row items-center justify-start gap-4 p-4 cursor-pointer ${
+                    selectedUsers.has(user.uid) ? 'shadow-[0_0_0_1px_#000000]' : 'text-black/50 bg-black/5'
+                  }`}
+                  onClick={() => {
+                    if (user.uid !== currentUser?.uid) {
+                      const newChecked = !selectedUsers.has(user.uid);
+                      handleUserCheckboxChange(user.uid, newChecked);
+                    }
+                  }}
+                >
+                  {/* checkbox */}
+                  <div className="flex flex-row items-center justify-center">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 accent-black"
+                      checked={selectedUsers.has(user.uid)}
+                      disabled={user.uid === currentUser?.uid}
+                      onChange={(e) => handleUserCheckboxChange(user.uid, e.target.checked)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
 
-                <div className="flex flex-row items-center justify-start gap-4">
-
-                  <div className="flex flex-1 flex-row items-center justify-start gap-4">
-
+                  <div className="flex flex-row items-center justify-start gap-4">
                     {/* Superbowl Pick */}
                     <div className="flex flex-col items-center">
                       {team && teamStyle ? (
@@ -318,8 +407,8 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
                       ) : (
                         <div className="xl:w-20 xl:h-20 w-10 h-10 flex items-center justify-center p-1 rounded-full shadow-[0_0_0_1px_#000000]">
                           {/* <div className="text-xs font-bold text-black uppercase text-center leading-none">
-                            NO<br/>PICK<br/>YET
-                          </div> */}
+                              NO<br/>PICK<br/>YET
+                            </div> */}
                         </div>
                       )}
                     </div>
@@ -333,23 +422,32 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
                         )}
                       </div>
                       {/* <div className="text-sm font-bold text-black/50 uppercase">
-                      {user.email}
-                    </div> */}
+                        {user.email}
+                      </div> */}
                     </div>
-
                   </div>
+                </div>
 
-                  {/* checkbox */}
-                  <div className="flex flex-row items-center justify-center">
-                    <input 
-                      type="checkbox" 
-                      className="w-4 h-4 accent-black" 
-                      checked={selectedUsers.has(user.uid)}
-                      disabled={user.uid === currentUser?.uid}
-                      onChange={(e) => handleUserCheckboxChange(user.uid, e.target.checked)}
-                    />
+                {/* Up/Down arrows - positioned outside the main button */}
+                <div className="w-12 flex flex-row items-center justify-center">
+                  <div className="flex flex-col gap-4">
+                    <button
+                      onClick={() => handleMoveUserUp(user.uid)}
+                      className={`material-symbols-sharp cursor-pointer hover:text-black text-black/50 ${!canMoveUp ? 'invisible pointer-events-none' : ''}`}
+                      tabIndex={!canMoveUp ? -1 : 0}
+                      aria-disabled={!canMoveUp}
+                    >
+                      keyboard_arrow_up
+                    </button>
+                    <button
+                      onClick={() => handleMoveUserDown(user.uid)}
+                      className={`material-symbols-sharp cursor-pointer hover:text-black text-black/50 ${!canMoveDown ? 'invisible pointer-events-none' : ''}`}
+                      tabIndex={!canMoveDown ? -1 : 0}
+                      aria-disabled={!canMoveDown}
+                    >
+                      keyboard_arrow_down
+                    </button>
                   </div>
-
                 </div>
               </div>
             )

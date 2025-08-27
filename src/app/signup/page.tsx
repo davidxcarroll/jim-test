@@ -54,6 +54,20 @@ function SignUpPage() {
         // Don't fail the signup if Firestore save fails
       }
 
+      // Update all existing users' visibility settings to include the new user
+      try {
+        await fetch('/api/clipboard-visibility/add-new-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ newUserId: userCredential.user.uid }),
+        })
+      } catch (visibilityError) {
+        console.error('Failed to update visibility settings for new user:', visibilityError)
+        // Don't fail the signup if visibility update fails
+      }
+
       // Send welcome email
       try {
         await fetch('/api/email/welcome', {

@@ -12,9 +12,21 @@ const chakraPetch = Chakra_Petch({
 
 export const metadata: Metadata = {
   title: 'Jim\'s Clipboard',
+  description: 'Sports picks and clipboard management app',
   viewport: 'width=device-width, initial-scale=1',
   icons: {
     icon: '/images/favicon.ico',
+    apple: [
+      { url: '/images/icon-180x180.png', sizes: '180x180', type: 'image/png' },
+      { url: '/images/icon-152x152.png', sizes: '152x152', type: 'image/png' },
+    ],
+  },
+  manifest: '/manifest.json',
+  themeColor: '#000000',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Jim\'s Clipboard',
   },
 }
 
@@ -27,6 +39,10 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Jim's Clipboard" />
+        <meta name="theme-color" content="#000000" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;700&display=swap" rel="stylesheet" />

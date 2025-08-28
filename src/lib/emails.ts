@@ -13,7 +13,39 @@ export interface EmailData {
 }
 
 export const emailService = {
+  async addToAudience(email: string, displayName?: string) {
+    try {
+      // Add contact to the "general" audience list
+      await resend.contacts.create({
+        email,
+        firstName: displayName || undefined,
+        unsubscribed: false,
+        audienceId: 'general' // This should match your audience ID in Resend
+      })
+      console.log(`Successfully added ${email} to general audience`)
+    } catch (error: any) {
+      // If contact already exists, try to update them
+      if (error.statusCode === 409) {
+        try {
+          await resend.contacts.update({
+            email,
+            firstName: displayName || undefined,
+            unsubscribed: false
+          })
+          console.log(`Successfully updated ${email} in general audience`)
+        } catch (updateError) {
+          console.error('Error updating contact in audience:', updateError)
+        }
+      } else {
+        console.error('Error adding contact to audience:', error)
+      }
+    }
+  },
+
   async sendWelcomeEmail(email: string, displayName?: string) {
+    // Add user to audience list first
+    await this.addToAudience(email, displayName)
+
     const html = `
       <!DOCTYPE html>
       <html>

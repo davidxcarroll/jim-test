@@ -20,7 +20,7 @@ export const emailService = {
         email,
         first_name: displayName || undefined,
         unsubscribed: false,
-        audienceId: 'general' // This should match your audience ID in Resend
+        audience_id: 'general' // This should match your audience ID in Resend
       })
       console.log(`Successfully added ${email} to general audience`)
     } catch (error: any) {

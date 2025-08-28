@@ -28,7 +28,8 @@ export async function POST(request: NextRequest) {
           results.push({ email, success: true })
         } catch (error) {
           console.error(`Failed to add ${email} to audience:`, error)
-          results.push({ email, success: false, error: error.message })
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+          results.push({ email, success: false, error: errorMessage })
         }
       }
     }
@@ -45,8 +46,9 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error adding all users to audience:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { error: 'Failed to add users to audience' },
+      { error: `Failed to add users to audience: ${errorMessage}` },
       { status: 500 }
     )
   }

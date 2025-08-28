@@ -24,18 +24,9 @@ export const emailService = {
       })
       console.log(`Successfully added ${email} to general audience`)
     } catch (error: any) {
-      // If contact already exists, try to update them
+      // If contact already exists (409), that's fine - they're already in the audience
       if (error.statusCode === 409) {
-        try {
-          await resend.contacts.update({
-            email,
-            first_name: displayName || undefined,
-            unsubscribed: false
-          })
-          console.log(`Successfully updated ${email} in general audience`)
-        } catch (updateError) {
-          console.error('Error updating contact in audience:', updateError)
-        }
+        console.log(`Contact ${email} already exists in general audience`)
       } else {
         console.error('Error adding contact to audience:', error)
       }

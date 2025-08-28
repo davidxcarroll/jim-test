@@ -328,7 +328,7 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
   }
 
   return (
-    <div className="w-full max-w-[1000px] mx-auto bg-neutral-100 space-y-6 text-center">
+    <div className="w-full max-w-[1000px] mx-auto bg-neutral-100 space-y-6 px-4 text-center">
       {/* Network Status Indicator - only show when offline */}
       {networkStatus && (
         <div className="p-3 text-center text-sm font-bold uppercase bg-red-100 text-red-800">

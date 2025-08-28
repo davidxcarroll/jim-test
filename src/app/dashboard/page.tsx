@@ -882,7 +882,7 @@ function WeeklyMatchesPage() {
         </div>
       </div>
 
-      <div className="w-[100dvw] mt-8 2xl:text-8xl xl:text-7xl lg:text-6xl md:text-5xl sm:text-4xl text-3xl leading-none text-center font-bold text-black uppercase mix-blend-soft-light">
+      <div className="w-[98dvw] mt-8 2xl:text-8xl xl:text-7xl lg:text-6xl md:text-5xl sm:text-4xl text-3xl leading-none text-center font-bold text-black uppercase mix-blend-soft-light">
         Long Live The Clipboard
       </div>
 

@@ -18,7 +18,7 @@ export const emailService = {
       // Add contact to the "general" audience list
       await resend.contacts.create({
         email,
-        firstName: displayName || undefined,
+        first_name: displayName || undefined,
         unsubscribed: false,
         audienceId: 'general' // This should match your audience ID in Resend
       })
@@ -29,7 +29,7 @@ export const emailService = {
         try {
           await resend.contacts.update({
             email,
-            firstName: displayName || undefined,
+            first_name: displayName || undefined,
             unsubscribed: false
           })
           console.log(`Successfully updated ${email} in general audience`)

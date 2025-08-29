@@ -14,7 +14,7 @@ export function Navigation() {
   }
 
   return (
-    <div className="relative z-10 w-[98dvw] flex flex-row items-center justify-center max-md:gap-8 leading-none xl:text-xl text-base text-white">
+    <div className="relative z-[100] w-[98dvw] flex flex-row items-center justify-center max-md:gap-8 leading-none xl:text-xl text-base text-white">
 
       <Link
         href="/dashboard"

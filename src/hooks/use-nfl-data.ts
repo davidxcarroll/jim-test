@@ -63,10 +63,14 @@ export function useUserData() {
 
     const fetchUserData = async () => {
       try {
+        console.log('Fetching user data for:', user.uid)
         const userDoc = await getDoc(doc(db, 'users', user.uid))
         if (userDoc.exists()) {
-          setUserData(userDoc.data())
+          const data = userDoc.data()
+          console.log('User data found:', data)
+          setUserData(data)
         } else {
+          console.log('No user document found for:', user.uid)
           setUserData(null)
         }
       } catch (error: any) {

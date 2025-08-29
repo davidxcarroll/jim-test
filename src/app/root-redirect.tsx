@@ -14,13 +14,20 @@ export function RootRedirect() {
   useEffect(() => {
     if (!authLoading && !userDataLoading) {
       if (user) {
-        // Check if user has completed their profile
-        if (hasCompletedProfile(userData)) {
+        // If userData is null, it means no user document exists yet
+        // This could happen for new users or if there was a data issue
+        if (userData === null) {
+          console.log('No user document found, redirecting to settings to create profile')
+          router.push('/settings')
+        } else if (hasCompletedProfile(userData)) {
+          console.log('Profile complete, redirecting to dashboard')
           router.push('/dashboard')
         } else {
+          console.log('Profile incomplete, redirecting to settings')
           router.push('/settings')
         }
       } else {
+        console.log('No user, redirecting to signup')
         router.push('/signup')
       }
     }

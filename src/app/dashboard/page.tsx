@@ -145,7 +145,7 @@ function DashboardSkeleton() {
                 {/* Week selector skeleton */}
                 <th className="sticky top-0 left-0 z-50 bg-neutral-100 shadow-[1px_0_0_#cccccc] w-48 min-w-fit h-16 align-middle p-0">
                   <div className="week-selector h-16 flex items-center justify-center relative">
-                    <div className="w-full h-full flex items-center justify-center gap-1 whitespace-nowrap font-bold uppercase xl:text-base text-sm">
+                    <div className="w-full flex justify-center items-center gap-1 px-8 whitespace-nowrap font-bold uppercase xl:text-base text-sm">
                       <div className="w-24 h-6 bg-black/10 animate-pulse"></div>
                     </div>
                   </div>
@@ -396,7 +396,7 @@ function WeeklyMatchesPage() {
   // Group games by day
   const gamesByDay: Record<string, typeof games> = {}
   games?.forEach((game) => {
-    const day = format(parseISO(game.date), "EEEE, MMMM d")
+    const day = format(parseISO(game.date), "EEE, MMM d")
     if (!gamesByDay[day]) gamesByDay[day] = []
     gamesByDay[day].push(game)
   })
@@ -551,9 +551,9 @@ function WeeklyMatchesPage() {
                 <tr className="bg-neutral-100">
                   {/* Sticky week selector header cell */}
                   <th className="sticky top-0 left-0 z-[60] bg-neutral-100 shadow-[1px_0_0_#000000] w-48 min-w-fit h-16 align-middle p-0" style={{ willChange: 'transform' }}>
-                    <div className="week-selector h-16 flex items-center justify-center relative cursor-pointer">
+                    <div className="week-selector h-16 flex items-center justify-center px-4 relative cursor-pointer">
                       <div
-                        className="w-full h-full flex items-center justify-center gap-1 whitespace-nowrap font-bold uppercase xl:text-base text-sm"
+                        className="w-full flex items-center justify-between gap-1 p-2 pl-4 whitespace-nowrap font-bold uppercase xl:text-base text-sm shadow-[inset_0_0_0_1px_#000000]"
                         onClick={() => setIsWeekDropdownOpen(!isWeekDropdownOpen)}
                       >
                         {/* label */}
@@ -736,11 +736,17 @@ function WeeklyMatchesPage() {
                   // Day header row
                   <tr key={day + '-header'}>
                     <td
-                      className="sticky top-[66px] left-0 z-30 xl:text-base text-sm bg-neutral-100 shadow-[inset_0_1px_0_#000000,inset_0_-1px_0_#000000] font-bold uppercase py-2 px-4"
-                      colSpan={1 + userDisplayNames.length}
+                      className="sticky top-[66px] left-0 z-30 xl:text-base text-sm bg-neutral-100 shadow-[inset_0_1px_0_#000000,inset_0_-1px_0_#000000] font-bold uppercase py-2 px-8 whitespace-nowrap"
                     >
                       {day}
                     </td>
+                    {visibleUsers.map((user, userIndex) => (
+                      <td
+                        key={userIndex}
+                        className="sticky top-[66px] z-20 xl:text-base text-sm bg-neutral-100 shadow-[inset_0_1px_0_#000000,inset_0_-1px_0_#000000] font-bold uppercase py-2 px-4"
+                      >
+                      </td>
+                    ))}
                   </tr>,
                   // Blank row below day header
                   <tr key={day + '-spacer-below'}>

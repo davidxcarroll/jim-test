@@ -96,3 +96,31 @@ export function useUserData() {
 
   return { userData, loading, refresh }
 } 
+
+export function useUserDataQuery() {
+  const { user } = useAuthStore()
+  
+  return useQuery({
+    queryKey: ['user-data', user?.uid],
+    queryFn: async () => {
+      if (!user || !db) {
+        throw new Error('No user or Firebase not initialized')
+      }
+      
+      console.log('Fetching user data for:', user.uid)
+      const userDoc = await getDoc(doc(db, 'users', user.uid))
+      
+      if (userDoc.exists()) {
+        const data = userDoc.data()
+        console.log('User data found:', data)
+        return data
+      } else {
+        console.log('No user document found for:', user.uid)
+        return null
+      }
+    },
+    enabled: !!user && !!db,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  })
+} 

@@ -3,17 +3,19 @@
 import { useAuthStore } from '@/store/auth-store'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import { useUserData } from '@/hooks/use-nfl-data'
+import { useUserDataQuery } from '@/hooks/use-nfl-data'
 import { hasCompletedProfile } from '@/utils/validation'
 
 export function RootRedirect() {
   const { user, loading: authLoading } = useAuthStore()
-  const { userData, loading: userDataLoading } = useUserData()
+  const { data: userData, isLoading: userDataLoading } = useUserDataQuery()
   const router = useRouter()
 
   useEffect(() => {
     if (!authLoading && !userDataLoading) {
       if (user) {
+        console.log('Auth and user data loading complete. User data:', userData)
+        
         // If userData is null, it means no user document exists yet
         // This could happen for new users or if there was a data issue
         if (userData === null) {

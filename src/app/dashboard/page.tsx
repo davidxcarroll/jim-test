@@ -29,15 +29,17 @@ const NUM_WEEKS = 5
 const NFL_SEASON_START = new Date('2025-09-04')
 
 function getStartOfWeekNDaysAgo(weeksAgo: number) {
-  const seasonStart = getNFLSeasonStart()
   const today = new Date()
-  const currentWeekNumber = getCurrentWeekNumber(today)
   
-  // Calculate the week number for this offset (current week - offset)
-  const targetWeekNumber = currentWeekNumber - weeksAgo
-  
-  // Calculate the week start date for the target week
-  return new Date(seasonStart.getTime() + ((targetWeekNumber - 1) * 7 * 24 * 60 * 60 * 1000))
+  if (weeksAgo === 0) {
+    // For current week, use the Tuesday-based week start
+    return dateHelpers.getCurrentWeekStart(today)
+  } else {
+    // For past weeks, calculate backwards from current week
+    const currentWeekStart = dateHelpers.getCurrentWeekStart(today)
+    const targetWeekStart = new Date(currentWeekStart.getTime() - (weeksAgo * 7 * 24 * 60 * 60 * 1000))
+    return targetWeekStart
+  }
 }
 
 // Function to get a random check number (1-7)
@@ -498,7 +500,6 @@ function WeeklyMatchesPage() {
     const weeks = []
     const today = new Date()
     const isTuesday = dateHelpers.isPickDay(today)
-    const seasonStart = getNFLSeasonStart()
 
     // Calculate the current NFL week number based on today's date
     const currentWeekNumber = getCurrentWeekNumber(today)
@@ -513,8 +514,8 @@ function WeeklyMatchesPage() {
       
       // Only show weeks that are current or in the past (positive week numbers)
       if (weekNumber > 0) {
-        // Calculate the week start date for this week
-        const weekStart = new Date(seasonStart.getTime() + ((weekNumber - 1) * 7 * 24 * 60 * 60 * 1000))
+        // Calculate the week start date for this week using the same logic as getStartOfWeekNDaysAgo
+        const weekStart = getStartOfWeekNDaysAgo(i)
         const { season: weekSeason, week: weekKey } = getSeasonAndWeek(weekStart)
         
         // Determine if this is the current week
@@ -587,7 +588,6 @@ function WeeklyMatchesPage() {
                         {(() => {
                           // Find the current week info from available weeks
                           const currentWeekInfo = availableWeeks.find(w => w.index === weekOffset)
-                          const isTuesday = dateHelpers.isPickDay(new Date())
 
                           if (currentWeekInfo) {
                             // Handle preseason vs regular season week display
@@ -599,17 +599,6 @@ function WeeklyMatchesPage() {
                             }
 
                             return label
-                          }
-
-                          // Check if current week is still in progress
-                          const currentWeekGames = games || []
-                          const isCurrentWeekComplete = isWeekComplete(currentWeekGames)
-                          const shouldWait = shouldWaitUntilNextMorning(currentWeekGames)
-
-                          if (!isCurrentWeekComplete) {
-                            return 'Games in Progress...'
-                          } else if (shouldWait) {
-                            return 'Week Complete - Available Tomorrow'
                           }
 
                           // Fallback if week not found

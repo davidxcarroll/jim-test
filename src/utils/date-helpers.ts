@@ -1,8 +1,8 @@
 import { format, parseISO, isToday, isTomorrow, isYesterday, addDays, startOfWeek, endOfWeek } from 'date-fns'
 import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz'
 
-// NFL timezone (Eastern Time as default for most games)
-const NFL_TIMEZONE = 'America/New_York'
+// NFL timezone (Pacific Time as default per user preference)
+const NFL_TIMEZONE = 'America/Los_Angeles'
 
 export const dateHelpers = {
   // Format game date for display

@@ -17,8 +17,8 @@ import * as Circles from '@/components/circles'
 
 function getCurrentWeekStart() {
   const today = new Date()
-  const { start } = dateHelpers.getTuesdayWeekRange(today)
-  return start
+  const { start, end } = dateHelpers.getTuesdayWeekRange(today)
+  return { start, end }
 }
 
 type TeamCircleSize = 'sm' | 'md' | 'lg'
@@ -38,9 +38,9 @@ function getDeterministicIndex(seed: string, arrLength: number) {
 function PickPage() {
   const { user } = useAuthStore()
   const today = new Date()
-  const startOfWeek = getCurrentWeekStart()
+  const { start: startOfWeek, end: endOfWeek } = getCurrentWeekStart()
   const { season, week } = getSeasonAndWeek(startOfWeek)
-  const { data: games, isLoading } = useGamesForWeek(startOfWeek, startOfWeek)
+  const { data: games, isLoading } = useGamesForWeek(startOfWeek, endOfWeek)
   const [userPicks, setUserPicks] = useState<{ [gameId: string]: { pickedTeam: string, pickedAt: any } }>({})
   const [loadingPicks, setLoadingPicks] = useState(true)
   const [saving, setSaving] = useState(false)

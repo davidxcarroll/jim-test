@@ -29,11 +29,15 @@ const NUM_WEEKS = 5
 const NFL_SEASON_START = new Date('2025-09-04')
 
 function getStartOfWeekNDaysAgo(weeksAgo: number) {
+  const seasonStart = getNFLSeasonStart()
   const today = new Date()
-  const { start } = dateHelpers.getTuesdayWeekRange(
-    new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7 * weeksAgo)
-  )
-  return start
+  const currentWeekNumber = getCurrentWeekNumber(today)
+  
+  // Calculate the week number for this offset (current week - offset)
+  const targetWeekNumber = currentWeekNumber - weeksAgo
+  
+  // Calculate the week start date for the target week
+  return new Date(seasonStart.getTime() + ((targetWeekNumber - 1) * 7 * 24 * 60 * 60 * 1000))
 }
 
 // Function to get a random check number (1-7)
@@ -221,12 +225,13 @@ function WeeklyMatchesPage() {
   const { settings: clipboardSettings, isLoading: clipboardLoading, loadSettings, subscribeToChanges } = useClipboardVisibilityStore()
   const [weekOffset, setWeekOffset] = useState(0)
   const [isWeekDropdownOpen, setIsWeekDropdownOpen] = useState(false)
-  // For now, use fixed Week 1 date range (September 4-8, 2025)
-  const week1Start = new Date(2025, 8, 4) // September 4, 2025
-  const week1End = new Date(2025, 8, 8)   // September 8, 2025
-  const startOfWeek = week1Start
-  const { season, week } = getSeasonAndWeek(startOfWeek)
-  const { data: games, isLoading } = useGamesForWeek(startOfWeek, week1End)
+  
+  // Calculate the current week based on weekOffset (0 = current week, 1 = previous week, etc.)
+  const currentWeekStart = getStartOfWeekNDaysAgo(weekOffset)
+  const currentWeekEnd = new Date(currentWeekStart.getTime() + (6 * 24 * 60 * 60 * 1000)) // 6 days later
+  
+  const { season, week } = getSeasonAndWeek(currentWeekStart)
+  const { data: games, isLoading } = useGamesForWeek(currentWeekStart, currentWeekEnd)
 
   const [users, setUsers] = useState<any[]>([])
   const [userPicksByUser, setUserPicksByUser] = useState<Record<string, any>>({})
@@ -488,25 +493,47 @@ function WeeklyMatchesPage() {
     }
   }
 
-  // Get available weeks (only show Week 1 for now)
+  // Get available weeks based on Tuesday-based system (regular season only)
   const getAvailableWeeks = () => {
     const weeks = []
+    const today = new Date()
+    const isTuesday = dateHelpers.isPickDay(today)
+    const seasonStart = getNFLSeasonStart()
 
-    // For now, only show Week 1
-    // This will be expanded later to show current week and past weeks
-    const weekStart = getStartOfWeekNDaysAgo(0) // Current week
-    const { season: weekSeason, week: weekKey } = getSeasonAndWeek(weekStart)
-
-    // Calculate week number - for now, always show as Week 1
-    const weekNumber = 1
-    const isCurrentPreseason = false
-
-    weeks.push({
-      index: 0,
-      weekNumber,
-      isCurrentPreseason,
-      weekKey: `${weekSeason}_${weekKey}`
-    })
+    // Calculate the current NFL week number based on today's date
+    const currentWeekNumber = getCurrentWeekNumber(today)
+    
+    // Only show regular season weeks (no preseason)
+    // Show current week + up to 4 past weeks
+    const maxWeeksToShow = 5
+    
+    for (let i = 0; i < maxWeeksToShow; i++) {
+      // Calculate the week number for this iteration
+      const weekNumber = currentWeekNumber - i
+      
+      // Only show weeks that are current or in the past (positive week numbers)
+      if (weekNumber > 0) {
+        // Calculate the week start date for this week
+        const weekStart = new Date(seasonStart.getTime() + ((weekNumber - 1) * 7 * 24 * 60 * 60 * 1000))
+        const { season: weekSeason, week: weekKey } = getSeasonAndWeek(weekStart)
+        
+        // Determine if this is the current week
+        const isCurrentWeek = i === 0
+        const isPastWeek = i > 0
+        
+        // Current week should be available if it's Tuesday or later
+        const shouldShowCurrentWeek = isCurrentWeek && (isTuesday || weekStart <= today)
+        
+        if (shouldShowCurrentWeek || isPastWeek) {
+          weeks.push({
+            index: i,
+            weekNumber,
+            isCurrentPreseason: false, // Always false since we're only showing regular season
+            weekKey: `${weekSeason}_${weekKey}`
+          })
+        }
+      }
+    }
 
     return weeks
   }

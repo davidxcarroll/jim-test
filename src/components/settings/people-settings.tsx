@@ -195,18 +195,6 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
         })
       })
 
-      // Add Phil to the users list
-      const philUser: User = {
-        uid: PHIL_USER.uid,
-        email: PHIL_USER.email,
-        displayName: PHIL_USER.displayName,
-        superBowlPick: PHIL_USER.superBowlPick,
-        createdAt: PHIL_USER.createdAt,
-        updatedAt: PHIL_USER.updatedAt
-      }
-
-      // Add Phil to the users data
-      usersData.push(philUser)
 
       setUsers(usersData)
 

@@ -10,7 +10,8 @@ import { getTeamByAbbreviation, getTeamLogo, getTeamBackgroundAndLogo } from '@/
 import { Team } from '@/types/nfl'
 import { loadTeamColorMappings } from '@/store/team-color-mapping-store'
 import { tmdbApi } from '@/lib/tmdb-api'
-import { PHIL_USER, isPhil, getPhilPicks } from '@/utils/phil-user'
+import { PHIL_USER, isPhil } from '@/utils/phil-user'
+
 
 interface UserStatsModalProps {
   isOpen: boolean
@@ -289,17 +290,9 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
       
       let picksSnapshot: any
       
-      // Check if this is Phil (hardcoded user)
-      if (isPhil(userId)) {
-        console.log('🏈 This is Phil - using hardcoded picks data')
-        // For Phil, we'll create an empty snapshot since he doesn't have picks in Firebase
-        // Phil's picks are generated dynamically based on current games
-        picksSnapshot = { docs: [], size: 0 }
-      } else {
-        // Regular user - fetch from Firebase
-        const picksCollection = collection(db, 'users', userId, 'picks')
-        picksSnapshot = await getDocs(picksCollection)
-      }
+      // All users (including Phil) - fetch from Firebase
+      const picksCollection = collection(db, 'users', userId, 'picks')
+      picksSnapshot = await getDocs(picksCollection)
       
       console.log('📊 Picks snapshot size:', picksSnapshot.size)
 
@@ -354,7 +347,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
           
           console.log(`📅 Week number: ${weekNumber}`)
 
-                      // Calculate week start date (NFL season started September 5, 2024)
+          // Calculate week start date (NFL season started September 5, 2024)
           const seasonStart = getNFLSeasonStart()
           const weekStart = new Date(seasonStart.getTime() + (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000)
           const { start, end } = dateHelpers.getSundayWeekRange(weekStart)

@@ -12,7 +12,7 @@ import { collection, getDocs, doc, getDoc, setDoc, serverTimestamp } from 'fireb
 import { useAuthStore } from '@/store/auth-store'
 import { useClipboardVisibilityStore } from '@/store/clipboard-visibility-store'
 import { Toast } from '@/components/toast'
-import { PHIL_USER, getPhilPicks, isPhil } from '@/utils/phil-user'
+import { PHIL_USER, getPhilPicks, isPhil, generateAndStorePhilPicks } from '@/utils/phil-user'
 import { Tooltip } from '@/components/tooltip'
 import { UserStatsModal } from '@/components/user-stats-modal'
 // @ts-ignore
@@ -322,20 +322,6 @@ function WeeklyMatchesPage() {
           ...doc.data()
         } as any)).filter((user: any) => user.displayName) // Only include users with display names
 
-        // Add Phil to the users list
-        const philUser = {
-          id: PHIL_USER.id,
-          uid: PHIL_USER.uid,
-          displayName: PHIL_USER.displayName,
-          email: PHIL_USER.email,
-          superBowlPick: PHIL_USER.superBowlPick,
-          createdAt: PHIL_USER.createdAt,
-          updatedAt: PHIL_USER.updatedAt
-        }
-
-        // Add Phil to the users data
-        usersData.push(philUser)
-
         setUsers(usersData)
       } catch (error) {
         console.error('Error fetching users:', error)
@@ -346,6 +332,21 @@ function WeeklyMatchesPage() {
     }
     fetchUsers()
   }, [currentUser])
+
+  // Generate Phil's picks for the current week if they don't exist
+  useEffect(() => {
+    if (!games || games.length === 0) return
+
+    const generatePhilPicksIfNeeded = async () => {
+      try {
+        await generateAndStorePhilPicks(games, `${season}_${week}`)
+      } catch (error) {
+        console.error('Error generating Phil picks:', error)
+      }
+    }
+
+    generatePhilPicksIfNeeded()
+  }, [games, season, week])
 
   // Fetch all user picks for this week
   useEffect(() => {
@@ -364,20 +365,11 @@ function WeeklyMatchesPage() {
           }
 
           const picksPromises = visibleUsers.map(async (user) => {
-            // If this is Phil, generate his picks based on favorite teams
-            if (isPhil(user.id)) {
-              const philPicks = getPhilPicks(games || [], `${season}_${week}`)
-              return {
-                userId: user.id,
-                picks: philPicks
-              }
-            } else {
-              // Regular user - fetch from Firestore
-              const picksDoc = await getDoc(doc(db, 'users', user.id, 'picks', `${season}_${week}`))
-              return {
-                userId: user.id,
-                picks: picksDoc.exists() ? picksDoc.data() : {}
-              }
+            // All users (including Phil) - fetch from Firestore
+            const picksDoc = await getDoc(doc(db, 'users', user.id, 'picks', `${season}_${week}`))
+            return {
+              userId: user.id,
+              picks: picksDoc.exists() ? picksDoc.data() : {}
             }
           })
 

@@ -10,6 +10,7 @@ import { Navigation } from "@/components/navigation"
 import { db } from '@/lib/firebase'
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore'
 import { useAuthStore } from '@/store/auth-store'
+import { isPhil, getPhilPicks, generateAndStorePhilPicks } from '@/utils/phil-user'
 // @ts-ignore
 import * as Checks from '@/components/checks'
 // @ts-ignore
@@ -124,6 +125,21 @@ function WeeklyMatchesPage() {
     fetchUsers()
   }, [currentUser])
 
+  // Generate Phil's picks for the current week if they don't exist
+  useEffect(() => {
+    if (!games || games.length === 0) return
+
+    const generatePhilPicksIfNeeded = async () => {
+      try {
+        await generateAndStorePhilPicks(games, `${season}_${week}`)
+      } catch (error) {
+        console.error('Error generating Phil picks:', error)
+      }
+    }
+
+    generatePhilPicksIfNeeded()
+  }, [games, season, week])
+
   // Fetch all user picks for this week
   useEffect(() => {
     if (users.length === 0) return
@@ -139,6 +155,7 @@ function WeeklyMatchesPage() {
 
         const picksByUser: Record<string, any> = {}
         await Promise.all(users.map(async (user) => {
+          // All users (including Phil) - fetch from Firestore
           const picksDoc = await getDoc(doc(db, 'users', user.id, 'picks', `${season}_${week}`))
           picksByUser[user.id] = picksDoc.exists() ? picksDoc.data() : {}
         }))

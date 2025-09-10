@@ -21,7 +21,7 @@ import * as Checks from '@/components/checks'
 import * as Circles from '@/components/circles'
 import React from 'react'
 import { LiveGameDisplay } from '@/components/live-game-display'
-import { getNFLSeasonStart, getNFLPreseasonStart, getSeasonAndWeek, getCurrentWeekNumber, isPreseason, getPreseasonWeek, getPreseasonWeekDisplay, getRegularSeasonWeek, isWeekComplete, shouldWaitUntilNextMorning } from '@/utils/date-helpers'
+import { getNFLSeasonStart, getNFLPreseasonStart, getCurrentWeekNumber, isPreseason, getPreseasonWeek, getPreseasonWeekDisplay, getRegularSeasonWeek, isWeekComplete, shouldWaitUntilNextMorning } from '@/utils/date-helpers'
 
 const NUM_WEEKS = 5
 
@@ -30,16 +30,16 @@ const NFL_SEASON_START = new Date('2025-09-04')
 
 function getStartOfWeekNDaysAgo(weeksAgo: number) {
   const today = new Date()
-  
-  if (weeksAgo === 0) {
-    // For current week, use the Tuesday-based week start
-    return dateHelpers.getCurrentWeekStart(today)
-  } else {
-    // For past weeks, calculate backwards from current week
-    const currentWeekStart = dateHelpers.getCurrentWeekStart(today)
-    const targetWeekStart = new Date(currentWeekStart.getTime() - (weeksAgo * 7 * 24 * 60 * 60 * 1000))
-    return targetWeekStart
-  }
+  const { start } = dateHelpers.getTuesdayWeekRange(
+    new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7 * weeksAgo)
+  )
+  return start
+}
+
+function getSeasonAndWeek(sunday: Date) {
+  const season = String(sunday.getFullYear())
+  const week = Math.ceil((sunday.getTime() - NFL_SEASON_START.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
+  return { season, week: `week-${week}` }
 }
 
 // Function to get a random check number (1-7)

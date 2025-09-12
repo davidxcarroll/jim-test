@@ -30,10 +30,13 @@ const NFL_SEASON_START = new Date('2025-09-04')
 
 function getStartOfWeekNDaysAgo(weeksAgo: number) {
   const today = new Date()
-  const { start } = dateHelpers.getTuesdayWeekRange(
-    new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7 * weeksAgo)
-  )
-  return start
+  // Calculate the current NFL week number
+  const currentWeekNumber = getCurrentWeekNumber(today)
+  // Calculate the target week number
+  const targetWeekNumber = currentWeekNumber - weeksAgo
+  // Calculate the NFL week start date for the target week
+  const targetWeekStart = new Date(NFL_SEASON_START.getTime() + (7 * 24 * 60 * 60 * 1000) * (targetWeekNumber - 1))
+  return targetWeekStart
 }
 
 function getSeasonAndWeek(sunday: Date) {
@@ -234,6 +237,7 @@ function WeeklyMatchesPage() {
   
   const { season, week } = getSeasonAndWeek(currentWeekStart)
   const { data: games, isLoading } = useGamesForWeek(currentWeekStart, currentWeekEnd)
+  
 
   const [users, setUsers] = useState<any[]>([])
   const [userPicksByUser, setUserPicksByUser] = useState<Record<string, any>>({})
@@ -487,7 +491,7 @@ function WeeklyMatchesPage() {
     }
   }
 
-  // Get available weeks based on Tuesday-based system (regular season only)
+  // Get available weeks based on NFL season weeks (not Tuesday-based)
   const getAvailableWeeks = () => {
     const weeks = []
     const today = new Date()
@@ -506,8 +510,8 @@ function WeeklyMatchesPage() {
       
       // Only show weeks that are current or in the past (positive week numbers)
       if (weekNumber > 0) {
-        // Calculate the week start date for this week using the same logic as getStartOfWeekNDaysAgo
-        const weekStart = getStartOfWeekNDaysAgo(i)
+        // Calculate the NFL week start date (not Tuesday-based)
+        const weekStart = new Date(NFL_SEASON_START.getTime() + (7 * 24 * 60 * 60 * 1000) * (weekNumber - 1))
         const { season: weekSeason, week: weekKey } = getSeasonAndWeek(weekStart)
         
         // Determine if this is the current week

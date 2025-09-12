@@ -9,10 +9,10 @@ const NUM_WEEKS = 5
 
 function getStartOfWeekNDaysAgo(weeksAgo: number) {
   const today = new Date()
-  const { start } = dateHelpers.getTuesdayWeekRange(
-    new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7 * weeksAgo)
-  )
-  return start
+  const { start } = dateHelpers.getTuesdayWeekRange(today)
+  // Subtract the number of weeks from the current week start
+  const targetWeekStart = new Date(start.getTime() - (7 * 24 * 60 * 60 * 1000) * weeksAgo)
+  return targetWeekStart
 }
 
 export default function WeeklyMatchesPage() {

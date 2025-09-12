@@ -88,7 +88,7 @@ export function LiveGameDisplay({ gameId }: LiveGameDisplayProps) {
 
   // Main layout
   return (
-    <div className="flex flex-row w-full overflow-hidden">
+    <div className="hidden flex flex-row w-full overflow-hidden">
       
       {/* Away Team Block */}
       <div className="flex md:flex-row flex-col justify-evenly items-center flex-1 xl:px-6 xl:py-4 p-2 text-white relative shadow-[inset_0_0_0_1px_#000000]" style={{ background: awayTeamStyle.background }}>

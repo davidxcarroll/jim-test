@@ -158,7 +158,8 @@ export function getPreseasonWeekDisplay(date: Date = new Date()): number {
 // Get regular season week number
 export function getRegularSeasonWeek(date: Date = new Date()): number {
   const seasonStart = getNFLSeasonStart()
-  const weekNumber = Math.ceil((date.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
+  const daysSinceStart = Math.floor((date.getTime() - seasonStart.getTime()) / (24 * 60 * 60 * 1000))
+  const weekNumber = Math.floor(daysSinceStart / 7) + 1
   return weekNumber
 }
 

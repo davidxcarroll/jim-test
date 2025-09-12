@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useAuthStore } from '@/store/auth-store'
 import { db } from '@/lib/firebase'
 import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore'
-import { getCurrentWeekStart, getSeasonAndWeek, dateHelpers } from '@/utils/date-helpers'
+import { getSeasonAndWeek, dateHelpers } from '@/utils/date-helpers'
 import { espnApi } from '@/lib/espn-api'
 
 interface User {

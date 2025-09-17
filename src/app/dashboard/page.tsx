@@ -12,7 +12,7 @@ import { collection, getDocs, doc, getDoc, setDoc, serverTimestamp } from 'fireb
 import { useAuthStore } from '@/store/auth-store'
 import { useClipboardVisibilityStore } from '@/store/clipboard-visibility-store'
 import { Toast } from '@/components/toast'
-import { PHIL_USER, getPhilPicks, isPhil, generateAndStorePhilPicks } from '@/utils/phil-user'
+import { PHIL_USER, getPhilPicks, isPhil } from '@/utils/phil-user'
 import { Tooltip } from '@/components/tooltip'
 import { UserStatsModal } from '@/components/user-stats-modal'
 // @ts-ignore
@@ -346,20 +346,9 @@ function WeeklyMatchesPage() {
     fetchUsers()
   }, [currentUser])
 
-  // Generate Phil's picks for the current week if they don't exist
-  useEffect(() => {
-    if (!games || games.length === 0) return
-
-    const generatePhilPicksIfNeeded = async () => {
-      try {
-        await generateAndStorePhilPicks(games, `${currentWeekData.season}_${currentWeekData.week}`)
-      } catch (error) {
-        console.error('Error generating Phil picks:', error)
-      }
-    }
-
-    generatePhilPicksIfNeeded()
-  }, [games, currentWeekData.season, currentWeekData.week])
+  // Note: Phil's picks are now generated automatically on Wednesday mornings via cron job
+  // This ensures picks are generated with the most up-to-date ESPN API data
+  // and prevents on-demand generation that might use stale data
 
   // Fetch all user picks for this week
   useEffect(() => {

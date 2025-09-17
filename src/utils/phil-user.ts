@@ -79,7 +79,7 @@ export async function ensurePhilUserExists(): Promise<void> {
 
 /**
  * Generate and store Phil's picks for a given week
- * This should be called when a new week starts (typically on Tuesday)
+ * This should be called when a new week starts (Wednesday at 8 AM PT)
  */
 export async function generateAndStorePhilPicks(games: Game[], weekKey: string): Promise<void> {
   const { db } = await import('@/lib/firebase')
@@ -91,6 +91,9 @@ export async function generateAndStorePhilPicks(games: Game[], weekKey: string):
   }
 
   try {
+    console.log(`🏈 Starting Phil picks generation for week: ${weekKey}`)
+    console.log(`📊 Processing ${games.length} games`)
+
     // Ensure Phil's user document exists first
     await ensurePhilUserExists()
 
@@ -104,6 +107,17 @@ export async function generateAndStorePhilPicks(games: Game[], weekKey: string):
 
     // Generate Phil's picks for this week
     const philPicks = generatePhilPicks(games)
+    
+    // Log the picks being generated
+    console.log('🏈 Phil picks generated:')
+    Object.entries(philPicks).forEach(([gameId, pick]) => {
+      const game = games.find(g => g.id === gameId)
+      if (game) {
+        const pickedTeamName = pick.pickedTeam === 'home' ? game.homeTeam.name : game.awayTeam.name
+        const favoriteTeamName = game.favoriteTeam === 'home' ? game.homeTeam.name : game.awayTeam.name
+        console.log(`  ${game.awayTeam.name} @ ${game.homeTeam.name}: Phil picked ${pickedTeamName} (favorite: ${favoriteTeamName})`)
+      }
+    })
     
     // Add timestamp to each pick
     const picksWithTimestamp = Object.fromEntries(
@@ -119,8 +133,9 @@ export async function generateAndStorePhilPicks(games: Game[], weekKey: string):
     // Store Phil's picks in the database
     await setDoc(doc(db, 'users', PHIL_USER.id, 'picks', weekKey), picksWithTimestamp)
     
-    console.log('🏈 Generated and stored Phil picks for week:', weekKey, 'with', games.length, 'games')
+    console.log('✅ Successfully generated and stored Phil picks for week:', weekKey, 'with', games.length, 'games')
   } catch (error) {
-    console.error('Error generating and storing Phil picks:', error)
+    console.error('❌ Error generating and storing Phil picks:', error)
+    throw error // Re-throw to allow caller to handle
   }
 } 

@@ -21,29 +21,10 @@ import * as Checks from '@/components/checks'
 import * as Circles from '@/components/circles'
 import React from 'react'
 import { LiveGameDisplay } from '@/components/live-game-display'
-import { getNFLSeasonStart, getNFLPreseasonStart, getCurrentWeekNumber, isPreseason, getPreseasonWeek, getPreseasonWeekDisplay, getRegularSeasonWeek, isWeekComplete, shouldWaitUntilNextMorning } from '@/utils/date-helpers'
+import { isWeekComplete, shouldWaitUntilNextMorning } from '@/utils/date-helpers'
+import { useCurrentWeek } from '@/hooks/use-current-week'
 
 const NUM_WEEKS = 5
-
-// NFL season start (adjust as needed)
-const NFL_SEASON_START = new Date('2025-09-04')
-
-function getStartOfWeekNDaysAgo(weeksAgo: number) {
-  const today = new Date()
-  // Calculate the current NFL week number
-  const currentWeekNumber = getCurrentWeekNumber(today)
-  // Calculate the target week number
-  const targetWeekNumber = currentWeekNumber - weeksAgo
-  // Calculate the NFL week start date for the target week
-  const targetWeekStart = new Date(NFL_SEASON_START.getTime() + (7 * 24 * 60 * 60 * 1000) * (targetWeekNumber - 1))
-  return targetWeekStart
-}
-
-function getSeasonAndWeek(sunday: Date) {
-  const season = String(sunday.getFullYear())
-  const week = Math.ceil((sunday.getTime() - NFL_SEASON_START.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
-  return { season, week: `week-${week}` }
-}
 
 // Function to get a random check number (1-7)
 function getRandomCheckNumber(): number {
@@ -228,15 +209,43 @@ function DashboardSkeleton() {
 function WeeklyMatchesPage() {
   const { user: currentUser } = useAuthStore()
   const { settings: clipboardSettings, isLoading: clipboardLoading, loadSettings, subscribeToChanges } = useClipboardVisibilityStore()
+  const { currentWeek: apiCurrentWeek, weekInfo, loading: weekLoading, error: weekError } = useCurrentWeek()
   const [weekOffset, setWeekOffset] = useState(0)
   const [isWeekDropdownOpen, setIsWeekDropdownOpen] = useState(false)
   
-  // Calculate the current week based on weekOffset (0 = current week, 1 = previous week, etc.)
-  const currentWeekStart = getStartOfWeekNDaysAgo(weekOffset)
-  const currentWeekEnd = new Date(currentWeekStart.getTime() + (6 * 24 * 60 * 60 * 1000)) // 6 days later
-  
-  const { season, week } = getSeasonAndWeek(currentWeekStart)
-  const { data: games, isLoading } = useGamesForWeek(currentWeekStart, currentWeekEnd)
+  // Calculate week data based on the selected week offset
+  const getWeekData = (offset: number) => {
+    if (weekInfo) {
+      // Use ESPN API data for current week, calculate for past weeks
+      const targetWeekNumber = weekInfo.week - offset
+      const targetWeekStart = new Date(weekInfo.startDate.getTime() - (offset * 7 * 24 * 60 * 60 * 1000))
+      const targetWeekEnd = new Date(weekInfo.endDate.getTime() - (offset * 7 * 24 * 60 * 60 * 1000))
+      
+      return {
+        start: targetWeekStart,
+        end: targetWeekEnd,
+        season: String(weekInfo.season),
+        week: weekInfo.weekType === 'preseason' ? `preseason-${targetWeekNumber}` : `week-${targetWeekNumber}`,
+        weekNumber: targetWeekNumber
+      }
+    } else {
+      // Fallback calculation if ESPN API is unavailable
+      const today = new Date()
+      const fallbackWeekStart = new Date(today.getTime() - (offset * 7 * 24 * 60 * 60 * 1000))
+      const fallbackWeekEnd = new Date(fallbackWeekStart.getTime() + (6 * 24 * 60 * 60 * 1000))
+      
+      return {
+        start: fallbackWeekStart,
+        end: fallbackWeekEnd,
+        season: '2025',
+        week: `week-${2 - offset}`, // Fallback to week 2
+        weekNumber: 2 - offset
+      }
+    }
+  }
+
+  const currentWeekData = getWeekData(weekOffset)
+  const { data: games, isLoading } = useGamesForWeek(currentWeekData.start, currentWeekData.end)
   
 
   const [users, setUsers] = useState<any[]>([])
@@ -343,14 +352,14 @@ function WeeklyMatchesPage() {
 
     const generatePhilPicksIfNeeded = async () => {
       try {
-        await generateAndStorePhilPicks(games, `${season}_${week}`)
+        await generateAndStorePhilPicks(games, `${currentWeekData.season}_${currentWeekData.week}`)
       } catch (error) {
         console.error('Error generating Phil picks:', error)
       }
     }
 
     generatePhilPicksIfNeeded()
-  }, [games, season, week])
+  }, [games, currentWeekData.season, currentWeekData.week])
 
   // Fetch all user picks for this week
   useEffect(() => {
@@ -370,7 +379,7 @@ function WeeklyMatchesPage() {
 
           const picksPromises = visibleUsers.map(async (user) => {
             // All users (including Phil) - fetch from Firestore
-            const picksDoc = await getDoc(doc(db, 'users', user.id, 'picks', `${season}_${week}`))
+            const picksDoc = await getDoc(doc(db, 'users', user.id, 'picks', `${currentWeekData.season}_${currentWeekData.week}`))
             return {
               userId: user.id,
               picks: picksDoc.exists() ? picksDoc.data() : {}
@@ -394,7 +403,7 @@ function WeeklyMatchesPage() {
     }, 100) // 100ms delay
 
     return () => clearTimeout(timeoutId)
-  }, [visibleUsers.map(u => u.id).join(','), season, week])
+  }, [visibleUsers.map(u => u.id).join(','), currentWeekData.season, currentWeekData.week])
 
   // Group games by day
   const gamesByDay: Record<string, typeof games> = {}
@@ -477,7 +486,7 @@ function WeeklyMatchesPage() {
     }))
 
     try {
-      await setDoc(doc(db, 'users', currentUser.uid, 'picks', `${season}_${week}`), newPicks, { merge: true })
+      await setDoc(doc(db, 'users', currentUser.uid, 'picks', `${currentWeekData.season}_${currentWeekData.week}`), newPicks, { merge: true })
       setToast({ message: currentPick === pick ? 'Pick removed!' : 'Pick saved!', type: 'success' })
     } catch (err) {
       setToast({ message: 'Failed to save pick. Please try again.', type: 'error' })
@@ -491,42 +500,55 @@ function WeeklyMatchesPage() {
     }
   }
 
-  // Get available weeks based on NFL season weeks (not Tuesday-based)
+  // Get available weeks - use ESPN API for current week, allow navigation to past weeks
   const getAvailableWeeks = () => {
-    const weeks = []
+    const weeks: Array<{ index: number; weekNumber: number; isCurrentPreseason: boolean; weekKey: string }> = []
     const today = new Date()
-    const isTuesday = dateHelpers.isPickDay(today)
+    const isWednesday = dateHelpers.isNewWeekDay(today)
 
-    // Calculate the current NFL week number based on today's date
-    const currentWeekNumber = getCurrentWeekNumber(today)
-    
-    // Only show regular season weeks (no preseason)
-    // Show current week + up to 4 past weeks
-    const maxWeeksToShow = 5
-    
-    for (let i = 0; i < maxWeeksToShow; i++) {
-      // Calculate the week number for this iteration
-      const weekNumber = currentWeekNumber - i
+    // If we have ESPN API data, use it for the current week
+    if (weekInfo) {
+      // Show current week + up to 4 past weeks
+      const maxWeeksToShow = 5
       
-      // Only show weeks that are current or in the past (positive week numbers)
-      if (weekNumber > 0) {
-        // Calculate the NFL week start date (not Tuesday-based)
-        const weekStart = new Date(NFL_SEASON_START.getTime() + (7 * 24 * 60 * 60 * 1000) * (weekNumber - 1))
-        const { season: weekSeason, week: weekKey } = getSeasonAndWeek(weekStart)
+      for (let i = 0; i < maxWeeksToShow; i++) {
+        // Calculate the week number for this iteration
+        const weekNumber = weekInfo.week - i
         
-        // Determine if this is the current week
-        const isCurrentWeek = i === 0
-        const isPastWeek = i > 0
-        
-        // Current week should be available if it's Tuesday or later
-        const shouldShowCurrentWeek = isCurrentWeek && (isTuesday || weekStart <= today)
-        
-        if (shouldShowCurrentWeek || isPastWeek) {
+        // Only show weeks that are current or in the past (positive week numbers)
+        if (weekNumber > 0) {
+          // Determine if this is the current week
+          const isCurrentWeek = i === 0
+          const isPastWeek = i > 0
+          
+          // Current week should be available if it's Wednesday or later
+          const shouldShowCurrentWeek = isCurrentWeek && (isWednesday || weekInfo.startDate <= today)
+          
+          if (shouldShowCurrentWeek || isPastWeek) {
+            const weekKey = weekInfo.weekType === 'preseason' ? `preseason-${weekNumber}` : `week-${weekNumber}`
+            weeks.push({
+              index: i,
+              weekNumber,
+              isCurrentPreseason: weekInfo.weekType === 'preseason',
+              weekKey: `${weekInfo.season}_${weekKey}`
+            })
+          }
+        }
+      }
+    } else {
+      // Fallback: if ESPN API is unavailable, show a basic week structure
+      // This ensures the app still works even if the API is down
+      const maxWeeksToShow = 5
+      const currentWeekNumber = 2 // Fallback to week 2 if API unavailable
+      
+      for (let i = 0; i < maxWeeksToShow; i++) {
+        const weekNumber = currentWeekNumber - i
+        if (weekNumber > 0) {
           weeks.push({
             index: i,
             weekNumber,
-            isCurrentPreseason: false, // Always false since we're only showing regular season
-            weekKey: `${weekSeason}_${weekKey}`
+            isCurrentPreseason: false,
+            weekKey: `2025_week-${weekNumber}`
           })
         }
       }
@@ -538,12 +560,28 @@ function WeeklyMatchesPage() {
   const availableWeeks = getAvailableWeeks()
 
   // Show skeleton while loading
-  if ((isLoading || loadingUsers || loadingPicks || clipboardLoading) && !loadTimeout) {
+  if ((isLoading || loadingUsers || loadingPicks || clipboardLoading || weekLoading) && !loadTimeout) {
     return <DashboardSkeleton />
   }
 
+  // Show error if week loading fails
+  if (weekError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen font-chakra text-2xl bg-neutral-100">
+        <div className="mb-4 text-red-600 font-bold">Unable to load NFL schedule data.</div>
+        <div className="mb-4 text-neutral-600 text-lg">The ESPN API is currently unavailable.</div>
+        <button
+          className="px-6 py-3 bg-black text-white rounded-lg font-bold hover:bg-neutral-800 transition"
+          onClick={() => window.location.reload()}
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
+
   // Show error if timeout occurs
-  if (loadTimeout && (isLoading || loadingUsers || loadingPicks || clipboardLoading)) {
+  if (loadTimeout && (isLoading || loadingUsers || loadingPicks || clipboardLoading || weekLoading)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen font-chakra text-2xl bg-neutral-100">
         <div className="mb-4 text-red-600 font-bold">Something went wrong loading the dashboard.</div>
@@ -691,16 +729,16 @@ function WeeklyMatchesPage() {
                   const saveWeekRecap = async () => {
                     try {
                       // Check if we already have recap data for this week
-                      const existingRecapDoc = await getDoc(doc(db, 'weekRecaps', `${season}_${week}`));
+                      const existingRecapDoc = await getDoc(doc(db, 'weekRecaps', `${currentWeekData.season}_${currentWeekData.week}`));
                       if (existingRecapDoc.exists()) {
                         console.log('💾 Week recap data already exists, skipping save');
                         return;
                       }
 
                       const weekRecapData = {
-                        weekId: `${season}_${week}`,
-                        season,
-                        week,
+                        weekId: `${currentWeekData.season}_${currentWeekData.week}`,
+                        season: currentWeekData.season,
+                        week: currentWeekData.week,
                         calculatedAt: serverTimestamp(),
                         userStats: recapStats.map(stat => ({
                           userId: stat.userId,
@@ -711,7 +749,7 @@ function WeeklyMatchesPage() {
                         }))
                       };
 
-                      await setDoc(doc(db, 'weekRecaps', `${season}_${week}`), weekRecapData);
+                      await setDoc(doc(db, 'weekRecaps', `${currentWeekData.season}_${currentWeekData.week}`), weekRecapData);
                       console.log('💾 Saved week recap data for modal use');
                     } catch (error) {
                       console.error('❌ Error saving week recap data:', error);

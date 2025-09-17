@@ -40,10 +40,10 @@ export const dateHelpers = {
     }
   },
 
-  // Get week range for weekly picks (Tuesday-based)
+  // Get week range for weekly picks (Wednesday-based to align with ESPN API)
   getWeekRange(date: Date = new Date()) {
-    const start = startOfWeek(date, { weekStartsOn: 2 }) // Tuesday
-    const end = endOfWeek(date, { weekStartsOn: 2 }) // Monday
+    const start = startOfWeek(date, { weekStartsOn: 3 }) // Wednesday
+    const end = endOfWeek(date, { weekStartsOn: 3 }) // Tuesday
     return { start, end }
   },
 
@@ -86,99 +86,85 @@ export const dateHelpers = {
     return { start, end }
   },
 
-  // Get Tuesday-based week range (new primary method)
-  getTuesdayWeekRange(date: Date = new Date()) {
-    const start = startOfWeek(date, { weekStartsOn: 2 }) // Tuesday
-    const end = endOfWeek(date, { weekStartsOn: 2 }) // Monday
+  // Get Wednesday-based week range (aligns with ESPN API)
+  getWednesdayWeekRange(date: Date = new Date()) {
+    const start = startOfWeek(date, { weekStartsOn: 3 }) // Wednesday
+    const end = endOfWeek(date, { weekStartsOn: 3 }) // Tuesday
     return { start, end }
   },
 
-  // Check if today is Tuesday (pick day)
-  isPickDay(date: Date = new Date()): boolean {
-    return date.getDay() === 2 // Tuesday is day 2 (0 = Sunday, 1 = Monday, 2 = Tuesday)
+  // Check if today is Wednesday (new week start day)
+  isNewWeekDay(date: Date = new Date()): boolean {
+    return date.getDay() === 3 // Wednesday is day 3 (0 = Sunday, 1 = Monday, 2 = Tuesday, 3 = Wednesday)
   },
 
-  // Get the next Tuesday (next pick day)
-  getNextPickDay(date: Date = new Date()): Date {
+  // Get the next Wednesday (next week start day)
+  getNextWeekStartDay(date: Date = new Date()): Date {
     const today = date
-    const daysUntilTuesday = (2 - today.getDay() + 7) % 7
-    return addDays(today, daysUntilTuesday)
+    const daysUntilWednesday = (3 - today.getDay() + 7) % 7
+    return addDays(today, daysUntilWednesday)
   },
 
-  // Get the current Tuesday-based week start
+  // Get the current Wednesday-based week start
   getCurrentWeekStart(date: Date = new Date()): Date {
-    const { start } = this.getTuesdayWeekRange(date)
+    const { start } = this.getWednesdayWeekRange(date)
     return start
   },
 
-  // Check if a date is in the current Tuesday-based week
+  // Check if a date is in the current Wednesday-based week
   isInCurrentWeek(date: Date, currentDate: Date = new Date()): boolean {
-    const { start, end } = this.getTuesdayWeekRange(currentDate)
+    const { start, end } = this.getWednesdayWeekRange(currentDate)
     return date >= start && date <= end
   }
 } 
 
-// NFL season start (update this for each new season)
-export function getNFLSeasonStart() {
-  // Change this date when a new NFL season starts
-  // 2025 NFL season: Starting September 4, 2025 (Thursday - first game)
-  return new Date(2025, 8, 4); // Month is 0-indexed, so 8 = September
-}
-
-// NFL preseason start (update this for each new season)
-export function getNFLPreseasonStart() {
-  // 2025 NFL preseason: Ended September 3, 2025
-  // Regular season starts September 4, 2025
-  return new Date('2025-08-01T00:00:00.000Z')
-}
-
-// Check if we're currently in preseason
-export function isPreseason(date: Date = new Date()): boolean {
-  const preseasonStart = getNFLPreseasonStart()
-  const regularSeasonStart = getNFLSeasonStart()
-  return date >= preseasonStart && date < regularSeasonStart
-}
-
-// Get preseason week number (negative numbers for preseason)
-export function getPreseasonWeek(date: Date = new Date()): number {
-  const preseasonStart = getNFLPreseasonStart()
-  const daysSinceStart = Math.floor((date.getTime() - preseasonStart.getTime()) / (24 * 60 * 60 * 1000))
-  const weekNumber = Math.floor(daysSinceStart / 7) + 1
-  return -weekNumber // Negative to indicate preseason
-}
-
-// Get preseason week number for display (positive numbers)
-export function getPreseasonWeekDisplay(date: Date = new Date()): number {
-  const preseasonStart = getNFLPreseasonStart()
-  const daysSinceStart = Math.floor((date.getTime() - preseasonStart.getTime()) / (24 * 60 * 60 * 1000))
-  const weekNumber = Math.floor(daysSinceStart / 7) + 1
-  return weekNumber
-}
-
-// Get regular season week number
-export function getRegularSeasonWeek(date: Date = new Date()): number {
-  const seasonStart = getNFLSeasonStart()
-  const daysSinceStart = Math.floor((date.getTime() - seasonStart.getTime()) / (24 * 60 * 60 * 1000))
-  const weekNumber = Math.floor(daysSinceStart / 7) + 1
-  return weekNumber
-}
-
-// Get the appropriate week number (preseason or regular season)
-export function getCurrentWeekNumber(date: Date = new Date()): number {
-  if (isPreseason(date)) {
-    return getPreseasonWeek(date)
-  } else {
-    return getRegularSeasonWeek(date)
+// Get current NFL week from ESPN API (primary method - no hardcoded dates)
+export async function getCurrentNFLWeekFromAPI(): Promise<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason'; startDate: Date; endDate: Date } | null> {
+  try {
+    // Import espnApi dynamically to avoid circular dependencies
+    const { espnApi } = await import('@/lib/espn-api')
+    return await espnApi.getCurrentNFLWeek()
+  } catch (error) {
+    console.error('Error getting current NFL week from API:', error)
+    return null
   }
+}
+
+// Get current week number using ESPN API (async version)
+export async function getCurrentWeekNumberFromAPI(): Promise<number> {
+  try {
+    const nflWeek = await getCurrentNFLWeekFromAPI()
+    if (nflWeek) {
+      // Return negative for preseason, positive for regular season
+      if (nflWeek.weekType === 'preseason') {
+        return -nflWeek.week
+      } else {
+        return nflWeek.week
+      }
+    }
+  } catch (error) {
+    console.error('Error getting week from API:', error)
+  }
+  
+  // No fallback - we want to fail if API is unavailable
+  throw new Error('Unable to determine current NFL week - ESPN API unavailable')
 } 
 
-// Returns { season, week } for any date
-export function getSeasonAndWeek(date: Date) {
-  const seasonStart = getNFLSeasonStart()
-  const season = String(seasonStart.getFullYear())
-  const weekNumber = getCurrentWeekNumber(date)
-  const week = weekNumber < 0 ? `preseason-${Math.abs(weekNumber)}` : `week-${weekNumber}`
-  return { season, week }
+// Returns { season, week } for any date using ESPN API
+export async function getSeasonAndWeek(date: Date = new Date()) {
+  try {
+    const nflWeek = await getCurrentNFLWeekFromAPI()
+    if (nflWeek) {
+      const season = String(nflWeek.season)
+      const week = nflWeek.weekType === 'preseason' ? `preseason-${nflWeek.week}` : `week-${nflWeek.week}`
+      return { season, week }
+    }
+  } catch (error) {
+    console.error('Error getting season and week from API:', error)
+  }
+  
+  // Fallback - this should rarely happen
+  throw new Error('Unable to determine season and week - ESPN API unavailable')
 }
 
 // Check if a week is complete (all games finished)

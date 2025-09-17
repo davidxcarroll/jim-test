@@ -23,7 +23,7 @@ const NUM_WEEKS = 5
 
 function getStartOfWeekNDaysAgo(weeksAgo: number) {
   const today = new Date()
-  const { start } = dateHelpers.getTuesdayWeekRange(today)
+  const { start } = dateHelpers.getWednesdayWeekRange(today)
   // Subtract the number of weeks from the current week start
   const targetWeekStart = new Date(start.getTime() - (7 * 24 * 60 * 60 * 1000) * weeksAgo)
   return targetWeekStart

@@ -135,6 +135,56 @@ export interface LiveGameDetails extends Game {
 }
 
 export const espnApi = {
+  // Get current NFL week from ESPN API schedule
+  async getCurrentNFLWeek(): Promise<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason'; startDate: Date; endDate: Date } | null> {
+    try {
+      const today = new Date()
+      const dateStr = formatDate(today, 'yyyyMMdd')
+      const response = await fetch(`${ESPN_BASE_URL}/scoreboard?dates=${dateStr}`)
+      const data = await response.json()
+      
+      if (data.leagues && data.leagues.length > 0) {
+        const league = data.leagues[0]
+        const season = league.season?.year || new Date().getFullYear()
+        
+        // Find current week from calendar
+        if (league.calendar && league.calendar.length > 0) {
+          for (const seasonType of league.calendar) {
+            if (seasonType.entries) {
+              for (const entry of seasonType.entries) {
+                const startDate = new Date(entry.startDate)
+                const endDate = new Date(entry.endDate)
+                
+                // Use UTC comparison since ESPN API dates are in UTC
+                const nowUTC = new Date(today.toISOString())
+                
+                if (nowUTC >= startDate && nowUTC <= endDate) {
+                  const weekNumber = parseInt(entry.value)
+                  let weekType: 'preseason' | 'regular' | 'postseason' = 'regular'
+                  
+                  if (seasonType.label === 'Preseason') {
+                    weekType = 'preseason'
+                  } else if (seasonType.label === 'Postseason') {
+                    weekType = 'postseason'
+                  }
+                  
+                  console.log(`📅 ESPN API: Found current week ${weekNumber} (${weekType}) - ${startDate.toISOString()} to ${endDate.toISOString()}`)
+                  return { week: weekNumber, season, weekType, startDate, endDate }
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      console.log('📅 ESPN API: No current week found')
+      return null
+    } catch (error) {
+      console.error('Error fetching current NFL week:', error)
+      return null
+    }
+  },
+
   // Get today's games
   async getTodaysGames(): Promise<Game[]> {
     try {

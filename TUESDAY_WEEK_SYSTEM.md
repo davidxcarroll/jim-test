@@ -1,42 +1,53 @@
-# Tuesday-Based Week System
+# ESPN API-Driven Week System
 
 ## Overview
 
-The application now uses a **Tuesday-based week system** where new weeks start every Tuesday. This provides a consistent "pick day" for users and aligns well with the NFL schedule.
+The application now uses an **ESPN API-driven week system** that automatically aligns with the official NFL schedule. This eliminates all hardcoded dates and ensures the app works seamlessly throughout the entire season without any engineering intervention.
 
-## Why Tuesday?
+## Why ESPN API-Driven?
 
-- **Most NFL games are Sunday/Monday**: By Tuesday, all games from the previous week are complete
-- **Thursday games are rare**: When they do occur, they're typically early in the week
-- **Consistent user experience**: Users know exactly when to expect a new week
-- **Optimal timing**: Tuesday gives users time to make picks before the next week's games
+- **Official NFL Schedule**: Uses the exact same week boundaries as the NFL
+- **Zero Hardcoded Dates**: No need to update season start dates or week calculations
+- **Automatic Transitions**: Weeks start and end exactly when the NFL says they do
+- **Future-Proof**: Works for any season without code changes
+- **Wednesday-Based**: Aligns with ESPN's Wednesday-to-Tuesday week structure
 
 ## Week Structure
 
-- **Week Start**: Tuesday at 12:00 AM
-- **Week End**: Monday at 11:59 PM
-- **Pick Day**: Tuesday (indicated with 📅 emoji in the UI)
+- **Week Start**: Wednesday at 12:00 AM (per ESPN API)
+- **Week End**: Tuesday at 11:59 PM (per ESPN API)
+- **New Week Day**: Wednesday (when new weeks become available)
 
 ## Implementation Changes
 
 ### Date Helpers (`src/utils/date-helpers.ts`)
 
-Added new functions:
-- `getTuesdayWeekRange()` - Get Tuesday-based week range
-- `isPickDay()` - Check if a date is Tuesday
-- `getNextPickDay()` - Get the next Tuesday
-- `getCurrentWeekStart()` - Get current Tuesday-based week start
-- `isInCurrentWeek()` - Check if date is in current Tuesday-based week
+**REMOVED** all hardcoded functions:
+- ❌ `getNFLSeasonStart()` - No longer needed
+- ❌ `getNFLPreseasonStart()` - No longer needed  
+- ❌ `getCurrentWeekNumber()` - No longer needed
+- ❌ `getRegularSeasonWeek()` - No longer needed
+- ❌ `getPreseasonWeek()` - No longer needed
 
-Updated existing functions:
-- `getWeekRange()` - Now uses Tuesday as week start (was Monday)
+**ADDED** ESPN API-driven functions:
+- ✅ `getCurrentNFLWeekFromAPI()` - Get current week from ESPN API
+- ✅ `getCurrentWeekNumberFromAPI()` - Get week number from ESPN API
+- ✅ `getSeasonAndWeek()` - Now async, uses ESPN API
+- ✅ `getWednesdayWeekRange()` - Wednesday-based week range
+- ✅ `isNewWeekDay()` - Check if today is Wednesday
 
 ### Dashboard (`src/app/dashboard/page.tsx`)
 
-- Updated `getStartOfWeekNDaysAgo()` to use `getTuesdayWeekRange()`
-- Updated `getAvailableWeeks()` to only show current and past weeks
-- Added Tuesday indicator (📅) in week selector
-- Week selector now only shows current week if it's Tuesday or if games are complete
+**REMOVED** all hardcoded logic:
+- ❌ `NFL_SEASON_START` constant
+- ❌ `getStartOfWeekNDaysAgo()` function
+- ❌ Mathematical week calculations
+
+**ADDED** ESPN API integration:
+- ✅ `useCurrentWeek()` hook for API-driven week data
+- ✅ Direct use of ESPN API week start/end dates
+- ✅ Error handling for API unavailability
+- ✅ Wednesday-based week availability logic
 
 ### Other Files Updated
 

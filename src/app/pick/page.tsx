@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useAuthStore } from '@/store/auth-store'
 import { useGamesForWeek } from '@/hooks/use-nfl-data'
-import { getNFLSeasonStart, getSeasonAndWeek, dateHelpers } from '@/utils/date-helpers'
+import { getSeasonAndWeek, dateHelpers } from '@/utils/date-helpers'
 import { getTeamDisplayNameFromTeam } from '@/utils/team-names'
 import { getTeamCircleSize } from '@/utils/team-utils'
 import { format, parseISO, isBefore } from 'date-fns'
@@ -17,7 +17,7 @@ import * as Circles from '@/components/circles'
 
 function getCurrentWeekStart() {
   const today = new Date()
-  const { start, end } = dateHelpers.getTuesdayWeekRange(today)
+  const { start, end } = dateHelpers.getWednesdayWeekRange(today)
   return { start, end }
 }
 
@@ -39,12 +39,25 @@ function PickPage() {
   const { user } = useAuthStore()
   const today = new Date()
   const { start: startOfWeek, end: endOfWeek } = getCurrentWeekStart()
-  const { season, week } = getSeasonAndWeek(startOfWeek)
   const { data: games, isLoading } = useGamesForWeek(startOfWeek, endOfWeek)
   const [userPicks, setUserPicks] = useState<{ [gameId: string]: { pickedTeam: string, pickedAt: any } }>({})
   const [loadingPicks, setLoadingPicks] = useState(true)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [seasonWeek, setSeasonWeek] = useState<{ season: string; week: string } | null>(null)
+
+  // Load season and week data
+  useEffect(() => {
+    const loadSeasonWeek = async () => {
+      try {
+        const result = await getSeasonAndWeek(startOfWeek)
+        setSeasonWeek(result)
+      } catch (error) {
+        console.error('Error loading season and week:', error)
+      }
+    }
+    loadSeasonWeek()
+  }, [startOfWeek])
 
   // Load user picks from Firestore for the current week
   useEffect(() => {
@@ -59,7 +72,8 @@ function PickPage() {
           return
         }
 
-        const picksDoc = await getDoc(doc(db, 'users', user.uid, 'picks', `${season}_${week}`))
+        if (!seasonWeek) return
+        const picksDoc = await getDoc(doc(db, 'users', user.uid, 'picks', `${seasonWeek.season}_${seasonWeek.week}`))
         if (picksDoc.exists()) {
           setUserPicks(picksDoc.data() || {})
         } else {
@@ -72,7 +86,7 @@ function PickPage() {
       }
     }
     fetchPicks()
-  }, [user, season, week])
+  }, [user, seasonWeek])
 
   // Save pick to Firestore
   const handlePick = async (gameId: string, pick: 'home' | 'away') => {
@@ -104,7 +118,8 @@ function PickPage() {
 
     setUserPicks(newPicks)
     try {
-      await setDoc(doc(db, 'users', user.uid, 'picks', `${season}_${week}`), newPicks, { merge: true })
+      if (!seasonWeek) return
+      await setDoc(doc(db, 'users', user.uid, 'picks', `${seasonWeek.season}_${seasonWeek.week}`), newPicks, { merge: true })
       setToast({ message: currentPick === pick ? 'Pick removed!' : 'Pick saved!', type: 'success' })
     } catch (err) {
       setToast({ message: 'Failed to save pick. Please try again.', type: 'error' })

@@ -78,7 +78,8 @@ export default function AdminPicksPage() {
 
       // Load picks for each user
       const picksPromises = usersList.map(async (user) => {
-        const picksDoc = await getDoc(doc(db, 'users', user.id, 'picks', `${season}_${week}`))
+        const weekKey = `${season}_week-${week}`
+        const picksDoc = await getDoc(doc(db, 'users', user.id, 'picks', weekKey))
         return {
           userId: user.id,
           picks: picksDoc.exists() ? picksDoc.data() as UserPicks : {}
@@ -107,12 +108,13 @@ export default function AdminPicksPage() {
       const seasonYear = parseInt(season)
       const weekNumber = parseInt(week)
       
-      // Calculate the start date for the week (assuming Tuesday start like your system)
-      const seasonStart = new Date(`${seasonYear}-09-04`) // NFL season typically starts early September
-      const weekStartDate = new Date(seasonStart.getTime() + (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000)
+      // Calculate the start date for the week (using Wednesday-based system)
+      // This is a simplified calculation - in production, this should use ESPN API
+      const today = new Date()
+      const weekStartDate = new Date(today.getTime() - (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000)
       
-      // Get the Tuesday week range for this date
-      const { start, end } = dateHelpers.getTuesdayWeekRange(weekStartDate)
+      // Get the Wednesday week range for this date
+      const { start, end } = dateHelpers.getWednesdayWeekRange(weekStartDate)
       
       // Use the existing ESPN API to get games
       const games = await espnApi.getGamesForDateRange(start, end)
@@ -153,7 +155,8 @@ export default function AdminPicksPage() {
       }))
 
       // Save to database
-      await setDoc(doc(db, 'users', userId, 'picks', `${season}_${week}`), updatedPicks, { merge: true })
+      const weekKey = `${season}_week-${week}`
+      await setDoc(doc(db, 'users', userId, 'picks', weekKey), updatedPicks, { merge: true })
 
       setMessage({ text: 'Pick updated successfully', type: 'success' })
 

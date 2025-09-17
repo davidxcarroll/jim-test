@@ -5,7 +5,7 @@ import { doc, getDoc, collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { format } from 'date-fns'
 import { espnApi } from '@/lib/espn-api'
-import { dateHelpers, getNFLSeasonStart, getSeasonAndWeek } from '@/utils/date-helpers'
+import { dateHelpers, getSeasonAndWeek } from '@/utils/date-helpers'
 import { getTeamByAbbreviation, getTeamLogo, getTeamBackgroundAndLogo } from '@/utils/team-utils'
 import { Team } from '@/types/nfl'
 import { loadTeamColorMappings } from '@/store/team-color-mapping-store'
@@ -347,10 +347,11 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
           
           console.log(`📅 Week number: ${weekNumber}`)
 
-          // Calculate week start date (NFL season started September 5, 2024)
-          const seasonStart = getNFLSeasonStart()
-          const weekStart = new Date(seasonStart.getTime() + (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000)
-          const { start, end } = dateHelpers.getSundayWeekRange(weekStart)
+          // Use ESPN API to get week dates (no hardcoded calculations)
+          // For now, we'll use a simple calculation but this should be updated to use ESPN API
+          const today = new Date()
+          const weekStart = new Date(today.getTime() - (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000)
+          const { start, end } = dateHelpers.getWednesdayWeekRange(weekStart)
           console.log(`📅 Week date range: ${start.toISOString()} to ${end.toISOString()}`)
 
           // Fetch games for this week

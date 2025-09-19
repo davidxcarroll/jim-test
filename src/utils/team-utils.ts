@@ -51,20 +51,9 @@ export function getTeamBackgroundAndLogo(team: Team): {
   useGradient: boolean
 } {
   const mappings = getTeamColorMappings()
-  console.log('🎨 getTeamBackgroundAndLogo Debug:', {
-    team: team.abbreviation,
-    mappingsCount: mappings.length,
-    teamMapping: mappings.find(m => m.abbreviation === team.abbreviation),
-    allMappings: mappings
-  })
   // Get background color and logo type from manual mapping
   const background = getTeamBackgroundColor(team, mappings)
   const logoType = getTeamLogoType(team, mappings)
-  console.log('🎨 getTeamBackgroundAndLogo Result:', {
-    team: team.abbreviation,
-    background,
-    logoType
-  })
   return {
     background,
     logoType,
@@ -81,7 +70,6 @@ const CACHE_DURATION = 24 * 60 * 60 * 1000 // 24 hours
  * Get all teams with caching
  */
 export async function getTeams(): Promise<Team[]> {
-  console.log('team-utils getTeams called');
   const now = Date.now()
   
   // Return cached data if still valid
@@ -94,7 +82,6 @@ export async function getTeams(): Promise<Team[]> {
     teamsCache = await espnApi.getTeams()
     teamsCacheTime = now
     if (teamsCache && teamsCache.length > 0) {
-      console.log('Sample mapped Team object:', JSON.stringify(teamsCache[0], null, 2));
     }
     return teamsCache
   } catch (error) {
@@ -139,7 +126,6 @@ export async function fetchTeamRecordsFromStandings() {
   const data = await response.json()
   // Find the first team entry for debugging
   if (data.standings && data.standings.entries && data.standings.entries.length > 0) {
-    console.log('Sample standings team entry:', JSON.stringify(data.standings.entries[0], null, 2));
   } else {
     console.error('Standings API response missing expected structure:', JSON.stringify(data, null, 2));
   }

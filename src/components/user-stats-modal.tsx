@@ -5,12 +5,13 @@ import { doc, getDoc, collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { format } from 'date-fns'
 import { espnApi } from '@/lib/espn-api'
-import { dateHelpers, getSeasonAndWeek } from '@/utils/date-helpers'
+import { dateHelpers, getSeasonAndWeek, isWeekComplete } from '@/utils/date-helpers'
 import { getTeamByAbbreviation, getTeamLogo, getTeamBackgroundAndLogo } from '@/utils/team-utils'
 import { Team } from '@/types/nfl'
 import { loadTeamColorMappings } from '@/store/team-color-mapping-store'
 import { tmdbApi } from '@/lib/tmdb-api'
 import { PHIL_USER, isPhil } from '@/utils/phil-user'
+import { useCurrentWeek } from '@/hooks/use-current-week'
 
 
 interface UserStatsModalProps {
@@ -62,12 +63,13 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
   const [mappingsLoaded, setMappingsLoaded] = useState(false)
   const [moviePosters, setMoviePosters] = useState<MoviePoster[]>([])
   const [postersLoading, setPostersLoading] = useState(false)
+  const { currentWeek: apiCurrentWeek, weekInfo } = useCurrentWeek()
 
   useEffect(() => {
-    if (isOpen && userId) {
+    if (isOpen && userId && weekInfo) {
       fetchUserStats()
     }
-  }, [isOpen, userId])
+  }, [isOpen, userId, weekInfo])
 
   useEffect(() => {
     loadTeamColorMappings().then(() => setMappingsLoaded(true))
@@ -86,32 +88,15 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
     setPostersLoading(true)
     const posters: MoviePoster[] = []
 
-    // Log if running on client or server
-    if (typeof window !== 'undefined') {
-      console.log('[TMDB] Running on CLIENT (browser)')
-    } else {
-      console.log('[TMDB] Running on SERVER (Node.js)')
-    }
-
-    // Log if TMDB API key is present (do not print the key itself)
-    if (typeof process !== 'undefined' && process.env && process.env.TMDB_API_KEY) {
-      console.log('[TMDB] TMDB API key is present')
-    } else {
-      console.warn('[TMDB] TMDB API key is NOT present or not accessible in this environment')
-    }
 
     for (let i = 0; i < stats.movies.length; i++) {
       const movieTitle = stats.movies[i]
       if (!movieTitle.trim()) continue
 
       try {
-        console.log(`[TMDB] Processing movie: '${movieTitle}'`)
-
         // Check if we have stored movie data with tmdbId
         const movieData = stats.movieData?.find(md => md.title === movieTitle)
         if (movieData && movieData.tmdbId) {
-          console.log(`[TMDB] Using stored movie data for '${movieTitle}' (ID: ${movieData.tmdbId})`)
-
           // Use stored poster path if available
           if (movieData.posterPath) {
             const posterUrl = tmdbApi.getPosterUrl(movieData.posterPath, 'w342')
@@ -136,14 +121,12 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
               continue
             }
           } catch (error) {
-            console.warn(`[TMDB] Failed to fetch movie details for ID ${movieData.tmdbId}, falling back to search`)
+            // Fall back to search
           }
         }
 
         // Fallback to search if no stored data or failed to fetch details
-        console.log(`[TMDB] Searching for movie: '${movieTitle}'`)
         const searchResults = await tmdbApi.searchMovies(movieTitle, 1)
-        console.log(`[TMDB] Search results for '${movieTitle}':`, searchResults)
 
         if (searchResults.length > 0) {
           // Try to find an exact match first
@@ -162,9 +145,6 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
           // If still no match, use the first result
           if (!selectedMovie) {
             selectedMovie = searchResults[0]
-            console.warn(`[TMDB] No exact match found for '${movieTitle}', using first result: '${selectedMovie.title}'`)
-          } else {
-            console.log(`[TMDB] Found match for '${movieTitle}': '${selectedMovie.title}'`)
           }
 
           const posterUrl = tmdbApi.getPosterUrl(selectedMovie.poster_path || null, 'w342')
@@ -175,7 +155,6 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
           })
         } else {
           // Use placeholder if no poster found
-          console.warn(`[TMDB] No poster found for '${movieTitle}', using placeholder.`)
           posters.push({
             title: movieTitle,
             posterUrl: '', // Use empty string to indicate placeholder
@@ -199,7 +178,6 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
 
   const fetchUserStats = async () => {
     setLoading(true)
-    console.log('🔍 Starting fetchUserStats for userId:', userId)
 
     try {
       // Check if Firebase is initialized
@@ -209,10 +187,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
         return
       }
 
-      console.log('✅ Firebase is initialized, proceeding with data fetch')
-
       // Fetch user data for movies and super bowl pick
-      console.log('📋 Fetching user document for userId:', userId)
       
       let userData: any = {}
       let movies: any[] = []
@@ -220,7 +195,6 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
       
       // Check if this is Phil (hardcoded user)
       if (isPhil(userId)) {
-        console.log('🏈 This is Phil - using hardcoded data')
         userData = PHIL_USER
         movies = userData.moviePicks || []
         superBowlPick = userData.superBowlPick || ''
@@ -231,70 +205,45 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
         movies = userData.moviePicks || []
         superBowlPick = userData.superBowlPick || ''
       }
-      
-      console.log('📋 User data:', userData)
-      console.log('🎬 Movies:', movies)
-      console.log('🏆 Super Bowl Pick:', superBowlPick)
 
       // Process movies - handle both old format (string[]) and new format (object[])
       const processedMovies: ProcessedMovie[] = movies.map((movie: any, index: number) => {
-        console.log(`🎬 Processing movie ${index + 1}:`, movie)
-        
         if (typeof movie === 'string') {
           // Old format - just a string
-          const result = { title: movie.trim(), position: index + 1 }
-          console.log(`🎬 Old format result:`, result)
-          return result
+          return { title: movie.trim(), position: index + 1 }
         } else if (movie && typeof movie === 'object') {
           // New format - object with title, tmdbId, posterPath
-          const result = {
+          return {
             title: movie.title?.trim() || '',
             position: index + 1,
             tmdbId: movie.tmdbId,
             posterPath: movie.posterPath
           }
-          console.log(`🎬 New format result:`, result)
-          return result
         } else {
           // Invalid format
-          const result = { title: '', position: index + 1 }
-          console.log(`🎬 Invalid format result:`, result)
-          return result
+          return { title: '', position: index + 1 }
         }
-      }).filter((item: ProcessedMovie) => {
-        const shouldKeep = item.title !== ''
-        console.log(`🎬 Filtering "${item.title}" (position ${item.position}): ${shouldKeep ? 'KEEP' : 'REMOVE'}`)
-        return shouldKeep
-      })
-
-      console.log('🎬 Processed movies:', processedMovies)
+      }).filter((item: ProcessedMovie) => item.title !== '')
 
       // Fetch super bowl team data if user has a pick
       if (superBowlPick) {
         try {
-          console.log('🏆 Fetching super bowl team for:', superBowlPick)
           const team = await getTeamByAbbreviation(superBowlPick)
-          console.log('🏆 Super bowl team found:', team)
           setSuperBowlTeam(team)
         } catch (error) {
           console.error('❌ Error fetching super bowl team:', error)
           setSuperBowlTeam(null)
         }
       } else {
-        console.log('🏆 No Super Bowl pick found')
         setSuperBowlTeam(null)
       }
 
       // Fetch all picks for this user
-      console.log('📊 Fetching picks collection for userId:', userId)
-      
       let picksSnapshot: any
       
       // All users (including Phil) - fetch from Firebase
       const picksCollection = collection(db, 'users', userId, 'picks')
       picksSnapshot = await getDocs(picksCollection)
-      
-      console.log('📊 Picks snapshot size:', picksSnapshot.size)
 
       const weeklyStats: Record<string, { correct: number; total: number; isTopScore: boolean }> = {}
       let overallCorrect = 0
@@ -304,11 +253,45 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
       for (const pickDoc of picksSnapshot.docs) {
         const weekData = pickDoc.data()
         const weekId = pickDoc.id // Format: "2024_week-1"
-        console.log(`📅 Processing week: ${weekId}`, weekData)
 
         let weekCorrect = 0
         let weekTotal = 0
         let isTopScore = false
+        let isWeekFinished = false
+
+        // Get week dates for fetching games to check if week is complete
+        const [season, weekStr] = weekId.split('_')
+        let weekNumber: number
+        
+        // Handle both regular weeks (week-X) and preseason weeks (preseason-X)
+        if (weekStr.startsWith('week-')) {
+          weekNumber = parseInt(weekStr.replace('week-', ''))
+        } else if (weekStr.startsWith('preseason-')) {
+          weekNumber = parseInt(weekStr.replace('preseason-', ''))
+        } else {
+          console.warn(`⚠️ Unknown week format: ${weekStr}, skipping week ${weekId}`)
+          continue
+        }
+
+        // Check if this is the current week
+        const isCurrentWeek = weekInfo && (
+          (weekInfo.weekType === 'regular' && weekNumber === weekInfo.week) ||
+          (weekInfo.weekType === 'preseason' && weekNumber === weekInfo.week)
+        )
+
+        // Simple rule: if it's the current week, skip it entirely
+        if (isCurrentWeek) {
+          continue
+        } else {
+          // Past weeks are considered finished
+          isWeekFinished = true
+        }
+
+        // Only process stats for completed weeks
+        // This ensures the current week is excluded from stats until all games are finished
+        if (!isWeekFinished) {
+          continue
+        }
 
         // Try to get pre-calculated recap data first
         try {
@@ -320,7 +303,6 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
               weekCorrect = userRecap.correct
               weekTotal = userRecap.total
               isTopScore = userRecap.isTopScore
-              console.log(`📊 Using pre-calculated data for week ${weekId}: ${weekCorrect}/${weekTotal} correct, isTopScore: ${isTopScore}`)
             }
           }
         } catch (error) {
@@ -329,37 +311,16 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
 
         // If no pre-calculated data, fall back to manual calculation
         if (weekTotal === 0) {
-          console.log(`📊 No pre-calculated data for week ${weekId}, calculating manually...`)
-          
-          // Get week dates for fetching games
-          const [season, weekStr] = weekId.split('_')
-          let weekNumber: number
-          
-          // Handle both regular weeks (week-X) and preseason weeks (preseason-X)
-          if (weekStr.startsWith('week-')) {
-            weekNumber = parseInt(weekStr.replace('week-', ''))
-          } else if (weekStr.startsWith('preseason-')) {
-            weekNumber = parseInt(weekStr.replace('preseason-', ''))
-          } else {
-            console.warn(`⚠️ Unknown week format: ${weekStr}, skipping week ${weekId}`)
-            continue
-          }
-          
-          console.log(`📅 Week number: ${weekNumber}`)
-
           // Use ESPN API to get week dates (no hardcoded calculations)
           // For now, we'll use a simple calculation but this should be updated to use ESPN API
           const today = new Date()
           const weekStart = new Date(today.getTime() - (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000)
           const { start, end } = dateHelpers.getWednesdayWeekRange(weekStart)
-          console.log(`📅 Week date range: ${start.toISOString()} to ${end.toISOString()}`)
 
           // Fetch games for this week
           let weekGames: any[] = []
           try {
-            console.log(`🎮 Fetching games for week ${weekId}`)
             weekGames = await espnApi.getGamesForDateRange(start, end)
-            console.log(`🎮 Found ${weekGames.length} games for week ${weekId}`)
           } catch (error) {
             console.error(`❌ Error fetching games for ${weekId}:`, error)
           }
@@ -368,14 +329,12 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
           Object.entries(weekData).forEach(([gameId, pick]: [string, any]) => {
             if (pick.pickedTeam && gameId) {
               weekTotal++
-              console.log(`🎯 Game ${gameId}: picked ${pick.pickedTeam}`)
 
               // Find the corresponding game
               const game = weekGames.find(g => g.id === gameId)
               if (game && (game.status === 'final' || game.status === 'post')) {
                 const homeScore = Number(game.homeScore) || 0
                 const awayScore = Number(game.awayScore) || 0
-                console.log(`🎯 Game ${gameId}: ${game.awayTeam.abbreviation} ${awayScore} @ ${game.homeTeam.abbreviation} ${homeScore}`)
 
                 // Determine if pick was correct
                 const homeWon = homeScore > awayScore
@@ -384,12 +343,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
 
                 if (pickCorrect) {
                   weekCorrect++
-                  console.log(`✅ Correct pick for game ${gameId}`)
-                } else {
-                  console.log(`❌ Incorrect pick for game ${gameId}`)
                 }
-              } else {
-                console.log(`⏳ Game ${gameId} not finished yet (status: ${game?.status})`)
               }
             }
           })
@@ -402,10 +356,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
         weeklyStats[weekId] = { correct: weekCorrect, total: weekTotal, isTopScore }
         overallCorrect += weekCorrect
         overallTotal += weekTotal
-        console.log(`📊 Week ${weekId}: ${weekCorrect}/${weekTotal} correct, isTopScore: ${isTopScore}`)
       }
-
-      console.log(`📊 Overall stats: ${overallCorrect}/${overallTotal} correct`)
 
       // Convert to sorted array format
       const weeklyArray = Object.entries(weeklyStats)
@@ -439,10 +390,6 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
           return bNum - aNum // Most recent first
         })
 
-      console.log('📊 Weekly array:', weeklyArray)
-
-      console.log('🎬 Processed movies:', processedMovies)
-
       const finalStats = {
         overall: {
           correct: overallCorrect,
@@ -459,29 +406,15 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
         }))
       }
 
-      console.log('📊 Final stats object:', finalStats)
-      console.log('🎬 Movies array length:', finalStats.movies.length)
-      console.log('🎬 Movies array:', finalStats.movies)
-      console.log('🎬 Movie positions:', finalStats.moviePositions)
       setStats(finalStats)
     } catch (error) {
       console.error('❌ Error fetching user stats:', error)
     } finally {
       setLoading(false)
-      console.log('✅ fetchUserStats completed')
     }
   }
 
-  if (!isOpen || !mappingsLoaded) return null
-
-  console.log('🎭 Modal render state:', {
-    isOpen,
-    userId,
-    userName,
-    loading,
-    stats,
-    superBowlTeam
-  })
+  if (!isOpen || !mappingsLoaded || !weekInfo) return null
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
@@ -589,15 +522,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
               )}
 
               {/* Top 10 Movies */}
-              {(() => {
-                console.log('🎭 Rendering movies section check:', {
-                  hasStats: !!stats,
-                  hasMovies: !!stats?.movies,
-                  moviesLength: stats?.movies?.length,
-                  movies: stats?.movies
-                })
-                return stats?.movies && stats.movies.length > 0
-              })() && (
+              {stats?.movies && stats.movies.length > 0 && (
                 <>
                   <hr className="border-t-[1px] border-black" />
 

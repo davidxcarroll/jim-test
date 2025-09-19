@@ -450,7 +450,6 @@ export const espnApi = {
       
       if (data.sports[0].leagues[0].teams.length > 0) {
         // Print the raw ESPN team.team object for debugging
-        console.log('Raw ESPN team.team object:', JSON.stringify(data.sports[0].leagues[0].teams[0].team, null, 2));
       }
       
       return data.sports[0].leagues[0].teams.map((team: any) => ({

@@ -41,8 +41,8 @@ export async function POST(request: NextRequest) {
     console.log(`📅 Previous week range: ${previousWeek.startDate.toISOString()} to ${previousWeek.endDate.toISOString()}`)
 
     const results = {
-      pass1: { success: false, weekKey: null, gamesCount: 0 },
-      pass2: { success: false, weekKey: null, gamesCount: 0 }
+      pass1: { success: false, weekKey: null as string | null, gamesCount: 0 },
+      pass2: { success: false, weekKey: null as string | null, gamesCount: 0 }
     }
 
     // PASS 1: Generate picks for current week (new picks)

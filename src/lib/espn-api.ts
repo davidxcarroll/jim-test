@@ -191,6 +191,24 @@ export const espnApi = {
       const response = await fetchWithRetry(`${ESPN_BASE_URL}/scoreboard`)
       const data = await response.json()
       
+      // Fetch team records to enrich game data
+      let teamRecords: Record<string, { wins: number, losses: number, ties: number }> = {}
+      try {
+        const teams = await this.getTeams()
+        teamRecords = teams.reduce((acc, team) => {
+          if (team.abbreviation && team.wins !== undefined && team.losses !== undefined) {
+            acc[team.abbreviation] = {
+              wins: team.wins,
+              losses: team.losses,
+              ties: team.ties || 0
+            }
+          }
+          return acc
+        }, {} as Record<string, { wins: number, losses: number, ties: number }>)
+      } catch (error) {
+        console.warn('Failed to fetch team records for today\'s games, favorites may default to home:', error)
+      }
+      
       return data.events?.map((event: any) => {
         const competition = event.competitions?.[0] || {}
         const home = competition.competitors?.find((c: any) => c.homeAway === 'home') || { team: {} }
@@ -198,6 +216,10 @@ export const espnApi = {
         const homeTeam = home.team || {}
         const awayTeam = away.team || {}
         const status = event.status || {}
+        
+        // Enrich team data with records
+        const homeTeamRecord = teamRecords[homeTeam.abbreviation] || {}
+        const awayTeamRecord = teamRecords[awayTeam.abbreviation] || {}
         
         const homeTeamData = {
           id: homeTeam.id || '',
@@ -209,7 +231,10 @@ export const espnApi = {
           logo: homeTeam.logos?.[0]?.href || '',
           logos: extractLogoVariations(homeTeam.logos || []),
           color: homeTeam.color || '',
-          alternateColor: homeTeam.alternateColor || ''
+          alternateColor: homeTeam.alternateColor || '',
+          wins: homeTeamRecord.wins,
+          losses: homeTeamRecord.losses,
+          ties: homeTeamRecord.ties
         }
         
         const awayTeamData = {
@@ -222,12 +247,27 @@ export const espnApi = {
           logo: awayTeam.logos?.[0]?.href || '',
           logos: extractLogoVariations(awayTeam.logos || []),
           color: awayTeam.color || '',
-          alternateColor: awayTeam.alternateColor || ''
+          alternateColor: awayTeam.alternateColor || '',
+          wins: awayTeamRecord.wins,
+          losses: awayTeamRecord.losses,
+          ties: awayTeamRecord.ties
         }
         
         // Use betting odds to determine favorite, fallback to win-loss records
         const bettingFavorite = getFavoriteFromOdds(competition.odds)
         const favoriteTeam = bettingFavorite || getFavoriteTeam(homeTeamData, awayTeamData)
+        
+        // Debug logging for favorites
+        if (homeTeamData.abbreviation === 'SEA' || awayTeamData.abbreviation === 'SEA' || 
+            homeTeamData.abbreviation === 'CHI' || awayTeamData.abbreviation === 'CHI') {
+          console.log(`🏈 Today's Game ${homeTeamData.abbreviation} vs ${awayTeamData.abbreviation}:`, {
+            bettingFavorite,
+            homeRecord: `${homeTeamData.wins}-${homeTeamData.losses}-${homeTeamData.ties}`,
+            awayRecord: `${awayTeamData.wins}-${awayTeamData.losses}-${awayTeamData.ties}`,
+            favoriteTeam,
+            odds: competition.odds
+          })
+        }
         
         return {
           id: event.id,
@@ -474,10 +514,72 @@ export const espnApi = {
     }
   },
 
+  // Get week information for a specific week and season
+  async getWeekInfo(season: number, week: number): Promise<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason'; startDate: Date; endDate: Date } | null> {
+    try {
+      // Get the schedule for the season to find the specific week
+      const response = await fetch(`${ESPN_BASE_URL}/scoreboard?dates=${season}0901`) // September 1st of the season
+      const data = await response.json()
+      
+      if (data.leagues && data.leagues.length > 0) {
+        const league = data.leagues[0]
+        
+        // Find the specific week from calendar
+        if (league.calendar && league.calendar.length > 0) {
+          for (const seasonType of league.calendar) {
+            if (seasonType.entries) {
+              for (const entry of seasonType.entries) {
+                const weekNumber = parseInt(entry.value)
+                if (weekNumber === week) {
+                  const startDate = new Date(entry.startDate)
+                  const endDate = new Date(entry.endDate)
+                  let weekType: 'preseason' | 'regular' | 'postseason' = 'regular'
+                  
+                  if (seasonType.label === 'Preseason') {
+                    weekType = 'preseason'
+                  } else if (seasonType.label === 'Postseason') {
+                    weekType = 'postseason'
+                  }
+                  
+                  console.log(`📅 ESPN API: Found week ${weekNumber} (${weekType}) for season ${season} - ${startDate.toISOString()} to ${endDate.toISOString()}`)
+                  return { week: weekNumber, season, weekType, startDate, endDate }
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      console.log(`📅 ESPN API: No week ${week} found for season ${season}`)
+      return null
+    } catch (error) {
+      console.error(`Error fetching week ${week} for season ${season}:`, error)
+      return null
+    }
+  },
+
   // Get games for a date range (week)
   async getGamesForDateRange(startDate: Date, endDate: Date): Promise<Game[]> {
     const games: Game[] = [];
     let current = new Date(startDate);
+    
+    // Fetch team records once to enrich game data
+    let teamRecords: Record<string, { wins: number, losses: number, ties: number }> = {}
+    try {
+      const teams = await this.getTeams()
+      teamRecords = teams.reduce((acc, team) => {
+        if (team.abbreviation && team.wins !== undefined && team.losses !== undefined) {
+          acc[team.abbreviation] = {
+            wins: team.wins,
+            losses: team.losses,
+            ties: team.ties || 0
+          }
+        }
+        return acc
+      }, {} as Record<string, { wins: number, losses: number, ties: number }>)
+    } catch (error) {
+      console.warn('Failed to fetch team records for games, favorites may default to home:', error)
+    }
     
     while (current <= endDate) {
       const dateStr = formatDate(current, 'yyyyMMdd'); // YYYYMMDD
@@ -492,6 +594,10 @@ export const espnApi = {
           const awayTeam = away.team || {}
           const status = event.status || {}
           
+          // Enrich team data with records
+          const homeTeamRecord = teamRecords[homeTeam.abbreviation] || {}
+          const awayTeamRecord = teamRecords[awayTeam.abbreviation] || {}
+          
           const homeTeamData = {
             id: homeTeam.id || '',
             name: homeTeam.name || '',
@@ -501,7 +607,10 @@ export const espnApi = {
             conference: '',
             logo: homeTeam.logos?.[0]?.href || '',
             color: homeTeam.color || '',
-            alternateColor: homeTeam.alternateColor || ''
+            alternateColor: homeTeam.alternateColor || '',
+            wins: homeTeamRecord.wins,
+            losses: homeTeamRecord.losses,
+            ties: homeTeamRecord.ties
           }
           
           const awayTeamData = {
@@ -513,12 +622,27 @@ export const espnApi = {
             conference: '',
             logo: awayTeam.logos?.[0]?.href || '',
             color: awayTeam.color || '',
-            alternateColor: awayTeam.alternateColor || ''
+            alternateColor: awayTeam.alternateColor || '',
+            wins: awayTeamRecord.wins,
+            losses: awayTeamRecord.losses,
+            ties: awayTeamRecord.ties
           }
           
           // Use betting odds to determine favorite, fallback to win-loss records
           const bettingFavorite = getFavoriteFromOdds(competition.odds)
           const favoriteTeam = bettingFavorite || getFavoriteTeam(homeTeamData, awayTeamData)
+          
+          // Debug logging for favorites
+          if (homeTeamData.abbreviation === 'SEA' || awayTeamData.abbreviation === 'SEA' || 
+              homeTeamData.abbreviation === 'CHI' || awayTeamData.abbreviation === 'CHI') {
+            console.log(`🏈 Game ${homeTeamData.abbreviation} vs ${awayTeamData.abbreviation}:`, {
+              bettingFavorite,
+              homeRecord: `${homeTeamData.wins}-${homeTeamData.losses}-${homeTeamData.ties}`,
+              awayRecord: `${awayTeamData.wins}-${awayTeamData.losses}-${awayTeamData.ties}`,
+              favoriteTeam,
+              odds: competition.odds
+            })
+          }
           
           return {
             id: event.id,

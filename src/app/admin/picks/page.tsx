@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useAuthStore } from '@/store/auth-store'
 import { db } from '@/lib/firebase'
 import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore'
 import { getSeasonAndWeek, dateHelpers } from '@/utils/date-helpers'
 import { espnApi } from '@/lib/espn-api'
+import { useCurrentWeek } from '@/hooks/use-current-week'
+import { useGamesForWeek } from '@/hooks/use-nfl-data'
 
 interface User {
   id: string
@@ -40,45 +42,164 @@ interface UserPicks {
 
 export default function AdminPicksPage() {
   const { user } = useAuthStore()
-  const [season, setSeason] = useState('2025')
-  const [week, setWeek] = useState('1')
+  const { currentWeek: apiCurrentWeek, weekInfo, loading: weekLoading, error: weekError } = useCurrentWeek()
+  const [weekOffset, setWeekOffset] = useState(0)
+  const [isWeekDropdownOpen, setIsWeekDropdownOpen] = useState(false)
   const [users, setUsers] = useState<User[]>([])
-  const [games, setGames] = useState<Game[]>([])
   const [userPicks, setUserPicks] = useState<Record<string, UserPicks>>({})
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
 
-  // Generate week options (1-18 for NFL season)
-  const weekOptions = Array.from({ length: 18 }, (_, i) => i + 1)
+  // Calculate week data based on the selected week offset (same as dashboard)
+  const getWeekData = (offset: number) => {
+    if (weekInfo) {
+      // Use ESPN API data for current week, calculate for past weeks
+      const targetWeekNumber = weekInfo.week - offset
+      const targetWeekStart = new Date(weekInfo.startDate.getTime() - (offset * 7 * 24 * 60 * 60 * 1000))
+      const targetWeekEnd = new Date(weekInfo.endDate.getTime() - (offset * 7 * 24 * 60 * 60 * 1000))
+      
+      return {
+        start: targetWeekStart,
+        end: targetWeekEnd,
+        season: String(weekInfo.season),
+        week: weekInfo.weekType === 'preseason' ? `preseason-${targetWeekNumber}` : `week-${targetWeekNumber}`,
+        weekNumber: targetWeekNumber
+      }
+    } else {
+      // Fallback calculation if ESPN API is unavailable
+      const today = new Date()
+      const fallbackWeekStart = new Date(today.getTime() - (offset * 7 * 24 * 60 * 60 * 1000))
+      const fallbackWeekEnd = new Date(fallbackWeekStart.getTime() + (6 * 24 * 60 * 60 * 1000))
+      
+      return {
+        start: fallbackWeekStart,
+        end: fallbackWeekEnd,
+        season: '2025',
+        week: `week-${2 - offset}`, // Fallback to week 2
+        weekNumber: 2 - offset
+      }
+    }
+  }
 
-  // Load data when season/week changes
+  const currentWeekData = useMemo(() => {
+    console.log('📅 Admin picks: Calculating week data for offset:', weekOffset, 'weekInfo:', weekInfo)
+    return getWeekData(weekOffset)
+  }, [weekOffset, weekInfo])
+  
+  const { data: games, isLoading: gamesLoading } = useGamesForWeek(currentWeekData.start, currentWeekData.end)
+
+  // Debug logging for games and week data
+  useEffect(() => {
+    console.log('🎮 Admin picks: Games data changed:', {
+      games: games?.length || 0,
+      gamesLoading,
+      weekData: currentWeekData,
+      weekOffset
+    })
+  }, [games, gamesLoading, currentWeekData, weekOffset])
+
+  // Get available weeks (same logic as dashboard)
+  const getAvailableWeeks = () => {
+    const weeks: Array<{ index: number; weekNumber: number; isCurrentPreseason: boolean; weekKey: string }> = []
+    const today = new Date()
+    const isWednesday = dateHelpers.isNewWeekDay(today)
+
+    // If we have ESPN API data, use it for the current week
+    if (weekInfo) {
+      // Show current week + up to 4 past weeks
+      const maxWeeksToShow = 5
+      
+      for (let i = 0; i < maxWeeksToShow; i++) {
+        // Calculate the week number for this iteration
+        const weekNumber = weekInfo.week - i
+        
+        // Only show weeks that are current or in the past (positive week numbers)
+        if (weekNumber > 0) {
+          // Determine if this is the current week
+          const isCurrentWeek = i === 0
+          const isPastWeek = i > 0
+          
+          // Current week should be available if it's Wednesday or later
+          const shouldShowCurrentWeek = isCurrentWeek && (isWednesday || weekInfo.startDate <= today)
+          
+          if (shouldShowCurrentWeek || isPastWeek) {
+            const weekKey = weekInfo.weekType === 'preseason' ? `preseason-${weekNumber}` : `week-${weekNumber}`
+            weeks.push({
+              index: i,
+              weekNumber,
+              isCurrentPreseason: weekInfo.weekType === 'preseason',
+              weekKey: `${weekInfo.season}_${weekKey}`
+            })
+          }
+        }
+      }
+    } else {
+      // Fallback: if ESPN API is unavailable, show a basic week structure
+      const maxWeeksToShow = 5
+      for (let i = 0; i < maxWeeksToShow; i++) {
+        const weekNumber = 2 - i // Fallback to week 2
+        if (weekNumber > 0) {
+          weeks.push({
+            index: i,
+            weekNumber,
+            isCurrentPreseason: false,
+            weekKey: `2025_week-${weekNumber}`
+          })
+        }
+      }
+    }
+
+    return weeks
+  }
+
+  const availableWeeks = getAvailableWeeks()
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element
+      if (!target.closest('.week-selector')) {
+        setIsWeekDropdownOpen(false)
+      }
+    }
+
+    if (isWeekDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isWeekDropdownOpen])
+
+  // Load data when week changes
   useEffect(() => {
     if (!user) return
+    console.log('🔄 Admin picks: Loading data for week:', currentWeekData)
     loadData()
-  }, [user, season, week])
+  }, [user, currentWeekData.season, currentWeekData.week, currentWeekData.start, currentWeekData.end])
 
   const loadData = async () => {
+    console.log('🔄 Admin picks: Starting loadData for week:', currentWeekData)
     setLoading(true)
     setMessage(null)
 
     try {
       // Load users
+      console.log('📊 Admin picks: Loading users...')
       const usersSnapshot = await getDocs(collection(db, 'users'))
       const usersList = usersSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as User[]
+      console.log('👥 Admin picks: Loaded users:', usersList.length)
       setUsers(usersList)
 
-      // Load games for the week (you'll need to implement this based on your game loading logic)
-      // For now, we'll create a placeholder - you may need to adapt this to your existing game loading
-      const gamesList = await loadGamesForWeek(season, week)
-      setGames(gamesList)
-
-      // Load picks for each user
+      // Load picks for each user using the current week data
+      console.log('🎯 Admin picks: Loading picks for week key:', `${currentWeekData.season}_${currentWeekData.week}`)
       const picksPromises = usersList.map(async (user) => {
-        const weekKey = `${season}_week-${week}`
+        const weekKey = `${currentWeekData.season}_${currentWeekData.week}`
         const picksDoc = await getDoc(doc(db, 'users', user.id, 'picks', weekKey))
         return {
           userId: user.id,
@@ -91,40 +212,18 @@ export default function AdminPicksPage() {
       picksResults.forEach(result => {
         picksMap[result.userId] = result.picks
       })
+      console.log('🎯 Admin picks: Loaded picks for users:', Object.keys(picksMap).length)
       setUserPicks(picksMap)
 
     } catch (error) {
+      console.error('❌ Admin picks: Error loading data:', error)
       setMessage({ text: 'Failed to load data', type: 'error' })
-      console.error('Error loading data:', error)
     } finally {
+      console.log('✅ Admin picks: Finished loadData')
       setLoading(false)
     }
   }
 
-  // Load games for a specific week using existing ESPN API logic
-  const loadGamesForWeek = async (season: string, week: string): Promise<Game[]> => {
-    try {
-      // Convert season and week to date range
-      const seasonYear = parseInt(season)
-      const weekNumber = parseInt(week)
-      
-      // Calculate the start date for the week (using Wednesday-based system)
-      // This is a simplified calculation - in production, this should use ESPN API
-      const today = new Date()
-      const weekStartDate = new Date(today.getTime() - (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000)
-      
-      // Get the Wednesday week range for this date
-      const { start, end } = dateHelpers.getWednesdayWeekRange(weekStartDate)
-      
-      // Use the existing ESPN API to get games
-      const games = await espnApi.getGamesForDateRange(start, end)
-      
-      return games
-    } catch (error) {
-      console.error('Error loading games for week:', error)
-      return []
-    }
-  }
 
   const handlePickChange = async (userId: string, gameId: string, newPick: 'home' | 'away' | '') => {
     if (!user) return
@@ -155,7 +254,7 @@ export default function AdminPicksPage() {
       }))
 
       // Save to database
-      const weekKey = `${season}_week-${week}`
+      const weekKey = `${currentWeekData.season}_${currentWeekData.week}`
       await setDoc(doc(db, 'users', userId, 'picks', weekKey), updatedPicks, { merge: true })
 
       setMessage({ text: 'Pick updated successfully', type: 'success' })
@@ -203,41 +302,73 @@ export default function AdminPicksPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Admin Picks Management</h1>
+    <div className="min-h-screen bg-neutral-100 font-chakra">
+      <div className="">
+        <h1 className="text-2xl font-bold text-black p-6 uppercase">Admin Picks Management</h1>
         
         {/* Controls */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="bg-white shadow-[inset_0_1px_0_0_#000000,inset_0_-1px_0_0_#000000] p-6 mb-6">
           <div className="flex gap-4 items-center">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Season</label>
-              <input
-                type="text"
-                value={season}
-                onChange={(e) => setSeason(e.target.value)}
-                className="border border-gray-300 rounded px-3 py-2"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Week</label>
-              <select
-                value={week}
-                onChange={(e) => setWeek(e.target.value)}
-                className="border border-gray-300 rounded px-3 py-2"
+            <div className="week-selector relative">
+              <label className="block text-sm font-medium text-black mb-1 uppercase">Week</label>
+              <div
+                className="border-[1px] border-black px-3 py-2 cursor-pointer hover:bg-black hover:text-white flex items-center justify-between min-w-[120px] font-bold uppercase"
+                onClick={() => setIsWeekDropdownOpen(!isWeekDropdownOpen)}
               >
-                {weekOptions.map(w => (
-                  <option key={w} value={w.toString()}>Week {w}</option>
-                ))}
-              </select>
+                <span className="font-medium">
+                  {(() => {
+                    const currentWeek = availableWeeks.find(w => w.index === weekOffset)
+                    if (currentWeek) {
+                      if (currentWeek.isCurrentPreseason) {
+                        return `PRESEASON ${currentWeek.weekNumber}`
+                      } else {
+                        return `WEEK ${currentWeek.weekNumber}`
+                      }
+                    }
+                    return 'Select Week'
+                  })()}
+                </span>
+                <span className={`material-symbols-sharp transition-transform ${isWeekDropdownOpen ? 'rotate-180' : ''}`}>
+                  arrow_drop_down
+                </span>
+              </div>
+              
+              {/* Dropdown overlay */}
+              {isWeekDropdownOpen && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white shadow-[inset_0_0_0_1px_#000000] z-50 max-h-60 overflow-y-auto">
+                  {availableWeeks.map((weekInfo) => (
+                    <div
+                      key={weekInfo.index}
+                      className={`px-3 py-2 cursor-pointer hover:bg-black hover:text-white font-bold uppercase ${
+                        weekInfo.index === weekOffset ? 'bg-black/10' : ''
+                      }`}
+                      onClick={() => {
+                        setWeekOffset(weekInfo.index)
+                        setIsWeekDropdownOpen(false)
+                      }}
+                    >
+                      {(() => {
+                        // Handle preseason vs regular season week display
+                        let weekDisplay
+                        if (weekInfo.isCurrentPreseason) {
+                          weekDisplay = `PRESEASON ${weekInfo.weekNumber}`
+                        } else {
+                          weekDisplay = `WEEK ${weekInfo.weekNumber}`
+                        }
+                        return weekDisplay
+                      })()}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="mt-6">
               <button
                 onClick={loadData}
-                disabled={loading}
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+                disabled={loading || gamesLoading}
+                className="bg-black text-white px-4 py-2 hover:bg-white hover:text-black border-[1px] border-black font-bold uppercase disabled:opacity-50"
               >
-                {loading ? 'Loading...' : 'Refresh'}
+                {loading || gamesLoading ? 'Loading...' : 'Refresh'}
               </button>
             </div>
           </div>
@@ -245,7 +376,7 @@ export default function AdminPicksPage() {
 
         {/* Message */}
         {message && (
-          <div className={`mb-4 p-4 rounded ${
+          <div className={`mb-4 p-4 shadow-[inset_0_0_0_1px_#000000] font-bold uppercase ${
             message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
           }`}>
             {message.text}
@@ -253,43 +384,49 @@ export default function AdminPicksPage() {
         )}
 
         {/* Picks Table */}
-        {loading ? (
+        {loading || gamesLoading ? (
           <div className="text-center py-8">
-            <div className="text-gray-600">Loading picks data...</div>
+            <div className="text-black font-bold uppercase">Loading picks data...</div>
+            <div className="text-sm text-black mt-2 font-bold uppercase">
+              Loading: {loading ? 'Yes' : 'No'} | Games Loading: {gamesLoading ? 'Yes' : 'No'}
+            </div>
+            <div className="text-xs text-black mt-1 font-bold uppercase">
+              Week: {currentWeekData.season} {currentWeekData.week} | Games: {games?.length || 0}
+            </div>
           </div>
-        ) : games.length === 0 ? (
+        ) : !games || games.length === 0 ? (
           <div className="text-center py-8">
-            <div className="text-gray-600">No games found for {season} Week {week}</div>
-            <div className="text-sm text-gray-500 mt-2">
-              You may need to implement the loadGamesForWeek function
+            <div className="text-black font-bold uppercase">No games found for {currentWeekData.season} {currentWeekData.week}</div>
+            <div className="text-sm text-black mt-2 font-bold uppercase">
+              This may be a preseason week or the week hasn't been scheduled yet
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-white shadow-[inset_0_0_0_1px_#000000] overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-black">
+                <thead className="bg-neutral-100">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">
                       Game
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">
                       Date
                     </th>
                     {users.map(user => (
-                      <th key={user.id} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th key={user.id} className="px-4 py-3 text-center text-xs font-bold text-black uppercase tracking-wider">
                         {user.displayName || user.email || user.id}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-black">
                   {games.map(game => (
                     <tr key={game.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-black uppercase">
                         {formatGameDisplay(game)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-black uppercase">
                         {formatGameDate(game)}
                       </td>
                       {users.map(user => (
@@ -298,7 +435,7 @@ export default function AdminPicksPage() {
                             value={getCurrentPick(user.id, game.id)}
                             onChange={(e) => handlePickChange(user.id, game.id, e.target.value as 'home' | 'away' | '')}
                             disabled={saving}
-                            className="border border-gray-300 rounded px-2 py-1 text-sm disabled:opacity-50"
+                            className="border-[1px] border-black px-2 py-1 text-sm font-bold uppercase disabled:opacity-50"
                           >
                             <option value="">--</option>
                             <option value="away">{game.awayTeam?.abbreviation || 'Away'}</option>
@@ -315,10 +452,10 @@ export default function AdminPicksPage() {
         )}
 
         {/* Summary */}
-        {games.length > 0 && (
-          <div className="mt-6 text-sm text-gray-600">
-            <p>Showing {games.length} games for {users.length} users in {season} Week {week}</p>
-            {saving && <p className="text-blue-600">Saving changes...</p>}
+        {games && games.length > 0 && (
+          <div className="mt-6 text-sm text-black font-bold uppercase">
+            <p>Showing {games.length} games for {users.length} users in {currentWeekData.season} {currentWeekData.week}</p>
+            {saving && <p className="text-black font-bold uppercase">Saving changes...</p>}
           </div>
         )}
       </div>

@@ -2,7 +2,12 @@
 
 ## Overview
 
-Phil's picks are now automatically generated every Wednesday morning at 8 AM PT when a new NFL week officially starts. This ensures that Phil's picks are always based on the most up-to-date ESPN API data, including the latest betting odds and team records.
+Phil's picks are now automatically generated every Wednesday morning at 8 AM PT using a two-pass system. This ensures that Phil's picks are always based on the most up-to-date ESPN API data, including the latest betting odds and team records.
+
+## Two-Pass System
+
+**Pass 1**: Generate picks for the current/upcoming week (new picks)
+**Pass 2**: Regenerate picks for the previous week (update existing picks with final data)
 
 ## Why Wednesday?
 
@@ -10,6 +15,7 @@ Phil's picks are now automatically generated every Wednesday morning at 8 AM PT 
 - **Fresh Data**: Wednesday morning ensures we have the latest betting odds and team records
 - **Consistency**: All users see Phil's picks at the same time each week
 - **Reliability**: Eliminates on-demand generation that might use stale data
+- **Accuracy**: Two-pass system ensures picks match favorites as closely as possible
 
 ## System Components
 
@@ -18,11 +24,12 @@ Phil's picks are now automatically generated every Wednesday morning at 8 AM PT 
 **Schedule**: `0 8 * * 3` (Every Wednesday at 8 AM PT)
 
 **What it does**:
-- Gets current NFL week from ESPN API
-- Fetches all games for the current week
+- **Pass 1**: Gets current NFL week from ESPN API and generates picks for upcoming week
+- **Pass 2**: Calculates previous week and regenerates picks with final data
+- Fetches all games for both weeks
 - Generates Phil's picks based on ESPN favorites
 - Stores picks in Firebase database
-- Provides detailed logging
+- Provides detailed logging for both passes
 
 ### 2. Updated Phil User Utility (`src/utils/phil-user.ts`)
 

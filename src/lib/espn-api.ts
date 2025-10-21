@@ -347,9 +347,7 @@ export const espnApi = {
       awayTeam: awayTeamData,
       homeScore: parseInt(home.score) || 0,
       awayScore: parseInt(away.score) || 0,
-      status: data.header.status?.type?.state
-        ? data.header.status.type.state
-        : 'unknown',
+      status: status.type?.state === 'in' ? 'live' : status.type?.state === 'pre' ? 'scheduled' : status.type?.state || 'unknown',
       quarter: status.period || 0,
       venue: competition.venue?.fullName || '',
       startTime: data.header.date || '',
@@ -364,6 +362,23 @@ export const espnApi = {
     
     if (!data.header) return null
     
+    // Debug: Log the raw ESPN API response to understand the data structure
+    console.log('🔍 ESPN API Raw Response for gameId', gameId, ':', {
+      hasSituation: !!data.situation,
+      situation: data.situation,
+      status: data.header?.competitions?.[0]?.status,
+      gameStatus: data.header?.status,
+      // Let's see what other data is available
+      hasPlays: !!data.plays,
+      playsCount: data.plays?.length || 0,
+      lastPlay: data.plays?.[data.plays.length - 1],
+      // Check for alternative situation data sources
+      competition: data.header?.competitions?.[0],
+      // Look for any time/clock data
+      clock: data.header?.competitions?.[0]?.status?.clock,
+      period: data.header?.competitions?.[0]?.status?.period
+    })
+    
     const baseGame = await this.getGameDetails(gameId)
     if (!baseGame) return null
     
@@ -374,17 +389,69 @@ export const espnApi = {
     const topInning = status.periodPrefix ? (status.periodPrefix.toLowerCase().startsWith('top') ? true : status.periodPrefix.toLowerCase().startsWith('bot') ? false : undefined) : undefined
 
     // Extract live situation data for NFL
-    const situation: LiveGameSituation | undefined = data.situation ? {
-      down: data.situation.down || 1,
-      distance: data.situation.distance || 10,
-      fieldPosition: data.situation.possessionText || data.situation.yardLine || '',
-      quarter: data.situation.period || status.period || 1,
-      timeRemaining: data.situation.clock ? `${Math.floor(data.situation.clock / 60)}:${(data.situation.clock % 60).toString().padStart(2, '0')}` : '',
-      lastPlay: data.situation.lastPlay ? {
-        id: data.situation.lastPlay.id,
-        text: data.situation.lastPlay.text
-      } : undefined
-    } : undefined
+    let situation: LiveGameSituation | undefined = undefined
+    
+    if (data.situation) {
+      // Primary source: data.situation
+      situation = {
+        down: data.situation.down || 1,
+        distance: data.situation.distance || 10,
+        fieldPosition: data.situation.possessionText || data.situation.yardLine || '',
+        quarter: data.situation.period || status.period || 1,
+        timeRemaining: data.situation.clock ? `${Math.floor(data.situation.clock / 60)}:${(data.situation.clock % 60).toString().padStart(2, '0')}` : '',
+        lastPlay: data.situation.lastPlay ? {
+          id: data.situation.lastPlay.id,
+          text: data.situation.lastPlay.text
+        } : undefined
+      }
+    } else {
+      // Fallback: Try to extract from other parts of the response
+      console.log('🔍 No data.situation found, checking for alternative sources...')
+      
+      // Check if there's situation data in the plays or other sections
+      const lastPlay = data.plays && data.plays.length > 0 ? data.plays[data.plays.length - 1] : null
+      
+      // Try to get time from status.clock or status.displayClock
+      const clock = status.clock || status.displayClock
+      let timeRemaining = ''
+      if (clock && typeof clock === 'number') {
+        timeRemaining = `${Math.floor(clock / 60)}:${(clock % 60).toString().padStart(2, '0')}`
+      } else if (clock && typeof clock === 'string') {
+        timeRemaining = clock
+      }
+      
+      if (lastPlay && (lastPlay.down || lastPlay.distance || lastPlay.fieldPosition)) {
+        console.log('🔍 Found situation data in last play:', lastPlay)
+        situation = {
+          down: lastPlay.down || 1,
+          distance: lastPlay.distance || 10,
+          fieldPosition: lastPlay.fieldPosition || '',
+          quarter: status.period || 1,
+          timeRemaining: timeRemaining,
+          lastPlay: {
+            id: lastPlay.id || '',
+            text: lastPlay.text || ''
+          }
+        }
+      } else if (timeRemaining) {
+        // Even if we don't have down/distance, we might have time
+        console.log('🔍 Found time data in status:', { clock, timeRemaining })
+        situation = {
+          down: 1,
+          distance: 10,
+          fieldPosition: '',
+          quarter: status.period || 1,
+          timeRemaining: timeRemaining,
+          lastPlay: undefined
+        }
+      } else {
+        console.log('🔍 No alternative situation data found in:', {
+          lastPlay: lastPlay ? 'exists' : 'none',
+          clock: clock,
+          status: status
+        })
+      }
+    }
 
     // Extract recent plays (last 10 plays for live updates)
     const plays: Play[] = data.plays ? data.plays.slice(-10).map((play: any) => ({
@@ -413,6 +480,8 @@ export const espnApi = {
 
     return {
       ...baseGame,
+      // Override status to use the same logic as other functions
+      status: status.type?.state === 'in' ? 'live' : status.type?.state === 'pre' ? 'scheduled' : status.type?.state || 'unknown',
       quarter: status.period || 0,
       situation,
       plays,

@@ -3,7 +3,7 @@ import { getCurrentNFLWeekFromAPI } from '@/utils/date-helpers'
 
 export function useCurrentWeek() {
   const [currentWeek, setCurrentWeek] = useState<number | null>(null)
-  const [weekInfo, setWeekInfo] = useState<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason'; startDate: Date; endDate: Date } | null>(null)
+  const [weekInfo, setWeekInfo] = useState<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason'; startDate: Date; endDate: Date; label?: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 

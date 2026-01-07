@@ -136,7 +136,7 @@ export interface LiveGameDetails extends Game {
 
 export const espnApi = {
   // Get current NFL week from ESPN API schedule
-  async getCurrentNFLWeek(): Promise<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason'; startDate: Date; endDate: Date } | null> {
+  async getCurrentNFLWeek(): Promise<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason'; startDate: Date; endDate: Date; label?: string } | null> {
     try {
       const today = new Date()
       const dateStr = formatDate(today, 'yyyyMMdd')
@@ -169,7 +169,7 @@ export const espnApi = {
                   }
                   
                   console.log(`📅 ESPN API: Found current week ${weekNumber} (${weekType}) - ${startDate.toISOString()} to ${endDate.toISOString()}`)
-                  return { week: weekNumber, season, weekType, startDate, endDate }
+                  return { week: weekNumber, season, weekType, startDate, endDate, label: entry.label }
                 }
               }
             }
@@ -584,7 +584,7 @@ export const espnApi = {
   },
 
   // Get week information for a specific week and season
-  async getWeekInfo(season: number, week: number): Promise<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason'; startDate: Date; endDate: Date } | null> {
+  async getWeekInfo(season: number, week: number): Promise<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason'; startDate: Date; endDate: Date; label?: string } | null> {
     try {
       // Get the schedule for the season to find the specific week
       const response = await fetch(`${ESPN_BASE_URL}/scoreboard?dates=${season}0901`) // September 1st of the season
@@ -611,7 +611,7 @@ export const espnApi = {
                   }
                   
                   console.log(`📅 ESPN API: Found week ${weekNumber} (${weekType}) for season ${season} - ${startDate.toISOString()} to ${endDate.toISOString()}`)
-                  return { week: weekNumber, season, weekType, startDate, endDate }
+                  return { week: weekNumber, season, weekType, startDate, endDate, label: entry.label }
                 }
               }
             }
@@ -624,6 +624,62 @@ export const espnApi = {
     } catch (error) {
       console.error(`Error fetching week ${week} for season ${season}:`, error)
       return null
+    }
+  },
+
+  // Get all available weeks for a season (excluding preseason)
+  async getAllAvailableWeeks(season: number): Promise<Array<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason'; startDate: Date; endDate: Date; label?: string }>> {
+    try {
+      // Get the schedule for the season
+      const response = await fetch(`${ESPN_BASE_URL}/scoreboard?dates=${season}0901`) // September 1st of the season
+      const data = await response.json()
+      
+      const weeks: Array<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason'; startDate: Date; endDate: Date; label?: string }> = []
+      
+      if (data.leagues && data.leagues.length > 0) {
+        const league = data.leagues[0]
+        
+        // Find all weeks from calendar
+        if (league.calendar && league.calendar.length > 0) {
+          for (const seasonType of league.calendar) {
+            if (seasonType.entries) {
+              for (const entry of seasonType.entries) {
+                const weekNumber = parseInt(entry.value)
+                const startDate = new Date(entry.startDate)
+                const endDate = new Date(entry.endDate)
+                let weekType: 'preseason' | 'regular' | 'postseason' = 'regular'
+                
+                if (seasonType.label === 'Preseason') {
+                  weekType = 'preseason'
+                } else if (seasonType.label === 'Postseason') {
+                  weekType = 'postseason'
+                }
+                
+                // Skip preseason weeks
+                if (weekType !== 'preseason') {
+                  weeks.push({ 
+                    week: weekNumber, 
+                    season, 
+                    weekType, 
+                    startDate, 
+                    endDate, 
+                    label: entry.label 
+                  })
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      // Sort by start date (oldest first)
+      weeks.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+      
+      console.log(`📅 ESPN API: Found ${weeks.length} available weeks (excluding preseason) for season ${season}`)
+      return weeks
+    } catch (error) {
+      console.error(`Error fetching all weeks for season ${season}:`, error)
+      return []
     }
   },
 

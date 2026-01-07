@@ -783,16 +783,12 @@ function WeeklyMatchesPage() {
                   // Find all winners (could be a tie)
                   const winnerIds = recapStats.filter(s => s.correct === maxCorrect && maxCorrect > 0).map(s => s.userId);
 
-                  // Save week recap data to Firestore for modal use (only if not already saved)
+                  // Save week recap data to Firestore for modal use
+                  // Always save to ensure data is up-to-date (cron job handles initial calculation)
+                  // ⚠️ CRITICAL: We ONLY write to weekRecaps collection here - NEVER touch user picks
+                  // User picks are sacred and only modified by user actions (handlePick function)
                   const saveWeekRecap = async () => {
                     try {
-                      // Check if we already have recap data for this week
-                      const existingRecapDoc = await getDoc(doc(db, 'weekRecaps', `${currentWeekData.season}_${currentWeekData.week}`));
-                      if (existingRecapDoc.exists()) {
-                        console.log('💾 Week recap data already exists, skipping save');
-                        return;
-                      }
-
                       const weekRecapData = {
                         weekId: `${currentWeekData.season}_${currentWeekData.week}`,
                         season: currentWeekData.season,
@@ -808,7 +804,7 @@ function WeeklyMatchesPage() {
                       };
 
                       await setDoc(doc(db, 'weekRecaps', `${currentWeekData.season}_${currentWeekData.week}`), weekRecapData);
-                      console.log('💾 Saved week recap data for modal use');
+                      console.log('💾 Saved/updated week recap data');
                     } catch (error) {
                       console.error('❌ Error saving week recap data:', error);
                     }

@@ -239,9 +239,12 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
       }
 
       // Fetch all picks for this user
+      // ⚠️ CRITICAL: We ONLY READ user picks here - NEVER modify them
+      // User picks are sacred and must never be changed by automated processes
       let picksSnapshot: any
       
       // All users (including Phil) - fetch from Firebase
+      // READ ONLY - getDocs is read-only, never use setDoc/updateDoc/deleteDoc on picks
       const picksCollection = collection(db, 'users', userId, 'picks')
       picksSnapshot = await getDocs(picksCollection)
 
@@ -262,15 +265,24 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
         // Get week dates for fetching games to check if week is complete
         const [season, weekStr] = weekId.split('_')
         let weekNumber: number
+        let weekType: 'preseason' | 'regular' | 'postseason' = 'regular'
         
         // Handle both regular weeks (week-X) and preseason weeks (preseason-X)
         if (weekStr.startsWith('week-')) {
           weekNumber = parseInt(weekStr.replace('week-', ''))
+          weekType = 'regular'
         } else if (weekStr.startsWith('preseason-')) {
           weekNumber = parseInt(weekStr.replace('preseason-', ''))
+          weekType = 'preseason'
         } else {
-          console.warn(`⚠️ Unknown week format: ${weekStr}, skipping week ${weekId}`)
-          continue
+          // Check for postseason weeks (e.g., "wild-card", "divisional", etc.)
+          // For now, treat as regular season
+          weekNumber = parseInt(weekStr) || 0
+          weekType = 'regular'
+          if (weekNumber === 0) {
+            console.warn(`⚠️ Unknown week format: ${weekStr}, skipping week ${weekId}`)
+            continue
+          }
         }
 
         // Check if this is the current week
@@ -303,7 +315,12 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
               weekCorrect = userRecap.correct
               weekTotal = userRecap.total
               isTopScore = userRecap.isTopScore
+              console.log(`✅ Found pre-calculated recap for week ${weekId}, user ${userId}: ${weekCorrect}/${weekTotal}`)
+            } else {
+              console.warn(`⚠️ Week recap exists for ${weekId} but user ${userId} not found in stats, falling back to manual calculation`)
             }
+          } else {
+            console.warn(`⚠️ No week recap found for ${weekId}, falling back to manual calculation`)
           }
         } catch (error) {
           console.warn(`⚠️ Could not fetch pre-calculated recap for week ${weekId}, falling back to manual calculation:`, error)
@@ -311,42 +328,70 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
 
         // If no pre-calculated data, fall back to manual calculation
         if (weekTotal === 0) {
-          // Use ESPN API to get week dates (no hardcoded calculations)
-          // For now, we'll use a simple calculation but this should be updated to use ESPN API
-          const today = new Date()
-          const weekStart = new Date(today.getTime() - (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000)
-          const { start, end } = dateHelpers.getWednesdayWeekRange(weekStart)
-
-          // Fetch games for this week
-          let weekGames: any[] = []
+          // Use ESPN API to get actual week dates
+          let weekInfo: { startDate: Date; endDate: Date } | null = null
           try {
-            weekGames = await espnApi.getGamesForDateRange(start, end)
-          } catch (error) {
-            console.error(`❌ Error fetching games for ${weekId}:`, error)
-          }
-
-          // Count picks for this week and check correctness
-          Object.entries(weekData).forEach(([gameId, pick]: [string, any]) => {
-            if (pick.pickedTeam && gameId) {
-              weekTotal++
-
-              // Find the corresponding game
-              const game = weekGames.find(g => g.id === gameId)
-              if (game && (game.status === 'final' || game.status === 'post')) {
-                const homeScore = Number(game.homeScore) || 0
-                const awayScore = Number(game.awayScore) || 0
-
-                // Determine if pick was correct
-                const homeWon = homeScore > awayScore
-                const pickCorrect = (pick.pickedTeam === 'home' && homeWon) ||
-                  (pick.pickedTeam === 'away' && !homeWon)
-
-                if (pickCorrect) {
-                  weekCorrect++
+            // For regular/postseason weeks, use getAllAvailableWeeks
+            // For preseason, we need to use getWeekInfo directly
+            if (weekType === 'preseason') {
+              const weekInfoResult = await espnApi.getWeekInfo(parseInt(season), weekNumber)
+              if (weekInfoResult && weekInfoResult.weekType === 'preseason') {
+                weekInfo = { startDate: weekInfoResult.startDate, endDate: weekInfoResult.endDate }
+              }
+            } else {
+              // Get all available weeks and find the one matching both week number and type
+              const allWeeks = await espnApi.getAllAvailableWeeks(parseInt(season))
+              const matchingWeek = allWeeks.find(w => w.week === weekNumber && w.weekType === weekType)
+              
+              if (matchingWeek) {
+                weekInfo = { startDate: matchingWeek.startDate, endDate: matchingWeek.endDate }
+              } else {
+                // Fallback to getWeekInfo
+                const weekInfoResult = await espnApi.getWeekInfo(parseInt(season), weekNumber)
+                if (weekInfoResult && weekInfoResult.weekType === weekType) {
+                  weekInfo = { startDate: weekInfoResult.startDate, endDate: weekInfoResult.endDate }
                 }
               }
             }
+          } catch (error) {
+            console.error(`❌ Error fetching week info for ${weekId}:`, error)
+          }
+
+          // If we couldn't get week info from API, skip this week
+          if (!weekInfo) {
+            console.warn(`⚠️ Could not get week info for ${weekId} (week ${weekNumber}, type ${weekType}), skipping manual calculation`)
+            continue
+          }
+
+          // Fetch games for this week using the actual week dates
+          let weekGames: any[] = []
+          try {
+            weekGames = await espnApi.getGamesForDateRange(weekInfo.startDate, weekInfo.endDate)
+            console.log(`🎮 Fetched ${weekGames.length} games for week ${weekId} (${weekInfo.startDate.toISOString()} to ${weekInfo.endDate.toISOString()})`)
+          } catch (error) {
+            console.error(`❌ Error fetching games for ${weekId}:`, error)
+            continue
+          }
+
+          // Filter to only finished games (matches dashboard logic)
+          const playedGames = weekGames.filter(g => g.status === 'final' || g.status === 'post')
+          weekTotal = playedGames.length
+
+          // Count correct picks for finished games
+          playedGames.forEach((game) => {
+            const pick = weekData[game.id]?.pickedTeam
+            if (pick) {
+              const homeScore = Number(game.homeScore) || 0
+              const awayScore = Number(game.awayScore) || 0
+              const homeWon = homeScore > awayScore
+              const pickCorrect = (pick === 'home' && homeWon) || (pick === 'away' && !homeWon)
+              if (pickCorrect) {
+                weekCorrect++
+              }
+            }
           })
+
+          console.log(`📊 Manual calculation for week ${weekId}: ${weekCorrect}/${weekTotal}`)
 
           // For manual calculation, we can't determine top score without calculating for all users
           // So we'll set isTopScore to false and let the user know this data might be incomplete
@@ -431,13 +476,13 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
 
         {/* Header */}
         <div className="sticky top-0 bg-neutral-100 shadow-[0_1px_0_#000000] p-1">
-          <div className="relative flex items-center justify-between">
+          <div className="relative flex items-center justify-start gap-2">
 
                         {(() => {
               const teamStyle = superBowlTeam ? getTeamBackgroundAndLogo(superBowlTeam) : null
               return (
                 <div
-                  className="xl:w-20 xl:h-20 w-10 h-10 flex items-center justify-center p-1 rounded-full shadow-[0_0_0_1px_#000000]"
+                  className="xl:w-20 xl:h-20 w-10 h-10 flex items-center justify-center p-1 aspect-square rounded-full shadow-[0_0_0_1px_#000000]"
                   style={{
                     backgroundColor: teamStyle ? teamStyle.background : (superBowlTeam?.color ? `#${superBowlTeam.color}` : '#1a1a1a')
                   }}
@@ -456,9 +501,13 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
               )
             })()}
 
-            <h2 className="font-jim xl:text-7xl lg:text-6xl md:text-5xl text-4xl text-center leading-10 capitalize">
+            <h2 className="w-full font-jim xl:text-7xl lg:text-6xl md:text-5xl text-4xl text-left leading-10 capitalize">
               {userName}
             </h2>
+
+            {/* <div className="xl:text-4xl sm:text-2xl whitespace-nowrap">
+            🔥🔥🔥
+            </div> */}
 
             <button
               onClick={onClose}
@@ -485,11 +534,11 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
                     <div className="w-full text-left">
                       Overall
                     </div>
-                    <div className="w-full text-center">
-                      {stats.overall.percentage}%
-                    </div>
-                    <div className="w-full text-right leading-none">
+                    <div className="w-full text-left leading-none">
                       {stats.overall.correct}/{stats.overall.total}
+                    </div>
+                    <div className="w-full text-left">
+                      {stats.overall.percentage}%
                     </div>
                   </div>
                   <hr className="border-t-[1px] border-black" />
@@ -502,16 +551,16 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
                   <div className="w-full text-left">
                     {week.week}
                   </div>
-                  <div className="w-full text-center">
+                  <div className="w-full text-left leading-none">
+                    {week.correct}/{week.total}
+                  </div>
+                  <div className="w-full text-left">
                     <span className="inline-flex items-center justify-center gap-1">
                       {week.percentage}%
                       {week.isTopScore && (
                         <span title="Top Score" className="ml-0.5" role="img">🔥</span>
                       )}
                     </span>
-                  </div>
-                  <div className="w-full text-right leading-none">
-                    {week.correct}/{week.total}
                   </div>
                 </div>
               ))}
@@ -528,7 +577,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
 
                   {/* <h2 className="font-jim xl:text-7xl lg:text-6xl md:text-5xl text-4xl text-center leading-10">Top 10 Movies</h2> */}
 
-                  <h2 className="font-bold uppercase text-center max-xl:text-sm">Top 10 Movies</h2>
+                  <h2 className="font-bold uppercase text-left max-xl:text-sm">Top 10 Movies</h2>
 
 
 

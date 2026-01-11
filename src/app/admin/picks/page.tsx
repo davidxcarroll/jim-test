@@ -8,6 +8,7 @@ import { getSeasonAndWeek, dateHelpers } from '@/utils/date-helpers'
 import { espnApi } from '@/lib/espn-api'
 import { useCurrentWeek } from '@/hooks/use-current-week'
 import { useGamesForWeek } from '@/hooks/use-nfl-data'
+import React from 'react'
 
 interface User {
   id: string
@@ -50,11 +51,112 @@ export default function AdminPicksPage() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
+  const [allAvailableWeeks, setAllAvailableWeeks] = useState<Array<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason'; startDate: Date; endDate: Date; label?: string }>>([])
+  const [loadingWeeks, setLoadingWeeks] = useState(true)
+
+  // Fetch all available weeks from API (same as dashboard)
+  useEffect(() => {
+    const fetchAllWeeks = async () => {
+      if (!weekInfo) return
+      
+      try {
+        setLoadingWeeks(true)
+        const weeks = await espnApi.getAllAvailableWeeks(weekInfo.season)
+        setAllAvailableWeeks(weeks)
+      } catch (error) {
+        console.error('Error fetching all available weeks:', error)
+        setAllAvailableWeeks([])
+      } finally {
+        setLoadingWeeks(false)
+      }
+    }
+    
+    fetchAllWeeks()
+  }, [weekInfo?.season])
+
+  // Get available weeks - use all weeks from API, filter to show only past/current weeks (same logic as dashboard)
+  const availableWeeks = React.useMemo(() => {
+    const today = new Date()
+    const isWednesday = dateHelpers.isNewWeekDay(today)
+    
+    // If we have all available weeks from API, use them
+    if (allAvailableWeeks.length > 0 && weekInfo) {
+      const weeks: Array<{ index: number; weekNumber: number; weekType: 'preseason' | 'regular' | 'postseason'; weekKey: string; label?: string; startDate: Date }> = []
+      
+      // Find the index of the current week
+      const currentWeekIndex = allAvailableWeeks.findIndex(w => 
+        w.week === weekInfo.week && 
+        w.weekType === weekInfo.weekType &&
+        w.season === weekInfo.season
+      )
+      
+      // Show all weeks up to and including the current week
+      // Only show weeks that have started or are starting today
+      for (let i = 0; i <= currentWeekIndex; i++) {
+        const week = allAvailableWeeks[i]
+        const weekHasStarted = week.startDate <= today
+        
+        // Show current week if it's Wednesday or later, or if it has started
+        const isCurrentWeek = i === currentWeekIndex
+        const shouldShowCurrentWeek = isCurrentWeek && (isWednesday || weekHasStarted)
+        
+        if (shouldShowCurrentWeek || (i < currentWeekIndex && weekHasStarted)) {
+          const weekKey = week.weekType === 'preseason' 
+            ? `preseason-${week.week}` 
+            : week.weekType === 'postseason' && week.label
+              ? week.label.toLowerCase().replace(/\s+/g, '-')
+              : `week-${week.week}`
+          
+          weeks.push({
+            index: i,
+            weekNumber: week.week,
+            weekType: week.weekType,
+            weekKey: `${week.season}_${weekKey}`,
+            label: week.label,
+            startDate: week.startDate
+          })
+        }
+      }
+      
+      return weeks
+    }
+    
+    // Fallback: if API data not available yet, return empty array
+    return []
+  }, [allAvailableWeeks, weekInfo])
 
   // Calculate week data based on the selected week offset (same as dashboard)
   const getWeekData = (offset: number) => {
+    // If we have available weeks from the filtered list, use the one at the offset index
+    if (availableWeeks.length > 0 && offset < availableWeeks.length && allAvailableWeeks.length > 0) {
+      const selectedWeekItem = availableWeeks[offset]
+      // Find the full week info from allAvailableWeeks
+      const selectedWeek = allAvailableWeeks.find(w => 
+        w.week === selectedWeekItem.weekNumber && 
+        w.weekType === selectedWeekItem.weekType &&
+        w.season === weekInfo?.season
+      )
+      
+      if (selectedWeek) {
+        const weekKey = selectedWeek.weekType === 'preseason' 
+          ? `preseason-${selectedWeek.week}` 
+          : selectedWeek.weekType === 'postseason' && selectedWeek.label
+            ? selectedWeek.label.toLowerCase().replace(/\s+/g, '-')
+            : `week-${selectedWeek.week}`
+        
+        return {
+          start: selectedWeek.startDate,
+          end: selectedWeek.endDate,
+          season: String(selectedWeek.season),
+          week: weekKey,
+          weekNumber: selectedWeek.week,
+          weekInfo: selectedWeek
+        }
+      }
+    }
+    
+    // Fallback to old calculation if weeks not loaded yet
     if (weekInfo) {
-      // Use ESPN API data for current week, calculate for past weeks
       const targetWeekNumber = weekInfo.week - offset
       const targetWeekStart = new Date(weekInfo.startDate.getTime() - (offset * 7 * 24 * 60 * 60 * 1000))
       const targetWeekEnd = new Date(weekInfo.endDate.getTime() - (offset * 7 * 24 * 60 * 60 * 1000))
@@ -66,26 +168,26 @@ export default function AdminPicksPage() {
         week: weekInfo.weekType === 'preseason' ? `preseason-${targetWeekNumber}` : `week-${targetWeekNumber}`,
         weekNumber: targetWeekNumber
       }
-    } else {
-      // Fallback calculation if ESPN API is unavailable
-      const today = new Date()
-      const fallbackWeekStart = new Date(today.getTime() - (offset * 7 * 24 * 60 * 60 * 1000))
-      const fallbackWeekEnd = new Date(fallbackWeekStart.getTime() + (6 * 24 * 60 * 60 * 1000))
-      
-      return {
-        start: fallbackWeekStart,
-        end: fallbackWeekEnd,
-        season: '2025',
-        week: `week-${2 - offset}`, // Fallback to week 2
-        weekNumber: 2 - offset
-      }
+    }
+    
+    // Final fallback
+    const today = new Date()
+    const fallbackWeekStart = new Date(today.getTime() - (offset * 7 * 24 * 60 * 60 * 1000))
+    const fallbackWeekEnd = new Date(fallbackWeekStart.getTime() + (6 * 24 * 60 * 60 * 1000))
+    
+    return {
+      start: fallbackWeekStart,
+      end: fallbackWeekEnd,
+      season: '2025',
+      week: `week-${2 - offset}`,
+      weekNumber: 2 - offset
     }
   }
 
   const currentWeekData = useMemo(() => {
-    console.log('📅 Admin picks: Calculating week data for offset:', weekOffset, 'weekInfo:', weekInfo)
+    console.log('📅 Admin picks: Calculating week data for offset:', weekOffset, 'weekInfo:', weekInfo, 'availableWeeks:', availableWeeks.length)
     return getWeekData(weekOffset)
-  }, [weekOffset, weekInfo])
+  }, [weekOffset, weekInfo, availableWeeks, allAvailableWeeks])
   
   const { data: games, isLoading: gamesLoading } = useGamesForWeek(currentWeekData.start, currentWeekData.end)
 
@@ -95,65 +197,23 @@ export default function AdminPicksPage() {
       games: games?.length || 0,
       gamesLoading,
       weekData: currentWeekData,
-      weekOffset
+      weekOffset,
+      weekKey: `${currentWeekData.season}_${currentWeekData.week}`
     })
   }, [games, gamesLoading, currentWeekData, weekOffset])
 
-  // Get available weeks (same logic as dashboard)
-  const getAvailableWeeks = () => {
-    const weeks: Array<{ index: number; weekNumber: number; isCurrentPreseason: boolean; weekKey: string }> = []
-    const today = new Date()
-    const isWednesday = dateHelpers.isNewWeekDay(today)
-
-    // If we have ESPN API data, use it for the current week
-    if (weekInfo) {
-      // Show current week + up to 4 past weeks
-      const maxWeeksToShow = 5
-      
-      for (let i = 0; i < maxWeeksToShow; i++) {
-        // Calculate the week number for this iteration
-        const weekNumber = weekInfo.week - i
-        
-        // Only show weeks that are current or in the past (positive week numbers)
-        if (weekNumber > 0) {
-          // Determine if this is the current week
-          const isCurrentWeek = i === 0
-          const isPastWeek = i > 0
-          
-          // Current week should be available if it's Wednesday or later
-          const shouldShowCurrentWeek = isCurrentWeek && (isWednesday || weekInfo.startDate <= today)
-          
-          if (shouldShowCurrentWeek || isPastWeek) {
-            const weekKey = weekInfo.weekType === 'preseason' ? `preseason-${weekNumber}` : `week-${weekNumber}`
-            weeks.push({
-              index: i,
-              weekNumber,
-              isCurrentPreseason: weekInfo.weekType === 'preseason',
-              weekKey: `${weekInfo.season}_${weekKey}`
-            })
-          }
-        }
-      }
-    } else {
-      // Fallback: if ESPN API is unavailable, show a basic week structure
-      const maxWeeksToShow = 5
-      for (let i = 0; i < maxWeeksToShow; i++) {
-        const weekNumber = 2 - i // Fallback to week 2
-        if (weekNumber > 0) {
-          weeks.push({
-            index: i,
-            weekNumber,
-            isCurrentPreseason: false,
-            weekKey: `2025_week-${weekNumber}`
-          })
-        }
+  // Set initial week offset to current week when weeks are loaded
+  useEffect(() => {
+    if (availableWeeks.length > 0 && weekInfo) {
+      const currentWeekIndex = availableWeeks.findIndex(w => 
+        w.weekNumber === weekInfo.week && 
+        w.weekType === weekInfo.weekType
+      )
+      if (currentWeekIndex >= 0 && weekOffset === 0) {
+        setWeekOffset(currentWeekIndex)
       }
     }
-
-    return weeks
-  }
-
-  const availableWeeks = getAvailableWeeks()
+  }, [availableWeeks.length, weekInfo])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -317,15 +377,27 @@ export default function AdminPicksPage() {
               >
                 <span className="font-medium">
                   {(() => {
-                    const currentWeek = availableWeeks.find(w => w.index === weekOffset)
-                    if (currentWeek) {
-                      if (currentWeek.isCurrentPreseason) {
-                        return `PRESEASON ${currentWeek.weekNumber}`
+                    const currentWeekInfo = availableWeeks.find(w => w.index === weekOffset)
+
+                    if (currentWeekInfo) {
+                      // Use label from API if available (especially for postseason)
+                      if (currentWeekInfo.label) {
+                        return currentWeekInfo.label.toUpperCase()
+                      }
+                      
+                      // Handle preseason vs regular season week display
+                      if (currentWeekInfo.weekType === 'preseason') {
+                        return `PRESEASON ${currentWeekInfo.weekNumber}`
+                      } else if (currentWeekInfo.weekType === 'postseason') {
+                        // Fallback for postseason without label
+                        return `POSTSEASON ${currentWeekInfo.weekNumber}`
                       } else {
-                        return `WEEK ${currentWeek.weekNumber}`
+                        return `WEEK ${currentWeekInfo.weekNumber}`
                       }
                     }
-                    return 'Select Week'
+
+                    // Fallback if week not found
+                    return 'Loading...'
                   })()}
                 </span>
                 <span className={`material-symbols-sharp transition-transform ${isWeekDropdownOpen ? 'rotate-180' : ''}`}>
@@ -336,7 +408,7 @@ export default function AdminPicksPage() {
               {/* Dropdown overlay */}
               {isWeekDropdownOpen && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-white shadow-[inset_0_0_0_1px_#000000] z-50 max-h-60 overflow-y-auto">
-                  {availableWeeks.map((weekInfo) => (
+                  {[...availableWeeks].reverse().map((weekInfo) => (
                     <div
                       key={weekInfo.index}
                       className={`px-3 py-2 cursor-pointer hover:bg-black hover:text-white font-bold uppercase ${
@@ -348,13 +420,22 @@ export default function AdminPicksPage() {
                       }}
                     >
                       {(() => {
+                        // Use label from API if available (especially for postseason)
+                        if (weekInfo.label) {
+                          return weekInfo.label.toUpperCase()
+                        }
+                        
                         // Handle preseason vs regular season week display
                         let weekDisplay
-                        if (weekInfo.isCurrentPreseason) {
+                        if (weekInfo.weekType === 'preseason') {
                           weekDisplay = `PRESEASON ${weekInfo.weekNumber}`
+                        } else if (weekInfo.weekType === 'postseason') {
+                          // Fallback for postseason without label
+                          weekDisplay = `POSTSEASON ${weekInfo.weekNumber}`
                         } else {
                           weekDisplay = `WEEK ${weekInfo.weekNumber}`
                         }
+
                         return weekDisplay
                       })()}
                     </div>
@@ -365,10 +446,10 @@ export default function AdminPicksPage() {
             <div className="mt-6">
               <button
                 onClick={loadData}
-                disabled={loading || gamesLoading}
+                disabled={loading || gamesLoading || loadingWeeks}
                 className="bg-black text-white px-4 py-2 hover:bg-white hover:text-black border-[1px] border-black font-bold uppercase disabled:opacity-50"
               >
-                {loading || gamesLoading ? 'Loading...' : 'Refresh'}
+                {loading || gamesLoading || loadingWeeks ? 'Loading...' : 'Refresh'}
               </button>
             </div>
           </div>
@@ -384,7 +465,7 @@ export default function AdminPicksPage() {
         )}
 
         {/* Picks Table */}
-        {loading || gamesLoading ? (
+        {loading || gamesLoading || loadingWeeks ? (
           <div className="text-center py-8">
             <div className="text-black font-bold uppercase">Loading picks data...</div>
             <div className="text-sm text-black mt-2 font-bold uppercase">

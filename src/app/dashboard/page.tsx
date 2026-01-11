@@ -12,7 +12,7 @@ import { collection, getDocs, doc, getDoc, setDoc, serverTimestamp } from 'fireb
 import { useAuthStore } from '@/store/auth-store'
 import { useClipboardVisibilityStore } from '@/store/clipboard-visibility-store'
 import { Toast } from '@/components/toast'
-import { PHIL_USER, getPhilPicks, isPhil } from '@/utils/phil-user'
+import { PHIL_USER, getPhilPicks, isPhil, generateAndStorePhilPicks } from '@/utils/phil-user'
 import { Tooltip } from '@/components/tooltip'
 import { UserStatsModal } from '@/components/user-stats-modal'
 // @ts-ignore
@@ -448,13 +448,12 @@ function WeeklyMatchesPage() {
     fetchUsers()
   }, [currentUser])
 
-  // Note: Phil's picks are now generated automatically on Wednesday mornings via cron job
-  // This ensures picks are generated with the most up-to-date ESPN API data
-  // and prevents on-demand generation that might use stale data
+  // Note: Phil's picks are generated automatically on Wednesday mornings via cron job
+  // However, we also generate them on-demand if they're missing to ensure they always appear
 
   // Fetch all user picks for this week
   useEffect(() => {
-    if (visibleUsers.length === 0 || clipboardLoading) return
+    if (visibleUsers.length === 0 || clipboardLoading || !games || games.length === 0) return
 
     // Add a small delay to prevent rapid re-fetching when settings change
     const timeoutId = setTimeout(() => {
@@ -469,8 +468,32 @@ function WeeklyMatchesPage() {
           }
 
           const picksPromises = visibleUsers.map(async (user) => {
-            // All users (including Phil) - fetch from Firestore
-            const picksDoc = await getDoc(doc(db, 'users', user.id, 'picks', `${currentWeekData.season}_${currentWeekData.week}`))
+            const weekKey = `${currentWeekData.season}_${currentWeekData.week}`
+            const picksDocRef = doc(db, 'users', user.id, 'picks', weekKey)
+            const picksDoc = await getDoc(picksDocRef)
+            
+            // If this is Phil and picks don't exist, generate them on-demand
+            if (isPhil(user.id) && !picksDoc.exists() && games && games.length > 0) {
+              console.log(`🏈 Phil's picks missing for ${weekKey}, generating on-demand...`)
+              try {
+                await generateAndStorePhilPicks(games, weekKey)
+                // Fetch the newly created picks
+                const newPicksDoc = await getDoc(picksDocRef)
+                return {
+                  userId: user.id,
+                  picks: newPicksDoc.exists() ? newPicksDoc.data() : {}
+                }
+              } catch (error) {
+                console.error('❌ Error generating Phil picks on-demand:', error)
+                // Fall back to generating picks in memory (won't persist but will display)
+                const philPicks = getPhilPicks(games, weekKey)
+                return {
+                  userId: user.id,
+                  picks: philPicks
+                }
+              }
+            }
+            
             return {
               userId: user.id,
               picks: picksDoc.exists() ? picksDoc.data() : {}
@@ -494,7 +517,7 @@ function WeeklyMatchesPage() {
     }, 100) // 100ms delay
 
     return () => clearTimeout(timeoutId)
-  }, [visibleUsers.map(u => u.id).join(','), currentWeekData.season, currentWeekData.week])
+  }, [visibleUsers.map(u => u.id).join(','), currentWeekData.season, currentWeekData.week, games])
 
   // Group games by day
   const gamesByDay: Record<string, typeof games> = {}

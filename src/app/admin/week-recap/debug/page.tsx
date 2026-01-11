@@ -355,7 +355,7 @@ export default function WeekRecapDebugPage() {
                       <div className="mt-2 text-sm">
                         <div className="font-bold">🔍 Alternative formats checked:</div>
                         <div className="font-mono mt-1 text-xs">
-                          {results.alternativeWeekIds.map((wid, idx) => (
+                          {results.alternativeWeekIds.map((wid: string, idx: number) => (
                             <div key={idx} className={wid === results.foundWeekId ? 'text-green-600 font-bold' : ''}>
                               {wid === results.foundWeekId ? '✅ ' : '❌ '}{wid}
                             </div>

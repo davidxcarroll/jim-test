@@ -367,7 +367,7 @@ export default function WeekRecapDebugPage() {
                     {(() => {
                       const [season, weekStr] = results.weekId.split('_')
                       const weekNum = weekStr.replace('week-', '').replace('preseason-', '')
-                      const similarWeeks = results.allWeekIdsInPicks.filter(wid => {
+                      const similarWeeks = results.allWeekIdsInPicks.filter((wid: string) => {
                         const [wSeason, wWeekStr] = wid.split('_')
                         const wWeekNum = wWeekStr.replace('week-', '').replace('preseason-', '')
                         return weekNum === wWeekNum || wid.includes(weekNum)
@@ -376,7 +376,7 @@ export default function WeekRecapDebugPage() {
                         <div className="mt-2 text-sm">
                           <div className="font-bold">💡 Similar week IDs found (click to check):</div>
                           <div className="font-mono mt-1">
-                            {similarWeeks.map((wid, idx) => (
+                            {similarWeeks.map((wid: string, idx: number) => (
                               <div key={idx} className="cursor-pointer hover:underline text-blue-600" onClick={() => {
                                 setWeekIdInput(wid)
                                 setTimeout(() => checkWeek(), 100)

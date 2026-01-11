@@ -410,8 +410,8 @@ export default function WeekRecapDebugPage() {
               
               {/* Type mismatch warning */}
               {results.gameIds.apiIdTypes && results.gameIds.pickIdTypes && 
-               (results.gameIds.apiIdTypes.some(t => t !== 'string') || 
-                results.gameIds.pickIdTypes.some(t => t !== 'string')) && (
+               (results.gameIds.apiIdTypes.some((t: string) => t !== 'string') || 
+                results.gameIds.pickIdTypes.some((t: string) => t !== 'string')) && (
                 <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
                   <div className="font-bold text-yellow-800">⚠️ Type Mismatch Detected</div>
                   <div className="text-sm text-yellow-700 mt-1">

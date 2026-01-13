@@ -68,10 +68,10 @@ export function LiveGameDisplay({ gameId }: LiveGameDisplayProps) {
   }, [game, situation, gameId])
 
   if (loading) {
-    return <div className="h-24 bg-gray-100 animate-pulse" />
+    return <div className="hidden h-24 bg-gray-100 animate-pulse" />
   }
   if (error || !game) {
-    return <div className="h-24 bg-red-100 flex items-center justify-center text-red-600">Error loading game</div>
+    return <div className="hidden h-24 bg-red-100 flex items-center justify-center text-red-600">Error loading game</div>
   }
 
   // For NFL, we don't need line score calculation
@@ -91,7 +91,7 @@ export function LiveGameDisplay({ gameId }: LiveGameDisplayProps) {
 
   // Main layout
   return (
-    <div className="flex flex-row overflow-hidden bg-black">
+    <div className="hidden flex flex-row overflow-hidden bg-black">
 
       {/* Away Team Block */}
       <div

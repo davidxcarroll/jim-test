@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Navigation } from '@/components/navigation'
+import { getWeekKey } from '@/utils/date-helpers'
 
 export default function WeekRecapAdminPage() {
   const [loading, setLoading] = useState(false)
@@ -128,11 +129,8 @@ export default function WeekRecapAdminPage() {
           continue
         }
 
-        const weekKey = week.weekType === 'preseason' 
-          ? `preseason-${week.week}` 
-          : week.weekType === 'postseason' && week.label
-            ? week.label.toLowerCase().replace(/\s+/g, '-')
-            : `week-${week.week}`
+        // Use getWeekKey to ensure consistent formatting with how picks are stored
+        const weekKey = getWeekKey(week.weekType, week.week, week.label)
         
         const weekId = `${season}_${weekKey}`
         processedCount++

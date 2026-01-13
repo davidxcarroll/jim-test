@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { collection, getDocs } from 'firebase/firestore'
+import { useState, useEffect, useCallback } from 'react'
+import { collection, getDocs, onSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useCurrentWeek } from '@/hooks/use-current-week'
 
@@ -39,13 +39,7 @@ export default function StatsPage() {
     const [error, setError] = useState<string | null>(null)
     const { weekInfo } = useCurrentWeek()
 
-    useEffect(() => {
-        if (weekInfo) {
-            fetchStats()
-        }
-    }, [weekInfo])
-
-    const fetchStats = async () => {
+    const fetchStats = useCallback(async () => {
         try {
             setLoading(true)
             setError(null)
@@ -72,6 +66,7 @@ export default function StatsPage() {
                 } as any))
                 .filter((recap: any) => {
                     // Only include regular season weeks (exclude preseason and postseason)
+                    // Check for normalized round names: wild-card, divisional, conference, super-bowl
                     if (!recap.week || recap.week.includes('preseason') || recap.week.includes('wild-card') || recap.week.includes('divisional') || recap.week.includes('conference') || recap.week.includes('super-bowl')) {
                         return false
                     }
@@ -159,7 +154,37 @@ export default function StatsPage() {
         } finally {
             setLoading(false)
         }
-    }
+    }, [weekInfo])
+
+    useEffect(() => {
+        if (weekInfo) {
+            fetchStats()
+        }
+    }, [weekInfo, fetchStats])
+
+    // Subscribe to weekRecaps collection changes to auto-refresh when a week finishes
+    useEffect(() => {
+        if (!db || !weekInfo) return
+
+        const weekRecapsRef = collection(db, 'weekRecaps')
+        
+        // Set up real-time listener for week recap changes
+        const unsubscribe = onSnapshot(
+            weekRecapsRef,
+            (snapshot) => {
+                // When week recaps change (new recap added or updated), refresh stats
+                console.log('📊 Week recap change detected, refreshing stats...')
+                fetchStats()
+            },
+            (error) => {
+                console.error('Error listening to week recap changes:', error)
+                setError('Failed to listen for updates')
+            }
+        )
+
+        // Cleanup listener on unmount
+        return () => unsubscribe()
+    }, [weekInfo, fetchStats])
 
     if (loading || !weekInfo) {
         return (

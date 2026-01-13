@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/firebase'
 import { collection, getDocs, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { espnApi } from '@/lib/espn-api'
-import { getCurrentNFLWeekFromAPI } from '@/utils/date-helpers'
+import { getCurrentNFLWeekFromAPI, getWeekKey } from '@/utils/date-helpers'
 
 export async function POST(request: NextRequest) {
   // Verify the request is from a legitimate cron service
@@ -50,11 +50,8 @@ export async function POST(request: NextRequest) {
         continue
       }
 
-      const weekKey = week.weekType === 'preseason' 
-        ? `preseason-${week.week}` 
-        : week.weekType === 'postseason' && week.label
-          ? week.label.toLowerCase().replace(/\s+/g, '-')
-          : `week-${week.week}`
+      // Use getWeekKey to ensure consistent formatting with how picks are stored
+      const weekKey = getWeekKey(week.weekType, week.week, week.label)
       
       const weekId = `${week.season}_${weekKey}`
 

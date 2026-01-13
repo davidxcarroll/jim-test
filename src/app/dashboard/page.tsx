@@ -21,7 +21,7 @@ import * as Checks from '@/components/checks'
 import * as Circles from '@/components/circles'
 import React from 'react'
 import { LiveGameDisplay } from '@/components/live-game-display'
-import { isWeekComplete, shouldWaitUntilNextMorning } from '@/utils/date-helpers'
+import { isWeekComplete, shouldWaitUntilNextMorning, getWeekKey, getRoundDisplayName } from '@/utils/date-helpers'
 import { useCurrentWeek } from '@/hooks/use-current-week'
 
 const NUM_WEEKS = 5
@@ -263,11 +263,7 @@ function WeeklyMatchesPage() {
         const shouldShowCurrentWeek = isCurrentWeek && (isWednesday || weekHasStarted)
         
         if (shouldShowCurrentWeek || (i < currentWeekIndex && weekHasStarted)) {
-          const weekKey = week.weekType === 'preseason' 
-            ? `preseason-${week.week}` 
-            : week.weekType === 'postseason' && week.label
-              ? week.label.toLowerCase().replace(/\s+/g, '-')
-              : `week-${week.week}`
+          const weekKey = getWeekKey(week.weekType, week.week, week.label)
           
           weeks.push({
             index: i,
@@ -300,11 +296,7 @@ function WeeklyMatchesPage() {
       )
       
       if (selectedWeek) {
-        const weekKey = selectedWeek.weekType === 'preseason' 
-          ? `preseason-${selectedWeek.week}` 
-          : selectedWeek.weekType === 'postseason' && selectedWeek.label
-            ? selectedWeek.label.toLowerCase().replace(/\s+/g, '-')
-            : `week-${selectedWeek.week}`
+        const weekKey = getWeekKey(selectedWeek.weekType, selectedWeek.week, selectedWeek.label)
         
         return {
           start: selectedWeek.startDate,
@@ -692,20 +684,11 @@ function WeeklyMatchesPage() {
                           const currentWeekInfo = availableWeeks.find(w => w.index === weekOffset)
 
                           if (currentWeekInfo) {
-                            // Use label from API if available (especially for postseason)
-                            if (currentWeekInfo.label) {
-                              return currentWeekInfo.label.toUpperCase()
-                            }
-                            
-                            // Handle preseason vs regular season week display
-                            if (currentWeekInfo.weekType === 'preseason') {
-                              return `PRESEASON ${currentWeekInfo.weekNumber}`
-                            } else if (currentWeekInfo.weekType === 'postseason') {
-                              // Fallback for postseason without label
-                              return `POSTSEASON ${currentWeekInfo.weekNumber}`
-                            } else {
-                              return `WEEK ${currentWeekInfo.weekNumber}`
-                            }
+                            return getRoundDisplayName(
+                              currentWeekInfo.label,
+                              currentWeekInfo.weekType,
+                              currentWeekInfo.weekNumber
+                            )
                           }
 
                           // Fallback if week not found
@@ -717,7 +700,7 @@ function WeeklyMatchesPage() {
                       </div>
                       {/* Dropdown overlay */}
                       {isWeekDropdownOpen && (
-                        <div className="absolute top-full left-1/2 right-0 -translate-x-1/2 -translate-y-2 w-[calc(100%-20px)] xl:text-base text-sm bg-white shadow-[inset_0_0_0_1px_#000000] z-[70] shadow-2xl max-h-[60vh] overflow-y-auto">
+                        <div className="absolute top-full left-1/2 right-0 -translate-x-1/2 -translate-y-2 w-[calc(100%-20px)] xl:text-base text-sm bg-white shadow-[inset_0_0_0_1px_#000000] z-[70] shadow-2xl max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-black scrollbar-track-black">
                           {[...availableWeeks].reverse().map((weekItem, index) => (
                             <div
                               key={weekItem.index}
@@ -727,25 +710,11 @@ function WeeklyMatchesPage() {
                                 setIsWeekDropdownOpen(false)
                               }}
                             >
-                              {(() => {
-                                // Use label from API if available (especially for postseason)
-                                if (weekItem.label) {
-                                  return weekItem.label.toUpperCase()
-                                }
-                                
-                                // Handle preseason vs regular season week display
-                                let weekDisplay
-                                if (weekItem.weekType === 'preseason') {
-                                  weekDisplay = `PRESEASON ${weekItem.weekNumber}`
-                                } else if (weekItem.weekType === 'postseason') {
-                                  // Fallback for postseason without label
-                                  weekDisplay = `POSTSEASON ${weekItem.weekNumber}`
-                                } else {
-                                  weekDisplay = `WEEK ${weekItem.weekNumber}`
-                                }
-
-                                return weekDisplay
-                              })()}
+                              {getRoundDisplayName(
+                                weekItem.label,
+                                weekItem.weekType,
+                                weekItem.weekNumber
+                              )}
                             </div>
                           ))}
                         </div>

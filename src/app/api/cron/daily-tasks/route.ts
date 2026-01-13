@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { emailService } from '@/lib/emails'
 import { collection, query, where, getDocs, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { getSeasonAndWeek, getCurrentNFLWeekFromAPI } from '@/utils/date-helpers'
+import { getSeasonAndWeek, getCurrentNFLWeekFromAPI, getWeekKey } from '@/utils/date-helpers'
 import { espnApi } from '@/lib/espn-api'
 
 export async function POST(request: NextRequest) {
@@ -101,11 +101,8 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        const weekKey = week.weekType === 'preseason' 
-          ? `preseason-${week.week}` 
-          : week.weekType === 'postseason' && week.label
-            ? week.label.toLowerCase().replace(/\s+/g, '-')
-            : `week-${week.week}`
+        // Use getWeekKey to ensure consistent formatting with how picks are stored
+        const weekKey = getWeekKey(week.weekType, week.week, week.label)
         
         const weekId = `${week.season}_${weekKey}`
         const existingRecap = existingRecaps.get(weekId)

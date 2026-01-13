@@ -5,7 +5,7 @@ import { doc, getDoc, collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { format } from 'date-fns'
 import { espnApi } from '@/lib/espn-api'
-import { dateHelpers, getSeasonAndWeek, isWeekComplete } from '@/utils/date-helpers'
+import { dateHelpers, getSeasonAndWeek, isWeekComplete, normalizeRoundName, getRoundDisplayName } from '@/utils/date-helpers'
 import { getTeamByAbbreviation, getTeamLogo, getTeamBackgroundAndLogo } from '@/utils/team-utils'
 import { Team } from '@/types/nfl'
 import { loadTeamColorMappings } from '@/store/team-color-mapping-store'
@@ -266,8 +266,9 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
         const [season, weekStr] = weekId.split('_')
         let weekNumber: number
         let weekType: 'preseason' | 'regular' | 'postseason' = 'regular'
+        let weekLabel: string | undefined = undefined
         
-        // Handle both regular weeks (week-X) and preseason weeks (preseason-X)
+        // Handle regular weeks (week-X), preseason weeks (preseason-X), and postseason weeks (wild-card, divisional, etc.)
         if (weekStr.startsWith('week-')) {
           weekNumber = parseInt(weekStr.replace('week-', ''))
           weekType = 'regular'
@@ -275,21 +276,48 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
           weekNumber = parseInt(weekStr.replace('preseason-', ''))
           weekType = 'preseason'
         } else {
-          // Check for postseason weeks (e.g., "wild-card", "divisional", etc.)
-          // For now, treat as regular season
-          weekNumber = parseInt(weekStr) || 0
-          weekType = 'regular'
-          if (weekNumber === 0) {
-            console.warn(`⚠️ Unknown week format: ${weekStr}, skipping week ${weekId}`)
-            continue
+          // Check for postseason weeks (e.g., "wild-card", "divisional", "conference", "super-bowl")
+          // These are stored with hyphens, so convert to spaces for normalization
+          if (weekStr.includes('wild-card') || weekStr.includes('divisional') || weekStr.includes('conference') || weekStr.includes('super-bowl')) {
+            weekType = 'postseason'
+            // Convert "wild-card" -> "wild card" and normalize
+            const weekStrWithSpaces = weekStr.replace(/-/g, ' ')
+            weekLabel = normalizeRoundName(weekStrWithSpaces)
+            console.log(`🏈 Postseason week detected: ${weekId}, label: "${weekLabel}", weekStr: "${weekStr}"`)
+            // For postseason, we need to get the week number from the API
+            // We'll fetch it when we get week info
+            weekNumber = 0 // Will be set when we fetch week info
+          } else {
+            // Unknown format - try to parse as integer
+            weekNumber = parseInt(weekStr) || 0
+            if (weekNumber === 0) {
+              console.warn(`⚠️ Unknown week format: ${weekStr}, skipping week ${weekId}`)
+              continue
+            }
           }
         }
 
         // Check if this is the current week
-        const isCurrentWeek = weekInfo && (
-          (weekInfo.weekType === 'regular' && weekNumber === weekInfo.week) ||
-          (weekInfo.weekType === 'preseason' && weekNumber === weekInfo.week)
-        )
+        // For postseason, we need to compare weekType, season, week number, AND label
+        let isCurrentWeek = false
+        if (weekInfo) {
+          const seasonMatch = parseInt(season) === weekInfo.season
+          const typeMatch = weekType === weekInfo.weekType
+          
+          if (seasonMatch && typeMatch) {
+            if (weekType === 'postseason' && weekLabel && weekInfo.label) {
+              // Both labels are already normalized, so compare directly
+              const weekLabelNormalized = normalizeRoundName(weekLabel)
+              const currentLabelNormalized = normalizeRoundName(weekInfo.label)
+              isCurrentWeek = weekLabelNormalized === currentLabelNormalized
+              if (weekType === 'postseason') {
+                console.log(`🏈 Comparing postseason weeks: "${weekLabelNormalized}" === "${currentLabelNormalized}"? ${isCurrentWeek}`)
+              }
+            } else if (weekType !== 'postseason') {
+              isCurrentWeek = weekNumber === weekInfo.week
+            }
+          }
+        }
 
         // Simple rule: if it's the current week, skip it entirely
         if (isCurrentWeek) {
@@ -341,15 +369,42 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
             } else {
               // Get all available weeks and find the one matching both week number and type
               const allWeeks = await espnApi.getAllAvailableWeeks(parseInt(season))
-              const matchingWeek = allWeeks.find(w => w.week === weekNumber && w.weekType === weekType)
+              let matchingWeek
+              
+              if (weekType === 'postseason' && weekLabel) {
+                // For postseason, match by weekType and label
+                const weekLabelNormalized = normalizeRoundName(weekLabel)
+                console.log(`🔍 Looking for postseason week with label: "${weekLabelNormalized}"`)
+                matchingWeek = allWeeks.find(w => {
+                  if (w.weekType !== weekType || !w.label) return false
+                  const wLabelNormalized = normalizeRoundName(w.label)
+                  const match = wLabelNormalized === weekLabelNormalized
+                  if (match) {
+                    console.log(`✅ Found matching postseason week: ${w.week} (${w.label})`)
+                  }
+                  return match
+                })
+                // If we found a matching postseason week, update weekNumber
+                if (matchingWeek) {
+                  weekNumber = matchingWeek.week
+                  console.log(`📊 Updated weekNumber to ${weekNumber} for postseason week ${weekId}`)
+                } else {
+                  console.warn(`⚠️ Could not find matching postseason week for label "${weekLabelNormalized}"`)
+                }
+              } else {
+                // For regular season, match by week number and type
+                matchingWeek = allWeeks.find(w => w.week === weekNumber && w.weekType === weekType)
+              }
               
               if (matchingWeek) {
                 weekInfo = { startDate: matchingWeek.startDate, endDate: matchingWeek.endDate }
               } else {
-                // Fallback to getWeekInfo
-                const weekInfoResult = await espnApi.getWeekInfo(parseInt(season), weekNumber)
-                if (weekInfoResult && weekInfoResult.weekType === weekType) {
-                  weekInfo = { startDate: weekInfoResult.startDate, endDate: weekInfoResult.endDate }
+                // Fallback to getWeekInfo (only works for regular season weeks with numeric week numbers)
+                if (weekType !== 'postseason' && weekNumber > 0) {
+                  const weekInfoResult = await espnApi.getWeekInfo(parseInt(season), weekNumber)
+                  if (weekInfoResult && weekInfoResult.weekType === weekType) {
+                    weekInfo = { startDate: weekInfoResult.startDate, endDate: weekInfoResult.endDate }
+                  }
                 }
               }
             }
@@ -405,17 +460,31 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
 
       // Convert to sorted array format
       const weeklyArray = Object.entries(weeklyStats)
-        .map(([week, stats]) => {
-          // Extract week number from "2024_week-1" or "2025_preseason-1" format
-          let weekNumber: string
+        .map(([weekId, stats]) => {
+          // Extract week info from "2024_week-1", "2025_preseason-1", or "2024_wild-card" format
+          const [season, weekStr] = weekId.split('_')
           let weekLabel: string
+          let sortKey: number
           
-          if (week.includes('preseason-')) {
-            weekNumber = week.match(/preseason-(\d+)/)?.[1] || '0'
+          if (weekStr.includes('preseason-')) {
+            const weekNumber = weekStr.match(/preseason-(\d+)/)?.[1] || '0'
             weekLabel = `Preseason ${weekNumber}`
+            sortKey = -parseInt(weekNumber) // Negative for preseason (sorts before regular)
+          } else if (weekStr.includes('wild-card') || weekStr.includes('divisional') || weekStr.includes('conference') || weekStr.includes('super-bowl')) {
+            // Postseason week - use the normalized label
+            const normalized = normalizeRoundName(weekStr.replace(/-/g, ' '))
+            weekLabel = normalized ? normalized.toUpperCase() : weekStr.toUpperCase()
+            // Sort postseason after regular season (use high numbers)
+            // wild-card = 100, divisional = 200, conference = 300, super-bowl = 400
+            if (weekStr.includes('wild-card')) sortKey = 100
+            else if (weekStr.includes('divisional')) sortKey = 200
+            else if (weekStr.includes('conference')) sortKey = 300
+            else if (weekStr.includes('super-bowl')) sortKey = 400
+            else sortKey = 500
           } else {
-            weekNumber = week.match(/week-(\d+)/)?.[1] || '0'
+            const weekNumber = weekStr.match(/week-(\d+)/)?.[1] || '0'
             weekLabel = `Week ${weekNumber}`
+            sortKey = parseInt(weekNumber)
           }
           
           return {
@@ -423,17 +492,15 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
             correct: stats.correct,
             total: stats.total,
             percentage: stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0,
-            isTopScore: stats.isTopScore
+            isTopScore: stats.isTopScore,
+            sortKey
           }
         })
         .sort((a, b) => {
-          // Sort by week number (extract number from "Week X" or "Preseason X")
-          const aMatch = a.week.match(/(?:Week|Preseason) (\d+)/)
-          const bMatch = b.week.match(/(?:Week|Preseason) (\d+)/)
-          const aNum = parseInt(aMatch?.[1] || '0')
-          const bNum = parseInt(bMatch?.[1] || '0')
-          return bNum - aNum // Most recent first
+          // Sort by sortKey (most recent first)
+          return b.sortKey - a.sortKey
         })
+        .map(({ sortKey, ...rest }) => rest) // Remove sortKey from final output
 
       const finalStats = {
         overall: {

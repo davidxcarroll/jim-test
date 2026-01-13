@@ -210,4 +210,66 @@ export function shouldWaitUntilNextMorning(games: any[]): boolean {
   const hoursSinceLastGame = (now.getTime() - latestGameEnd.getTime()) / (1000 * 60 * 60)
   
   return hoursSinceLastGame < 12
+}
+
+/**
+ * Normalize NFL round names to short, consistent format
+ * Converts ESPN API labels like "Wild Card Round", "Divisional Round", 
+ * "Conference Championship" to short names: "wild card", "divisional", "conference", "super bowl"
+ */
+export function normalizeRoundName(label: string | undefined | null): string | undefined {
+  if (!label) return undefined
+  
+  const normalized = label.toLowerCase().trim()
+  
+  // Match various ESPN API label formats and normalize to short names
+  if (normalized.includes('wild card')) {
+    return 'wild card'
+  }
+  if (normalized.includes('divisional')) {
+    return 'divisional'
+  }
+  if (normalized.includes('conference')) {
+    return 'conference'
+  }
+  if (normalized.includes('super bowl')) {
+    return 'super bowl'
+  }
+  
+  // Return original if no match (shouldn't happen for valid postseason rounds)
+  return normalized
+}
+
+/**
+ * Get display name for a round (uppercase for UI)
+ */
+export function getRoundDisplayName(label: string | undefined | null, weekType: 'preseason' | 'regular' | 'postseason', weekNumber: number): string {
+  if (weekType === 'preseason') {
+    return `PRESEASON ${weekNumber}`
+  }
+  
+  if (weekType === 'postseason' && label) {
+    const normalized = normalizeRoundName(label)
+    return normalized ? normalized.toUpperCase() : `POSTSEASON ${weekNumber}`
+  }
+  
+  // Regular season
+  return `WEEK ${weekNumber}`
+}
+
+/**
+ * Get week key for a round (used in database keys)
+ */
+export function getWeekKey(weekType: 'preseason' | 'regular' | 'postseason', weekNumber: number, label?: string | null): string {
+  if (weekType === 'preseason') {
+    return `preseason-${weekNumber}`
+  }
+  
+  if (weekType === 'postseason' && label) {
+    const normalized = normalizeRoundName(label)
+    return normalized ? normalized.replace(/\s+/g, '-') : `postseason-${weekNumber}`
+  }
+  
+  // Regular season
+  return `week-${weekNumber}`
 } 

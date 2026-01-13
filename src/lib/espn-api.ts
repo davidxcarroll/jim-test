@@ -1,6 +1,7 @@
 import { Game, Team } from '@/types/nfl'
 import { format as formatDate } from 'date-fns'
 import { getFavoriteTeam } from '@/utils/team-utils'
+import { normalizeRoundName } from '@/utils/date-helpers'
 
 const ESPN_BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl'
 
@@ -169,7 +170,9 @@ export const espnApi = {
                   }
                   
                   console.log(`📅 ESPN API: Found current week ${weekNumber} (${weekType}) - ${startDate.toISOString()} to ${endDate.toISOString()}`)
-                  return { week: weekNumber, season, weekType, startDate, endDate, label: entry.label }
+                  // Normalize the label for consistent naming
+                  const normalizedLabel = entry.label ? normalizeRoundName(entry.label) : undefined
+                  return { week: weekNumber, season, weekType, startDate, endDate, label: normalizedLabel }
                 }
               }
             }
@@ -611,7 +614,9 @@ export const espnApi = {
                   }
                   
                   console.log(`📅 ESPN API: Found week ${weekNumber} (${weekType}) for season ${season} - ${startDate.toISOString()} to ${endDate.toISOString()}`)
-                  return { week: weekNumber, season, weekType, startDate, endDate, label: entry.label }
+                  // Normalize the label for consistent naming
+                  const normalizedLabel = entry.label ? normalizeRoundName(entry.label) : undefined
+                  return { week: weekNumber, season, weekType, startDate, endDate, label: normalizedLabel }
                 }
               }
             }
@@ -657,13 +662,15 @@ export const espnApi = {
                 
                 // Skip preseason weeks
                 if (weekType !== 'preseason') {
+                  // Normalize the label for consistent naming
+                  const normalizedLabel = entry.label ? normalizeRoundName(entry.label) : undefined
                   weeks.push({ 
                     week: weekNumber, 
                     season, 
                     weekType, 
                     startDate, 
                     endDate, 
-                    label: entry.label 
+                    label: normalizedLabel 
                   })
                 }
               }

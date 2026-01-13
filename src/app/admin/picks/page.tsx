@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useAuthStore } from '@/store/auth-store'
 import { db } from '@/lib/firebase'
 import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore'
-import { getSeasonAndWeek, dateHelpers } from '@/utils/date-helpers'
+import { getSeasonAndWeek, dateHelpers, getRoundDisplayName, getWeekKey } from '@/utils/date-helpers'
 import { espnApi } from '@/lib/espn-api'
 import { useCurrentWeek } from '@/hooks/use-current-week'
 import { useGamesForWeek } from '@/hooks/use-nfl-data'
@@ -101,11 +101,7 @@ export default function AdminPicksPage() {
         const shouldShowCurrentWeek = isCurrentWeek && (isWednesday || weekHasStarted)
         
         if (shouldShowCurrentWeek || (i < currentWeekIndex && weekHasStarted)) {
-          const weekKey = week.weekType === 'preseason' 
-            ? `preseason-${week.week}` 
-            : week.weekType === 'postseason' && week.label
-              ? week.label.toLowerCase().replace(/\s+/g, '-')
-              : `week-${week.week}`
+          const weekKey = getWeekKey(week.weekType, week.week, week.label)
           
           weeks.push({
             index: i,
@@ -138,11 +134,7 @@ export default function AdminPicksPage() {
       )
       
       if (selectedWeek) {
-        const weekKey = selectedWeek.weekType === 'preseason' 
-          ? `preseason-${selectedWeek.week}` 
-          : selectedWeek.weekType === 'postseason' && selectedWeek.label
-            ? selectedWeek.label.toLowerCase().replace(/\s+/g, '-')
-            : `week-${selectedWeek.week}`
+        const weekKey = getWeekKey(selectedWeek.weekType, selectedWeek.week, selectedWeek.label)
         
         return {
           start: selectedWeek.startDate,
@@ -380,20 +372,11 @@ export default function AdminPicksPage() {
                     const currentWeekInfo = availableWeeks.find(w => w.index === weekOffset)
 
                     if (currentWeekInfo) {
-                      // Use label from API if available (especially for postseason)
-                      if (currentWeekInfo.label) {
-                        return currentWeekInfo.label.toUpperCase()
-                      }
-                      
-                      // Handle preseason vs regular season week display
-                      if (currentWeekInfo.weekType === 'preseason') {
-                        return `PRESEASON ${currentWeekInfo.weekNumber}`
-                      } else if (currentWeekInfo.weekType === 'postseason') {
-                        // Fallback for postseason without label
-                        return `POSTSEASON ${currentWeekInfo.weekNumber}`
-                      } else {
-                        return `WEEK ${currentWeekInfo.weekNumber}`
-                      }
+                      return getRoundDisplayName(
+                        currentWeekInfo.label,
+                        currentWeekInfo.weekType,
+                        currentWeekInfo.weekNumber
+                      )
                     }
 
                     // Fallback if week not found
@@ -419,25 +402,11 @@ export default function AdminPicksPage() {
                         setIsWeekDropdownOpen(false)
                       }}
                     >
-                      {(() => {
-                        // Use label from API if available (especially for postseason)
-                        if (weekInfo.label) {
-                          return weekInfo.label.toUpperCase()
-                        }
-                        
-                        // Handle preseason vs regular season week display
-                        let weekDisplay
-                        if (weekInfo.weekType === 'preseason') {
-                          weekDisplay = `PRESEASON ${weekInfo.weekNumber}`
-                        } else if (weekInfo.weekType === 'postseason') {
-                          // Fallback for postseason without label
-                          weekDisplay = `POSTSEASON ${weekInfo.weekNumber}`
-                        } else {
-                          weekDisplay = `WEEK ${weekInfo.weekNumber}`
-                        }
-
-                        return weekDisplay
-                      })()}
+                      {getRoundDisplayName(
+                        weekInfo.label,
+                        weekInfo.weekType,
+                        weekInfo.weekNumber
+                      )}
                     </div>
                   ))}
                 </div>

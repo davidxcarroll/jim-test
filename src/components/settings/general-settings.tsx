@@ -13,6 +13,7 @@ import { Team } from '@/types/nfl'
 import { espnApi } from '@/lib/espn-api'
 import { loadTeamColorMappings, subscribeToTeamColorMappingChanges, getTeamColorMapping } from '@/store/team-color-mapping-store'
 import { isOnline, getNetworkStatusMessage } from '@/utils/network-utils'
+import { getCurrentNFLWeekFromAPI } from '@/utils/date-helpers'
 
 interface UserSettings {
   displayName: string
@@ -38,6 +39,7 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
   const [selectedTeamStyle, setSelectedTeamStyle] = useState<{ background: string; logoType: 'default' | 'dark' | 'scoreboard' | 'darkScoreboard' }>({ background: '#F5F5F5', logoType: 'dark' })
   const [teams, setTeams] = useState<Team[]>([])
   const [networkStatus, setNetworkStatus] = useState<string>('')
+  const [isSeasonStarted, setIsSeasonStarted] = useState<boolean>(false)
   const router = useRouter()
 
   // Fetch official, active teams from ESPN API on mount
@@ -72,6 +74,24 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
     fetchTeams()
     // Load team color mappings from Firestore on mount
     loadTeamColorMappings(true)
+  }, [])
+
+  // Check if season has started
+  useEffect(() => {
+    async function checkSeasonStatus() {
+      try {
+        const nflWeek = await getCurrentNFLWeekFromAPI()
+        if (nflWeek) {
+          // Season has started if we're in regular season or postseason (not preseason)
+          setIsSeasonStarted(nflWeek.weekType === 'regular' || nflWeek.weekType === 'postseason')
+        }
+      } catch (error) {
+        console.error('Error checking season status:', error)
+        // Default to false if we can't determine
+        setIsSeasonStarted(false)
+      }
+    }
+    checkSeasonStatus()
   }, [])
 
   // Load user settings on component mount
@@ -299,6 +319,9 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
   }
 
   const handleSuperBowlPickChange = (teamAbbreviation: string) => {
+    // Don't allow changes if season has started
+    if (isSeasonStarted) return
+    
     setSettings(prev => ({ ...prev, superBowlPick: teamAbbreviation }))
     if (teamAbbreviation) {
       saveSuperBowlPick(teamAbbreviation)
@@ -378,13 +401,18 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
 
       <div className="relative">
         <label htmlFor="superBowlPick" className="block text-center text-sm font-bold text-black uppercase mb-1">
-          Super Bowl Pick
+          <span className="flex items-center justify-center gap-1">
+            {isSeasonStarted && <span className="material-symbols-sharp !text-sm">lock</span>}
+            Super Bowl Pick
+          </span>
         </label>
         <select
           id="superBowlPick"
           value={settings.superBowlPick}
           onChange={(e) => handleSuperBowlPickChange(e.target.value)}
-          className="absolute inset-0 opacity-0 cursor-pointer z-20"
+          disabled={isSeasonStarted}
+          className="absolute inset-0 opacity-0 z-20"
+          style={{ cursor: isSeasonStarted ? 'not-allowed' : 'pointer' }}
         >
           <option value="">Select a team</option>
           {teams.map((team) => (
@@ -394,7 +422,7 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
           ))}
         </select>
         <div
-          className="relative w-full h-20 flex items-center justify-center shadow-[0_0_0_1px_#000000] cursor-pointer"
+          className={`relative w-full h-20 flex items-center justify-center shadow-[0_0_0_1px_#000000] ${isSeasonStarted ? 'cursor-not-allowed' : 'cursor-pointer'}`}
           style={{
             background: selectedTeamStyle.background
           }}
@@ -409,34 +437,15 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
               <div className="text-center uppercase font-bold max-xl:text-base">
                 {teamDisplayNames[selectedTeam.abbreviation] || selectedTeam.name}
               </div>
-              <span className="material-symbols-sharp ml-1">arrow_drop_down</span>
+              {!isSeasonStarted && <span className="material-symbols-sharp ml-1">arrow_drop_down</span>}
             </div>
           ) : (
             <div className="flex flex-row items-center justify-center text-center text-black/50 uppercase font-bold z-10">
-              Select a Team
-              <span className="material-symbols-sharp ml-1">arrow_drop_down</span>
+              {isSeasonStarted ? 'Locked - Season Started' : 'Select a Team'}
+              {!isSeasonStarted && <span className="material-symbols-sharp ml-1">arrow_drop_down</span>}
             </div>
           )}
         </div>
-      </div>
-
-      <hr className="w-full border-t-[1px] border-black/50" />
-
-      <div>
-        <p className="block text-center text-sm font-bold text-black uppercase mb-1">
-          Notifications
-        </p>
-        <label className="block sm:p-4 p-2 shadow-[0_0_0_1px_#000000]">
-          <div className="flex sm:flex-row flex-col items-center justify-center gap-2 uppercase max-xl:text-base font-bold mb-1 leading-none">
-            <input
-              type="checkbox"
-              checked={settings.emailNotifications}
-              onChange={(e) => handleEmailNotificationsChange(e.target.checked)}
-              className="w-6 h-6 accent-black cursor-pointer"
-            />
-            <p className="leading-none">Email me when a new week starts</p>
-          </div>
-        </label>
       </div>
 
       <hr className="w-full border-t-[1px] border-black/50" />

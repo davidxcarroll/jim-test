@@ -349,6 +349,7 @@ function WeeklyMatchesPage() {
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [selectedUser, setSelectedUser] = useState<{ id: string; name: string } | null>(null)
+  const [visibleLiveGames, setVisibleLiveGames] = useState<Set<string>>(new Set())
 
   const [loadTimeout, setLoadTimeout] = useState(false)
 
@@ -518,6 +519,23 @@ function WeeklyMatchesPage() {
     if (!gamesByDay[day]) gamesByDay[day] = []
     gamesByDay[day].push(game)
   })
+
+  // Clean up visibleLiveGames set - remove games that are no longer live
+  useEffect(() => {
+    if (!games) return
+    setVisibleLiveGames(prev => {
+      const newSet = new Set(prev)
+      let changed = false
+      prev.forEach(gameId => {
+        const game = games.find(g => g.id === gameId)
+        if (!game || game.status !== 'live') {
+          newSet.delete(gameId)
+          changed = true
+        }
+      })
+      return changed ? newSet : prev
+    })
+  }, [games])
 
   // Helper to filter unique games by id
   function getUniqueGamesById(games: any[]) {
@@ -914,8 +932,22 @@ function WeeklyMatchesPage() {
                                 </Tooltip>
                               </div>
                             ) : game.status === "live" && (
-                              <div className="absolute right-[-18.5px] top-[-1.5px] -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-green-400 shadow-[0_0_0_1px_#000000] rounded-full">
-                                <Tooltip content="Game in Progress" position="right">
+                              <div 
+                                className="absolute right-[-18.5px] top-[-1.5px] -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-green-400 shadow-[0_0_0_1px_#000000] rounded-full cursor-pointer hover:bg-green-500 transition-colors z-20"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setVisibleLiveGames(prev => {
+                                    const newSet = new Set(prev)
+                                    if (newSet.has(game.id)) {
+                                      newSet.delete(game.id)
+                                    } else {
+                                      newSet.add(game.id)
+                                    }
+                                    return newSet
+                                  })
+                                }}
+                              >
+                                <Tooltip content="Game in Progress - Tap to show live data" position="right">
                                   <span className="material-symbols-sharp !text-sm mb-[1px] animate-ping">sports_football</span>
                                 </Tooltip>
                               </div>
@@ -963,8 +995,8 @@ function WeeklyMatchesPage() {
                           )
                         })}
                       </tr>,
-                      // New: LiveGameDisplay row (only for live games)
-                      ...(game.status === 'live' ? [
+                      // New: LiveGameDisplay row (only for live games that are toggled visible)
+                      ...(game.status === 'live' && visibleLiveGames.has(game.id) ? [
                         <tr key={game.id + '-' + game.date + '-livegame'}>
                           <td colSpan={1 + userDisplayNames.length} className="p-0 align-middle shadow-lg">
                             <LiveGameDisplay gameId={game.id} />

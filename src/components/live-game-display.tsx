@@ -91,7 +91,7 @@ export function LiveGameDisplay({ gameId }: LiveGameDisplayProps) {
 
   // Main layout
   return (
-    <div className="hidden flex flex-row overflow-hidden bg-black">
+    <div className="flex flex-row overflow-hidden bg-black">
 
       {/* Away Team Block */}
       <div

@@ -1,5 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { useGamesForWeek } from "@/hooks/use-nfl-data"
 import { dateHelpers } from "@/utils/date-helpers"
 import { getTeamDisplayNameFromTeam } from "@/utils/team-names"
@@ -207,12 +208,13 @@ function DashboardSkeleton() {
 }
 
 function WeeklyMatchesPage() {
+  const router = useRouter()
   const { user: currentUser } = useAuthStore()
   const { settings: clipboardSettings, isLoading: clipboardLoading, loadSettings, subscribeToChanges } = useClipboardVisibilityStore()
   const { currentWeek: apiCurrentWeek, weekInfo, loading: weekLoading, error: weekError } = useCurrentWeek()
   const [weekOffset, setWeekOffset] = useState(0)
   const [isWeekDropdownOpen, setIsWeekDropdownOpen] = useState(false)
-  const [allAvailableWeeks, setAllAvailableWeeks] = useState<Array<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason'; startDate: Date; endDate: Date; label?: string }>>([])
+  const [allAvailableWeeks, setAllAvailableWeeks] = useState<Array<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'; startDate: Date; endDate: Date; label?: string }>>([])
   const [loadingWeeks, setLoadingWeeks] = useState(true)
   
   // Fetch all available weeks from API
@@ -224,7 +226,11 @@ function WeeklyMatchesPage() {
         setLoadingWeeks(true)
         const { espnApi } = await import('@/lib/espn-api')
         const weeks = await espnApi.getAllAvailableWeeks(weekInfo.season)
-        setAllAvailableWeeks(weeks)
+        // Exclude Pro Bowl from week selector entirely (no option in dropdown)
+        const weeksWithoutProBowl = weeks.filter(
+          w => w.weekType !== 'pro-bowl' && !w.label?.toLowerCase().includes('pro bowl')
+        )
+        setAllAvailableWeeks(weeksWithoutProBowl)
       } catch (error) {
         console.error('Error fetching all available weeks:', error)
         setAllAvailableWeeks([])
@@ -243,7 +249,7 @@ function WeeklyMatchesPage() {
     
     // If we have all available weeks from API, use them
     if (allAvailableWeeks.length > 0 && weekInfo) {
-      const weeks: Array<{ index: number; weekNumber: number; weekType: 'preseason' | 'regular' | 'postseason'; weekKey: string; label?: string; startDate: Date }> = []
+      const weeks: Array<{ index: number; weekNumber: number; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'; weekKey: string; label?: string; startDate: Date }> = []
       
       // Find the index of the current week
       const currentWeekIndex = allAvailableWeeks.findIndex(w => 
@@ -262,6 +268,10 @@ function WeeklyMatchesPage() {
         const isCurrentWeek = i === currentWeekIndex
         const shouldShowCurrentWeek = isCurrentWeek && (isWednesday || weekHasStarted)
         
+        // Skip Pro Bowl — never show in week selector
+        const isProBowl = week.weekType === 'pro-bowl' || week.label?.toLowerCase().includes('pro bowl')
+        if (isProBowl) continue
+
         if (shouldShowCurrentWeek || (i < currentWeekIndex && weekHasStarted)) {
           const weekKey = getWeekKey(week.weekType, week.week, week.label)
           
@@ -319,7 +329,7 @@ function WeeklyMatchesPage() {
         start: targetWeekStart,
         end: targetWeekEnd,
         season: String(weekInfo.season),
-        week: weekInfo.weekType === 'preseason' ? `preseason-${targetWeekNumber}` : `week-${targetWeekNumber}`,
+        week: weekInfo.weekType === 'preseason' ? `preseason-${targetWeekNumber}` : weekInfo.weekType === 'pro-bowl' ? `pro-bowl-${targetWeekNumber}` : `week-${targetWeekNumber}`,
         weekNumber: targetWeekNumber
       }
     }
@@ -637,12 +647,19 @@ function WeeklyMatchesPage() {
     }
   }, [availableWeeks.length, weekInfo])
 
+  // Redirect to off-season page if no week info available (Pro Bowl week is skipped; API returns next week)
+  useEffect(() => {
+    if (!weekLoading && !weekError && !weekInfo) {
+      router.push('/off-season')
+    }
+  }, [weekLoading, weekError, weekInfo, router])
+
   // Show skeleton while loading
   if ((isLoading || loadingUsers || loadingPicks || clipboardLoading || weekLoading || loadingWeeks) && !loadTimeout) {
     return <DashboardSkeleton />
   }
 
-  // Show error if week loading fails
+  // Show error if week loading fails (but only if it's a real error, not off-season)
   if (weekError) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen font-chakra text-2xl bg-neutral-100">
@@ -656,6 +673,11 @@ function WeeklyMatchesPage() {
         </button>
       </div>
     )
+  }
+
+  // If no week info and not loading, show loading state while redirect happens
+  if (!weekInfo && !weekLoading) {
+    return <DashboardSkeleton />
   }
 
   // Show error if timeout occurs
@@ -769,11 +791,10 @@ function WeeklyMatchesPage() {
                   const allGamesFinished = allGames.length > 0 && allGames.every(g => g.status === 'final' || g.status === 'post');
                   if (!allGamesFinished) return null;
 
-                  // Compute recap stats for each user
+                  // Compute recap stats for visible users (for display in this row)
                   const playedGames = allGames.filter(g => g.status === 'final' || g.status === 'post');
                   const recapStats = visibleUsers.map(user => {
                     let correct = 0;
-                    // For each played game, check if user picked and if correct
                     playedGames.forEach(game => {
                       const pick = userPicksByUser[user.id]?.[game.id]?.pickedTeam;
                       const homeScore = Number(game.homeScore) ?? 0;
@@ -781,47 +802,64 @@ function WeeklyMatchesPage() {
                       const homeWon = homeScore > awayScore;
                       const pickCorrect = (pick === 'home' && homeWon) || (pick === 'away' && !homeWon);
                       if (pick && pickCorrect) correct++;
-                      // If no pick, counts as incorrect (do nothing)
                     });
                     const total = playedGames.length;
                     const percentage = total > 0 ? Math.round((correct / total) * 100) : 0;
                     return { userId: user.id, correct, total, percentage };
                   });
 
-                  // Find the max correct picks
+                  // Find the max correct picks (among visible users, for display)
                   const maxCorrect = Math.max(...recapStats.map(s => s.correct));
-                  // Find all winners (could be a tie)
                   const winnerIds = recapStats.filter(s => s.correct === maxCorrect && maxCorrect > 0).map(s => s.userId);
 
-                  // Save week recap data to Firestore for modal use
-                  // Always save to ensure data is up-to-date (cron job handles initial calculation)
-                  // ⚠️ CRITICAL: We ONLY write to weekRecaps collection here - NEVER touch user picks
-                  // User picks are sacred and only modified by user actions (handlePick function)
+                  // Save week recap to Firestore with ALL users so overall leaderboard is complete.
+                  // We must not overwrite with only visibleUsers (clipboard subset) or users like Jon/Carter disappear from stats.
                   const saveWeekRecap = async () => {
+                    if (!db || users.length === 0) return
                     try {
+                      const weekId = `${currentWeekData.season}_${currentWeekData.week}`
+                      const picksByUser: Record<string, Record<string, { pickedTeam?: string }>> = {}
+                      await Promise.all(users.map(async (user) => {
+                        const snap = await getDoc(doc(db, 'users', user.id, 'picks', weekId))
+                        picksByUser[user.id] = snap.exists() ? (snap.data() as Record<string, { pickedTeam?: string }>) : {}
+                      }))
+                      const allUserStats = users.map(user => {
+                        let correct = 0
+                        playedGames.forEach(game => {
+                          const pick = picksByUser[user.id]?.[String(game.id)]?.pickedTeam
+                          const homeScore = Number(game.homeScore) ?? 0
+                          const awayScore = Number(game.awayScore) ?? 0
+                          const homeWon = homeScore > awayScore
+                          const pickCorrect = (pick === 'home' && homeWon) || (pick === 'away' && !homeWon)
+                          if (pick && pickCorrect) correct++
+                        })
+                        const total = playedGames.length
+                        const percentage = total > 0 ? Math.round((correct / total) * 100) : 0
+                        return { userId: user.id, correct, total, percentage }
+                      })
+                      const globalMaxCorrect = Math.max(...allUserStats.map(s => s.correct))
+                      const globalWinnerIds = allUserStats.filter(s => s.correct === globalMaxCorrect && globalMaxCorrect > 0).map(s => s.userId)
                       const weekRecapData = {
-                        weekId: `${currentWeekData.season}_${currentWeekData.week}`,
+                        weekId,
                         season: currentWeekData.season,
                         week: currentWeekData.week,
                         calculatedAt: serverTimestamp(),
-                        userStats: recapStats.map(stat => ({
+                        userStats: allUserStats.map(stat => ({
                           userId: stat.userId,
                           correct: stat.correct,
                           total: stat.total,
                           percentage: stat.percentage,
-                          isTopScore: winnerIds.includes(stat.userId)
+                          isTopScore: globalWinnerIds.includes(stat.userId)
                         }))
-                      };
-
-                      await setDoc(doc(db, 'weekRecaps', `${currentWeekData.season}_${currentWeekData.week}`), weekRecapData);
-                      console.log('💾 Saved/updated week recap data');
+                      }
+                      await setDoc(doc(db, 'weekRecaps', weekId), weekRecapData)
+                      console.log('💾 Saved week recap for', allUserStats.length, 'users')
                     } catch (error) {
-                      console.error('❌ Error saving week recap data:', error);
+                      console.error('❌ Error saving week recap data:', error)
                     }
-                  };
+                  }
 
-                  // Save the recap data (don't await to avoid blocking the UI)
-                  saveWeekRecap();
+                  saveWeekRecap()
 
                   return (
                     <tr className="font-bold uppercase text-center xl:text-base text-sm bg-yellow-200">

@@ -3,7 +3,7 @@ import { getCurrentNFLWeekFromAPI } from '@/utils/date-helpers'
 
 export function useCurrentWeek() {
   const [currentWeek, setCurrentWeek] = useState<number | null>(null)
-  const [weekInfo, setWeekInfo] = useState<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason'; startDate: Date; endDate: Date; label?: string } | null>(null)
+  const [weekInfo, setWeekInfo] = useState<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'; startDate: Date; endDate: Date; label?: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -17,8 +17,8 @@ export function useCurrentWeek() {
         const nflWeek = await getCurrentNFLWeekFromAPI()
         
         if (nflWeek) {
-          // Return negative for preseason, positive for regular season
-          const weekNumber = nflWeek.weekType === 'preseason' ? -nflWeek.week : nflWeek.week
+          // Return negative for preseason and pro bowl (excluded from stats), positive for regular/postseason
+          const weekNumber = (nflWeek.weekType === 'preseason' || nflWeek.weekType === 'pro-bowl') ? -nflWeek.week : nflWeek.week
           setCurrentWeek(weekNumber)
           setWeekInfo(nflWeek)
           console.log(`📅 Current NFL week from API: ${nflWeek.week} (${nflWeek.weekType}) - ${nflWeek.startDate.toISOString()} to ${nflWeek.endDate.toISOString()}`)

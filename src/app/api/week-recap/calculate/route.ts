@@ -2,15 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/firebase'
 import { collection, getDocs, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { espnApi } from '@/lib/espn-api'
-import { getSeasonAndWeek, dateHelpers } from '@/utils/date-helpers'
+import { getSeasonAndWeek, dateHelpers, getWeekKey } from '@/utils/date-helpers'
 
 export async function POST(request: NextRequest) {
   try {
     const { weekOffset, weekId: providedWeekId, force = false } = await request.json()
     
     let weekId: string
-    let start: Date
-    let end: Date
+    let start!: Date
+    let end!: Date
     let season: string
     let week: string
 
@@ -20,55 +20,34 @@ export async function POST(request: NextRequest) {
       const [seasonStr, weekStr] = weekId.split('_')
       season = seasonStr
       week = weekStr
-      
-      // Get week dates from ESPN API
-      let weekNumber: number
-      let weekType: 'preseason' | 'regular' | 'postseason' = 'regular'
-      
-      if (weekStr.startsWith('week-')) {
-        weekNumber = parseInt(weekStr.replace('week-', ''))
-        weekType = 'regular'
-      } else if (weekStr.startsWith('preseason-')) {
-        weekNumber = parseInt(weekStr.replace('preseason-', ''))
-        weekType = 'preseason'
-      } else {
-        return NextResponse.json({ 
-          success: false, 
-          error: `Invalid week format: ${weekStr}` 
-        }, { status: 400 })
+
+      if (weekStr.startsWith('pro-bowl-')) {
+        return NextResponse.json({ success: false, error: 'Pro Bowl weeks are not included in recaps or stats' }, { status: 400 })
       }
 
-      const weekInfo = await espnApi.getWeekInfo(parseInt(season), weekNumber)
-      if (!weekInfo || weekInfo.weekType !== weekType) {
-        // Try getAllAvailableWeeks for regular/postseason
-        if (weekType !== 'preseason') {
-          const allWeeks = await espnApi.getAllAvailableWeeks(parseInt(season))
-          const matchingWeek = allWeeks.find(w => w.week === weekNumber && w.weekType === weekType)
-          if (matchingWeek) {
-            start = matchingWeek.startDate
-            end = matchingWeek.endDate
-          } else {
-            return NextResponse.json({ 
-              success: false, 
-              error: `Could not find week ${weekId} in ESPN API` 
-            }, { status: 404 })
-          }
-        } else {
-          return NextResponse.json({ 
-            success: false, 
-            error: `Could not find week ${weekId} in ESPN API` 
-          }, { status: 404 })
-        }
-      } else {
-        start = weekInfo.startDate
-        end = weekInfo.endDate
+      // Use the same week source as the dashboard: getAllAvailableWeeks(season) and match by weekKey.
+      // This guarantees the same date range and thus the same games (and game IDs) as the dashboard.
+      const allWeeks = await espnApi.getAllAvailableWeeks(parseInt(season))
+      const matchingWeek = allWeeks.find(
+        (w) => getWeekKey(w.weekType, w.week, w.label) === weekStr
+      )
+      if (!matchingWeek) {
+        return NextResponse.json({
+          success: false,
+          error: `Could not find week ${weekId} in ESPN API (season ${season}, weekKey "${weekStr}")`
+        }, { status: 404 })
       }
+      start = matchingWeek.startDate
+      end = matchingWeek.endDate
     } else {
       // Use ESPN API to get current week info
       const today = new Date()
       const weekInfoResult = await getSeasonAndWeek(today)
       season = weekInfoResult.season
       week = weekInfoResult.week
+      if (week.startsWith('pro-bowl-')) {
+        return NextResponse.json({ success: false, error: 'Pro Bowl weeks are not included in recaps or stats' }, { status: 400 })
+      }
       const weekRange = dateHelpers.getWednesdayWeekRange(today)
       start = weekRange.start
       end = weekRange.end
@@ -152,9 +131,9 @@ export async function POST(request: NextRequest) {
         for (const game of weekGames) {
           if (game.status === 'final' || game.status === 'post') {
             totalChecked++
-            // Convert game.id to string to ensure type matching
+            // Match pick by string or number key (Firestore and dashboard may use either)
             const gameIdStr = String(game.id)
-            const pick = userPicks[gameIdStr]?.pickedTeam
+            const pick = userPicks[gameIdStr]?.pickedTeam ?? (userPicks as any)[game.id]?.pickedTeam
             if (pick) gamesWithPicks++
             
             // Use nullish coalescing like dashboard does (only defaults null/undefined, not 0 or empty string)
@@ -285,30 +264,52 @@ export async function POST(request: NextRequest) {
     // Debug: Check if we have any users with correct picks
     const usersWithCorrectPicks = userStats.filter(s => s.correct > 0).length
     
-    // Get game ID match info for debugging
-    let gameIdMatchInfo = null
+    // Diagnostic: how many users have picks for this week, and do API game IDs match pick keys?
+    const finishedGameIdsList = weekGames.filter(g => g.status === 'final' || g.status === 'post').map(g => String(g.id))
+    let gameIdMatchInfo: {
+      usersWithPicksCount: number
+      pickKeysSample: string[]
+      apiIdsSample: string[]
+      anyMatch: boolean
+      note?: string
+      samplePickIds: string[]
+      sampleApiIds: string[]
+      matchingIds: number
+      finishedGameIds: number
+    } | null = null
     if (users.length > 0 && finishedGames.length > 0) {
-      try {
-        const sampleUserPicksDoc = await getDoc(doc(db, 'users', users[0].id, 'picks', weekId))
-        if (sampleUserPicksDoc.exists()) {
-          const samplePicks = sampleUserPicksDoc.data()
-          const pickGameIds = Object.keys(samplePicks).filter(key => key !== 'pickedTeam' && key !== 'pickedAt')
-          const finishedGameIds = finishedGames.map(g => String(g.id))
-          const matchingIds = finishedGameIds.filter(id => pickGameIds.includes(id))
-          gameIdMatchInfo = {
-            pickGameIds: pickGameIds.length,
-            finishedGameIds: finishedGameIds.length,
-            matchingIds: matchingIds.length,
-            matchRate: finishedGameIds.length > 0 ? `${matchingIds.length}/${finishedGameIds.length}` : '0/0',
-            samplePickIds: pickGameIds.slice(0, 5),
-            sampleApiIds: finishedGameIds.slice(0, 5)
-          }
+      let usersWithPicksCount = 0
+      let firstUserWithPicks: { pickKeys: string[] } | null = null
+      for (const user of users) {
+        const picksDoc = await getDoc(doc(db, 'users', user.id, 'picks', weekId))
+        const data = picksDoc.exists() ? picksDoc.data() : {}
+        const pickKeys = Object.keys(data).filter(k => k !== 'pickedTeam' && k !== 'pickedAt')
+        if (pickKeys.length > 0) {
+          usersWithPicksCount++
+          if (!firstUserWithPicks) firstUserWithPicks = { pickKeys }
         }
-      } catch (error) {
-        // Ignore errors
+      }
+      const apiIdsSample = finishedGameIdsList.slice(0, 8)
+      const pickKeysSample = firstUserWithPicks ? firstUserWithPicks.pickKeys.slice(0, 8) : []
+      const anyMatch = firstUserWithPicks ? finishedGameIdsList.some(id => firstUserWithPicks!.pickKeys.includes(id)) : false
+      const matchingCount = firstUserWithPicks ? finishedGameIdsList.filter(id => firstUserWithPicks!.pickKeys.includes(id)).length : 0
+      gameIdMatchInfo = {
+        usersWithPicksCount,
+        pickKeysSample,
+        apiIdsSample,
+        anyMatch,
+        samplePickIds: pickKeysSample,
+        sampleApiIds: apiIdsSample,
+        matchingIds: matchingCount,
+        finishedGameIds: finishedGameIdsList.length,
+        note: usersWithPicksCount === 0
+          ? `No users have picks for ${weekId}. Confirm season (e.g. 2024) and that picks were saved for this week.`
+          : !anyMatch
+            ? 'Picks exist but no API game ID matches a pick key — wrong week/season or ID format.'
+            : undefined
       }
     }
-    
+
     const debugMessage = usersWithCorrectPicks === 0 && userStats.length > 0 && totalGames > 0
       ? `⚠️ Warning: ${userStats.length} users processed but none have correct picks. Check game IDs and scores.`
       : 'Week recap data calculated and saved'

@@ -23,7 +23,7 @@ export default function WeekRecapDebugPage() {
     try {
       const [season, weekStr] = weekIdInput.trim().split('_')
       let weekNumber: number
-      let weekType: 'preseason' | 'regular' | 'postseason' = 'regular'
+      let weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl' = 'regular'
       
       if (weekStr.startsWith('week-')) {
         weekNumber = parseInt(weekStr.replace('week-', ''))
@@ -31,6 +31,10 @@ export default function WeekRecapDebugPage() {
       } else if (weekStr.startsWith('preseason-')) {
         weekNumber = parseInt(weekStr.replace('preseason-', ''))
         weekType = 'preseason'
+      } else if (weekStr.startsWith('pro-bowl-')) {
+        alert('Pro Bowl weeks are not included in recaps or stats')
+        setLoading(false)
+        return
       } else {
         alert(`Invalid week format: ${weekStr}`)
         setLoading(false)

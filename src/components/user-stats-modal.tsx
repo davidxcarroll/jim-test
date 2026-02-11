@@ -265,16 +265,19 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
         // Get week dates for fetching games to check if week is complete
         const [season, weekStr] = weekId.split('_')
         let weekNumber: number
-        let weekType: 'preseason' | 'regular' | 'postseason' = 'regular'
+        let weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl' = 'regular'
         let weekLabel: string | undefined = undefined
         
-        // Handle regular weeks (week-X), preseason weeks (preseason-X), and postseason weeks (wild-card, divisional, etc.)
+        // Handle regular weeks (week-X), preseason (preseason-X), pro bowl (pro-bowl-X — excluded from stats), and postseason
         if (weekStr.startsWith('week-')) {
           weekNumber = parseInt(weekStr.replace('week-', ''))
           weekType = 'regular'
         } else if (weekStr.startsWith('preseason-')) {
           weekNumber = parseInt(weekStr.replace('preseason-', ''))
           weekType = 'preseason'
+        } else if (weekStr.startsWith('pro-bowl-')) {
+          // Pro bowl is inconsequential for records; skip from user stats
+          continue
         } else {
           // Check for postseason weeks (e.g., "wild-card", "divisional", "conference", "super-bowl")
           // These are stored with hyphens, so convert to spaces for normalization
@@ -470,6 +473,11 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
             const weekNumber = weekStr.match(/preseason-(\d+)/)?.[1] || '0'
             weekLabel = `Preseason ${weekNumber}`
             sortKey = -parseInt(weekNumber) // Negative for preseason (sorts before regular)
+          } else if (weekStr.includes('pro-bowl')) {
+            // Pro bowl excluded from stats; should not appear in list
+            const weekNumber = weekStr.match(/pro-bowl-(\d+)/)?.[1] || '0'
+            weekLabel = `Week ${weekNumber}`
+            sortKey = -parseInt(weekNumber) - 100
           } else if (weekStr.includes('wild-card') || weekStr.includes('divisional') || weekStr.includes('conference') || weekStr.includes('super-bowl')) {
             // Postseason week - use the normalized label
             const normalized = normalizeRoundName(weekStr.replace(/-/g, ' '))

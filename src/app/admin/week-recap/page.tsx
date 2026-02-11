@@ -122,7 +122,8 @@ export default function WeekRecapAdminPage() {
       let successCount = 0
       let failCount = 0
 
-      // Process each week
+      // Process each week (dedupe by weekId so we don't process or show the same week twice)
+      const seenWeekIds = new Set<string>()
       for (const week of allWeeks) {
         // Skip future weeks
         if (week.endDate > today) {
@@ -133,6 +134,8 @@ export default function WeekRecapAdminPage() {
         const weekKey = getWeekKey(week.weekType, week.week, week.label)
         
         const weekId = `${season}_${weekKey}`
+        if (seenWeekIds.has(weekId)) continue
+        seenWeekIds.add(weekId)
         processedCount++
 
         try {
@@ -297,7 +300,7 @@ export default function WeekRecapAdminPage() {
             </div>
             {results.map((result, index) => (
               <div
-                key={result.key || index}
+                key={`${result.weekId ?? result.key ?? 'result'}-${index}`}
                 className={`p-4 rounded border ${
                   result.success ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
                 }`}
@@ -328,6 +331,18 @@ export default function WeekRecapAdminPage() {
                     {result.debug && (
                       <div className="text-xs text-gray-500 mt-1">
                         Sample: {result.debug.sampleUser?.correct}/{result.debug.sampleUser?.total} correct
+                      </div>
+                    )}
+                    {result.gameIdMatchInfo && (
+                      <div className="text-xs mt-2 p-2 bg-amber-50 border border-amber-200 rounded">
+                        <div className="font-semibold text-amber-800">Game ID diagnostic</div>
+                        <div>Users with picks for this week: <strong>{result.gameIdMatchInfo.usersWithPicksCount}</strong></div>
+                        <div>Any API ID matches a pick key: <strong>{result.gameIdMatchInfo.anyMatch ? 'Yes' : 'No'}</strong></div>
+                        <div className="mt-1">API game IDs (sample): <code className="text-[10px]">{result.gameIdMatchInfo.apiIdsSample?.join(', ') || '—'}</code></div>
+                        <div>Pick doc keys (sample): <code className="text-[10px]">{result.gameIdMatchInfo.pickKeysSample?.join(', ') || '—'}</code></div>
+                        {result.gameIdMatchInfo.note && (
+                          <div className="mt-1 text-amber-700 font-medium">{result.gameIdMatchInfo.note}</div>
+                        )}
                       </div>
                     )}
                   </div>

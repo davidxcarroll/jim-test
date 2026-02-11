@@ -140,7 +140,8 @@ export async function POST(request: NextRequest) {
               let correct = 0
 
               for (const game of finishedGames) {
-                const pick = userPicks[game.id]?.pickedTeam
+                const gameKey = String(game.id)
+                const pick = userPicks[gameKey]?.pickedTeam ?? userPicks[game.id as any]?.pickedTeam
                 const homeScore = Number(game.homeScore) || 0
                 const awayScore = Number(game.awayScore) || 0
                 const homeWon = homeScore > awayScore

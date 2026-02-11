@@ -137,7 +137,7 @@ export interface LiveGameDetails extends Game {
 
 export const espnApi = {
   // Get current NFL week from ESPN API schedule
-  async getCurrentNFLWeek(): Promise<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason'; startDate: Date; endDate: Date; label?: string } | null> {
+  async getCurrentNFLWeek(): Promise<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'; startDate: Date; endDate: Date; label?: string } | null> {
     try {
       const today = new Date()
       const dateStr = formatDate(today, 'yyyyMMdd')
@@ -148,34 +148,44 @@ export const espnApi = {
         const league = data.leagues[0]
         const season = league.season?.year || new Date().getFullYear()
         
-        // Find current week from calendar
+        // Find current week from calendar; if we're in Pro Bowl, skip to the next week (postseason continues)
         if (league.calendar && league.calendar.length > 0) {
+          type CalendarEntry = { startDate: Date; endDate: Date; value: string; label?: string; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl' }
+          const allEntries: CalendarEntry[] = []
           for (const seasonType of league.calendar) {
             if (seasonType.entries) {
               for (const entry of seasonType.entries) {
-                const startDate = new Date(entry.startDate)
-                const endDate = new Date(entry.endDate)
-                
-                // Use UTC comparison since ESPN API dates are in UTC
-                const nowUTC = new Date(today.toISOString())
-                
-                if (nowUTC >= startDate && nowUTC <= endDate) {
-                  const weekNumber = parseInt(entry.value)
-                  let weekType: 'preseason' | 'regular' | 'postseason' = 'regular'
-                  
-                  if (seasonType.label === 'Preseason') {
-                    weekType = 'preseason'
-                  } else if (seasonType.label === 'Postseason') {
-                    weekType = 'postseason'
-                  }
-                  
-                  console.log(`📅 ESPN API: Found current week ${weekNumber} (${weekType}) - ${startDate.toISOString()} to ${endDate.toISOString()}`)
-                  // Normalize the label for consistent naming
-                  const normalizedLabel = entry.label ? normalizeRoundName(entry.label) : undefined
-                  return { week: weekNumber, season, weekType, startDate, endDate, label: normalizedLabel }
-                }
+                let weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl' = 'regular'
+                if (seasonType.label === 'Preseason') weekType = 'preseason'
+                else if (seasonType.label === 'Postseason') weekType = 'postseason'
+                else if (seasonType.label?.toLowerCase().includes('pro bowl')) weekType = 'pro-bowl'
+                allEntries.push({
+                  startDate: new Date(entry.startDate),
+                  endDate: new Date(entry.endDate),
+                  value: entry.value,
+                  label: entry.label,
+                  weekType
+                })
               }
             }
+          }
+          allEntries.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+          const nowUTC = new Date(today.toISOString())
+          const currentIndex = allEntries.findIndex(e => nowUTC >= e.startDate && nowUTC <= e.endDate)
+          if (currentIndex >= 0) {
+            const entry = allEntries[currentIndex]
+            // If we're in Pro Bowl week, use the next calendar week (e.g. Super Bowl) so we don't redirect to off-season
+            const useEntry = entry.weekType === 'pro-bowl' && currentIndex + 1 < allEntries.length
+              ? allEntries[currentIndex + 1]
+              : entry
+            if (entry.weekType === 'pro-bowl' && useEntry !== entry) {
+              console.log(`📅 ESPN API: In Pro Bowl week; using next week as current: ${useEntry.value} (${useEntry.weekType})`)
+            } else {
+              console.log(`📅 ESPN API: Found current week ${useEntry.value} (${useEntry.weekType}) - ${useEntry.startDate.toISOString()} to ${useEntry.endDate.toISOString()}`)
+            }
+            const weekNumber = parseInt(useEntry.value)
+            const normalizedLabel = useEntry.label ? normalizeRoundName(useEntry.label) : undefined
+            return { week: weekNumber, season, weekType: useEntry.weekType, startDate: useEntry.startDate, endDate: useEntry.endDate, label: normalizedLabel }
           }
         }
       }
@@ -273,7 +283,7 @@ export const espnApi = {
         }
         
         return {
-          id: event.id,
+          id: String(event.id ?? ''),
           date: event.date,
           homeTeam: homeTeamData,
           awayTeam: awayTeamData,
@@ -586,8 +596,8 @@ export const espnApi = {
     }
   },
 
-  // Get week information for a specific week and season
-  async getWeekInfo(season: number, week: number): Promise<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason'; startDate: Date; endDate: Date; label?: string } | null> {
+  // Get week information for a specific week and season (optionally filter by weekType so we get Regular week 1, not Preseason week 1)
+  async getWeekInfo(season: number, week: number, filterWeekType?: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'): Promise<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'; startDate: Date; endDate: Date; label?: string } | null> {
     try {
       // Get the schedule for the season to find the specific week
       const response = await fetch(`${ESPN_BASE_URL}/scoreboard?dates=${season}0901`) // September 1st of the season
@@ -596,28 +606,30 @@ export const espnApi = {
       if (data.leagues && data.leagues.length > 0) {
         const league = data.leagues[0]
         
-        // Find the specific week from calendar
+        // Find the specific week from calendar (match week number and optionally weekType)
         if (league.calendar && league.calendar.length > 0) {
           for (const seasonType of league.calendar) {
             if (seasonType.entries) {
               for (const entry of seasonType.entries) {
                 const weekNumber = parseInt(entry.value)
-                if (weekNumber === week) {
-                  const startDate = new Date(entry.startDate)
-                  const endDate = new Date(entry.endDate)
-                  let weekType: 'preseason' | 'regular' | 'postseason' = 'regular'
-                  
-                  if (seasonType.label === 'Preseason') {
-                    weekType = 'preseason'
-                  } else if (seasonType.label === 'Postseason') {
-                    weekType = 'postseason'
-                  }
-                  
-                  console.log(`📅 ESPN API: Found week ${weekNumber} (${weekType}) for season ${season} - ${startDate.toISOString()} to ${endDate.toISOString()}`)
-                  // Normalize the label for consistent naming
-                  const normalizedLabel = entry.label ? normalizeRoundName(entry.label) : undefined
-                  return { week: weekNumber, season, weekType, startDate, endDate, label: normalizedLabel }
+                if (weekNumber !== week) continue
+
+                let weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl' = 'regular'
+                if (seasonType.label === 'Preseason') {
+                  weekType = 'preseason'
+                } else if (seasonType.label === 'Postseason') {
+                  weekType = 'postseason'
+                } else if (seasonType.label?.toLowerCase().includes('pro bowl')) {
+                  weekType = 'pro-bowl'
                 }
+
+                if (filterWeekType != null && weekType !== filterWeekType) continue
+
+                const startDate = new Date(entry.startDate)
+                const endDate = new Date(entry.endDate)
+                console.log(`📅 ESPN API: Found week ${weekNumber} (${weekType}) for season ${season} - ${startDate.toISOString()} to ${endDate.toISOString()}`)
+                const normalizedLabel = entry.label ? normalizeRoundName(entry.label) : undefined
+                return { week: weekNumber, season, weekType, startDate, endDate, label: normalizedLabel }
               }
             }
           }
@@ -632,14 +644,14 @@ export const espnApi = {
     }
   },
 
-  // Get all available weeks for a season (excluding preseason)
-  async getAllAvailableWeeks(season: number): Promise<Array<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason'; startDate: Date; endDate: Date; label?: string }>> {
+  // Get all available weeks for a season (excluding preseason and pro bowl)
+  async getAllAvailableWeeks(season: number): Promise<Array<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'; startDate: Date; endDate: Date; label?: string }>> {
     try {
       // Get the schedule for the season
       const response = await fetch(`${ESPN_BASE_URL}/scoreboard?dates=${season}0901`) // September 1st of the season
       const data = await response.json()
       
-      const weeks: Array<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason'; startDate: Date; endDate: Date; label?: string }> = []
+      const weeks: Array<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'; startDate: Date; endDate: Date; label?: string }> = []
       
       if (data.leagues && data.leagues.length > 0) {
         const league = data.leagues[0]
@@ -649,19 +661,28 @@ export const espnApi = {
           for (const seasonType of league.calendar) {
             if (seasonType.entries) {
               for (const entry of seasonType.entries) {
-                const weekNumber = parseInt(entry.value)
+                let weekNumber = parseInt(entry.value, 10)
+                // ESPN API can occasionally return a negative value (e.g. -17), which would produce "week--17" in getWeekKey
+                if (weekNumber < 0) {
+                  weekNumber = Math.abs(weekNumber)
+                }
                 const startDate = new Date(entry.startDate)
                 const endDate = new Date(entry.endDate)
-                let weekType: 'preseason' | 'regular' | 'postseason' = 'regular'
+                let weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl' = 'regular'
                 
                 if (seasonType.label === 'Preseason') {
                   weekType = 'preseason'
                 } else if (seasonType.label === 'Postseason') {
                   weekType = 'postseason'
+                } else if (seasonType.label?.toLowerCase().includes('pro bowl')) {
+                  weekType = 'pro-bowl'
                 }
-                
-                // Skip preseason weeks
-                if (weekType !== 'preseason') {
+                // Also treat as pro-bowl if entry label says so (ESPN may list Pro Bowl under Postseason)
+                const entryLabelProBowl = entry.label?.toLowerCase().includes('pro bowl') ?? false
+                if (entryLabelProBowl) weekType = 'pro-bowl'
+
+                // Skip preseason and pro bowl weeks (inconsequential for team records / stats)
+                if (weekType !== 'preseason' && weekType !== 'pro-bowl') {
                   // Normalize the label for consistent naming
                   const normalizedLabel = entry.label ? normalizeRoundName(entry.label) : undefined
                   weeks.push({ 
@@ -682,7 +703,7 @@ export const espnApi = {
       // Sort by start date (oldest first)
       weeks.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
       
-      console.log(`📅 ESPN API: Found ${weeks.length} available weeks (excluding preseason) for season ${season}`)
+      console.log(`📅 ESPN API: Found ${weeks.length} available weeks (excluding preseason and pro bowl) for season ${season}`)
       return weeks
     } catch (error) {
       console.error(`Error fetching all weeks for season ${season}:`, error)
@@ -777,7 +798,7 @@ export const espnApi = {
           }
           
           return {
-            id: event.id,
+            id: String(event.id ?? ''),
             date: event.date,
             homeTeam: homeTeamData,
             awayTeam: awayTeamData,

@@ -119,7 +119,7 @@ export const dateHelpers = {
 } 
 
 // Get current NFL week from ESPN API (primary method - no hardcoded dates)
-export async function getCurrentNFLWeekFromAPI(): Promise<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason'; startDate: Date; endDate: Date } | null> {
+export async function getCurrentNFLWeekFromAPI(): Promise<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'; startDate: Date; endDate: Date } | null> {
   try {
     // Import espnApi dynamically to avoid circular dependencies
     const { espnApi } = await import('@/lib/espn-api')
@@ -135,8 +135,8 @@ export async function getCurrentWeekNumberFromAPI(): Promise<number> {
   try {
     const nflWeek = await getCurrentNFLWeekFromAPI()
     if (nflWeek) {
-      // Return negative for preseason, positive for regular season
-      if (nflWeek.weekType === 'preseason') {
+      // Return negative for preseason and pro bowl (excluded from stats), positive for regular/postseason
+      if (nflWeek.weekType === 'preseason' || nflWeek.weekType === 'pro-bowl') {
         return -nflWeek.week
       } else {
         return nflWeek.week
@@ -156,7 +156,7 @@ export async function getSeasonAndWeek(date: Date = new Date()) {
     const nflWeek = await getCurrentNFLWeekFromAPI()
     if (nflWeek) {
       const season = String(nflWeek.season)
-      const week = nflWeek.weekType === 'preseason' ? `preseason-${nflWeek.week}` : `week-${nflWeek.week}`
+      const week = nflWeek.weekType === 'preseason' ? `preseason-${nflWeek.week}` : nflWeek.weekType === 'pro-bowl' ? `pro-bowl-${nflWeek.week}` : `week-${nflWeek.week}`
       return { season, week }
     }
   } catch (error) {
@@ -243,13 +243,19 @@ export function normalizeRoundName(label: string | undefined | null): string | u
 /**
  * Get display name for a round (uppercase for UI)
  */
-export function getRoundDisplayName(label: string | undefined | null, weekType: 'preseason' | 'regular' | 'postseason', weekNumber: number): string {
+export function getRoundDisplayName(label: string | undefined | null, weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl', weekNumber: number): string {
   if (weekType === 'preseason') {
     return `PRESEASON ${weekNumber}`
+  }
+  // Pro bowl is excluded from UI/stats; display name not used in selectable weeks
+  if (weekType === 'pro-bowl') {
+    return `WEEK ${weekNumber}`
   }
   
   if (weekType === 'postseason' && label) {
     const normalized = normalizeRoundName(label)
+    // Never show "Pro Bowl" in the UI
+    if (normalized?.toLowerCase().includes('pro bowl')) return `WEEK ${weekNumber}`
     return normalized ? normalized.toUpperCase() : `POSTSEASON ${weekNumber}`
   }
   
@@ -260,9 +266,12 @@ export function getRoundDisplayName(label: string | undefined | null, weekType: 
 /**
  * Get week key for a round (used in database keys)
  */
-export function getWeekKey(weekType: 'preseason' | 'regular' | 'postseason', weekNumber: number, label?: string | null): string {
+export function getWeekKey(weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl', weekNumber: number, label?: string | null): string {
   if (weekType === 'preseason') {
-    return `preseason-${weekNumber}`
+    return `preseason-${Math.abs(weekNumber)}`
+  }
+  if (weekType === 'pro-bowl') {
+    return `pro-bowl-${Math.abs(weekNumber)}`
   }
   
   if (weekType === 'postseason' && label) {
@@ -270,6 +279,6 @@ export function getWeekKey(weekType: 'preseason' | 'regular' | 'postseason', wee
     return normalized ? normalized.replace(/\s+/g, '-') : `postseason-${weekNumber}`
   }
   
-  // Regular season
-  return `week-${weekNumber}`
+  // Regular season (use Math.abs so negative week numbers from API never produce "week--17")
+  return `week-${Math.abs(weekNumber)}`
 } 

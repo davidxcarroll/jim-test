@@ -25,6 +25,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Skip pro bowl (inconsequential for team records; no picks)
+    if (currentWeek.weekType === 'pro-bowl') {
+      console.log('📅 Current week is Pro Bowl; skipping Phil picks generation')
+      return NextResponse.json({ success: true, message: 'Pro Bowl week — no picks generated', pass1: { success: false, weekKey: null, gamesCount: 0 }, pass2: { success: false, weekKey: null, gamesCount: 0 } })
+    }
+
     console.log(`📅 Current week: ${currentWeek.week} (${currentWeek.weekType})`)
     console.log(`📅 Week range: ${currentWeek.startDate.toISOString()} to ${currentWeek.endDate.toISOString()}`)
 
@@ -52,7 +58,7 @@ export async function POST(request: NextRequest) {
       console.log(`🎮 Found ${currentGames.length} games for current week`)
 
       if (currentGames.length > 0) {
-        const currentWeekKey = `${currentWeek.season}_${currentWeek.weekType === 'preseason' ? `preseason-${currentWeek.week}` : `week-${currentWeek.week}`}`
+        const currentWeekKey = `${currentWeek.season}_${currentWeek.weekType === 'preseason' ? `preseason-${currentWeek.week}` : currentWeek.weekType === 'pro-bowl' ? `pro-bowl-${currentWeek.week}` : `week-${currentWeek.week}`}`
         console.log(`🔑 Current week key: ${currentWeekKey}`)
 
         await generateAndStorePhilPicks(currentGames, currentWeekKey)
@@ -72,7 +78,7 @@ export async function POST(request: NextRequest) {
       console.log(`🎮 Found ${previousGames.length} games for previous week`)
 
       if (previousGames.length > 0) {
-        const previousWeekKey = `${previousWeek.season}_${previousWeek.weekType === 'preseason' ? `preseason-${previousWeek.week}` : `week-${previousWeek.week}`}`
+        const previousWeekKey = `${previousWeek.season}_${previousWeek.weekType === 'preseason' ? `preseason-${previousWeek.week}` : previousWeek.weekType === 'pro-bowl' ? `pro-bowl-${previousWeek.week}` : `week-${previousWeek.week}`}`
         console.log(`🔑 Previous week key: ${previousWeekKey}`)
 
         await generateAndStorePhilPicks(previousGames, previousWeekKey)

@@ -81,9 +81,10 @@ export async function POST(request: NextRequest) {
             const userPicks = userPicksDoc.exists() ? userPicksDoc.data() : {}
             let correct = 0
 
-            // For each finished game, check if user picked and if correct
+            // For each finished game, check if user picked and if correct (use string key to match Firestore/storage)
             for (const game of finishedGames) {
-              const pick = userPicks[game.id]?.pickedTeam
+              const gameKey = String(game.id)
+              const pick = userPicks[gameKey]?.pickedTeam ?? userPicks[game.id as any]?.pickedTeam
               const homeScore = Number(game.homeScore) || 0
               const awayScore = Number(game.awayScore) || 0
               const homeWon = homeScore > awayScore

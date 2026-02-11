@@ -45,7 +45,12 @@ async function generatePhilPicksForCurrentWeek() {
     }
 
     // Generate week key
-    const weekKey = `${currentWeek.season}_${currentWeek.weekType === 'preseason' ? `preseason-${currentWeek.week}` : `week-${currentWeek.week}`}`;
+    // Skip pro bowl (inconsequential for team records)
+    if (currentWeek.weekType === 'pro-bowl') {
+      console.log('📅 Current week is Pro Bowl; skipping Phil picks generation');
+      return;
+    }
+    const weekKey = `${currentWeek.season}_${currentWeek.weekType === 'preseason' ? `preseason-${currentWeek.week}` : currentWeek.weekType === 'pro-bowl' ? `pro-bowl-${currentWeek.week}` : `week-${currentWeek.week}`}`;
     console.log(`🔑 Week key: ${weekKey}\n`);
 
     // Generate Phil's picks

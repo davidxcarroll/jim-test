@@ -51,7 +51,7 @@ export default function AdminPicksPage() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
-  const [allAvailableWeeks, setAllAvailableWeeks] = useState<Array<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason'; startDate: Date; endDate: Date; label?: string }>>([])
+  const [allAvailableWeeks, setAllAvailableWeeks] = useState<Array<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'; startDate: Date; endDate: Date; label?: string }>>([])
   const [loadingWeeks, setLoadingWeeks] = useState(true)
 
   // Fetch all available weeks from API (same as dashboard)
@@ -62,7 +62,11 @@ export default function AdminPicksPage() {
       try {
         setLoadingWeeks(true)
         const weeks = await espnApi.getAllAvailableWeeks(weekInfo.season)
-        setAllAvailableWeeks(weeks)
+        // Exclude Pro Bowl from week selector entirely (no option in dropdown)
+        const weeksWithoutProBowl = weeks.filter(
+          w => w.weekType !== 'pro-bowl' && !w.label?.toLowerCase().includes('pro bowl')
+        )
+        setAllAvailableWeeks(weeksWithoutProBowl)
       } catch (error) {
         console.error('Error fetching all available weeks:', error)
         setAllAvailableWeeks([])
@@ -81,7 +85,7 @@ export default function AdminPicksPage() {
     
     // If we have all available weeks from API, use them
     if (allAvailableWeeks.length > 0 && weekInfo) {
-      const weeks: Array<{ index: number; weekNumber: number; weekType: 'preseason' | 'regular' | 'postseason'; weekKey: string; label?: string; startDate: Date }> = []
+      const weeks: Array<{ index: number; weekNumber: number; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'; weekKey: string; label?: string; startDate: Date }> = []
       
       // Find the index of the current week
       const currentWeekIndex = allAvailableWeeks.findIndex(w => 
@@ -100,6 +104,10 @@ export default function AdminPicksPage() {
         const isCurrentWeek = i === currentWeekIndex
         const shouldShowCurrentWeek = isCurrentWeek && (isWednesday || weekHasStarted)
         
+        // Skip Pro Bowl — never show in week selector
+        const isProBowl = week.weekType === 'pro-bowl' || week.label?.toLowerCase().includes('pro bowl')
+        if (isProBowl) continue
+
         if (shouldShowCurrentWeek || (i < currentWeekIndex && weekHasStarted)) {
           const weekKey = getWeekKey(week.weekType, week.week, week.label)
           
@@ -157,7 +165,7 @@ export default function AdminPicksPage() {
         start: targetWeekStart,
         end: targetWeekEnd,
         season: String(weekInfo.season),
-        week: weekInfo.weekType === 'preseason' ? `preseason-${targetWeekNumber}` : `week-${targetWeekNumber}`,
+        week: weekInfo.weekType === 'preseason' ? `preseason-${targetWeekNumber}` : weekInfo.weekType === 'pro-bowl' ? `pro-bowl-${targetWeekNumber}` : `week-${targetWeekNumber}`,
         weekNumber: targetWeekNumber
       }
     }

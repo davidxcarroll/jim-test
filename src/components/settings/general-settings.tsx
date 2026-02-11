@@ -82,7 +82,7 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
       try {
         const nflWeek = await getCurrentNFLWeekFromAPI()
         if (nflWeek) {
-          // Season has started if we're in regular season or postseason (not preseason)
+          // Season has started if we're in regular season or postseason (not preseason or pro bowl)
           setIsSeasonStarted(nflWeek.weekType === 'regular' || nflWeek.weekType === 'postseason')
         }
       } catch (error) {

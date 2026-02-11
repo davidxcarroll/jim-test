@@ -6,6 +6,8 @@ import { collection, getDocs, onSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useCurrentWeek } from '@/hooks/use-current-week'
 import { getWeekKey } from '@/utils/date-helpers'
+import { getTeamByAbbreviation, getTeamLogo } from '@/utils/team-utils'
+import { Team } from '@/types/nfl'
 
 interface User {
     id: string
@@ -41,12 +43,16 @@ interface MostInTop10Movie {
     count: number
 }
 
+const SUPER_BOWL_WINNER_ABBREV = 'SEA' // Seahawks
+
 export default function StatsPage() {
     const router = useRouter()
     const [loading, setLoading] = useState(true)
     const [userStats, setUserStats] = useState<UserStats[]>([])
     const [includedWeekIds, setIncludedWeekIds] = useState<string[]>([])
     const [mostInTop10Movies, setMostInTop10Movies] = useState<MostInTop10Movie[]>([])
+    const [seahawksSuperBowlPickers, setSeahawksSuperBowlPickers] = useState<string[]>([])
+    const [seahawksTeam, setSeahawksTeam] = useState<Team | null>(null)
     const [error, setError] = useState<string | null>(null)
     const { weekInfo, loading: weekLoading } = useCurrentWeek()
 
@@ -204,6 +210,14 @@ export default function StatsPage() {
             const maxCount = movieCounts.length > 0 ? Math.max(...movieCounts.map((m) => m.count)) : 0
             const topMovies = movieCounts.filter((m) => m.count === maxCount).map((m) => ({ title: m.displayTitle, count: m.count }))
             setMostInTop10Movies(topMovies)
+
+            // Who picked the Seahawks (super bowl winners) to win the super bowl
+            const pickers = users
+                .filter((u: any) => u.superBowlPick === SUPER_BOWL_WINNER_ABBREV)
+                .map((u: any) => u.displayName)
+                .filter(Boolean)
+            setSeahawksSuperBowlPickers(pickers)
+            getTeamByAbbreviation(SUPER_BOWL_WINNER_ABBREV).then((t) => setSeahawksTeam(t ?? null))
         } catch (err) {
             console.error('Error fetching stats:', err)
             setError(err instanceof Error ? err.message : 'Failed to load stats')
@@ -288,7 +302,7 @@ export default function StatsPage() {
                 <h1 className="lg:text-9xl text-7xl font-bold uppercase mb-8">Stats</h1>
 
                 <section className="mb-12">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
 
                         {/* Most Correct Picks */}
                         {mostCorrectUsers.length > 0 && (
@@ -322,6 +336,27 @@ export default function StatsPage() {
                                         <div className="text-lg">
                                             {user.weeksWon} week{user.weeksWon !== 1 ? 's' : ''} with top score
                                         </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Picked Seahawks to win the Super Bowl */}
+                        {seahawksSuperBowlPickers.length > 0 && (
+                            <div className="">
+                                <div className="text-2xl font-bold uppercase mb-2 shadow-[0_1px_0_0_#000000] p-2 flex items-center gap-2">
+                                    {seahawksTeam && getTeamLogo(seahawksTeam, 'default') && (
+                                        <img
+                                            src={getTeamLogo(seahawksTeam, 'default')}
+                                            alt="Seattle Seahawks"
+                                            className="w-16 aspect-video object-cover"
+                                        />
+                                    )}
+                                    Super Bowl pick
+                                </div>
+                                {seahawksSuperBowlPickers.map((name, index) => (
+                                    <div key={name} className={index > 0 ? '' : ''}>
+                                        <div className="font-jim text-4xl">{name}</div>
                                     </div>
                                 ))}
                             </div>

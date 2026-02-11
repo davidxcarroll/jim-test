@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateAndStorePhilPicks } from '@/utils/phil-user'
 import { espnApi } from '@/lib/espn-api'
-import { getCurrentNFLWeekFromAPI } from '@/utils/date-helpers'
+import { getCurrentNFLWeekFromAPI, getWeekKey } from '@/utils/date-helpers'
 
 export async function POST(request: NextRequest) {
   // Verify the request is from a legitimate cron service
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       console.log(`🎮 Found ${currentGames.length} games for current week`)
 
       if (currentGames.length > 0) {
-        const currentWeekKey = `${currentWeek.season}_${currentWeek.weekType === 'preseason' ? `preseason-${currentWeek.week}` : currentWeek.weekType === 'pro-bowl' ? `pro-bowl-${currentWeek.week}` : `week-${currentWeek.week}`}`
+        const currentWeekKey = `${currentWeek.season}_${getWeekKey(currentWeek.weekType, currentWeek.week)}`
         console.log(`🔑 Current week key: ${currentWeekKey}`)
 
         await generateAndStorePhilPicks(currentGames, currentWeekKey)
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
       console.log(`🎮 Found ${previousGames.length} games for previous week`)
 
       if (previousGames.length > 0) {
-        const previousWeekKey = `${previousWeek.season}_${previousWeek.weekType === 'preseason' ? `preseason-${previousWeek.week}` : previousWeek.weekType === 'pro-bowl' ? `pro-bowl-${previousWeek.week}` : `week-${previousWeek.week}`}`
+        const previousWeekKey = `${previousWeek.season}_${getWeekKey(previousWeek.weekType, previousWeek.week)}`
         console.log(`🔑 Previous week key: ${previousWeekKey}`)
 
         await generateAndStorePhilPicks(previousGames, previousWeekKey)

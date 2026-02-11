@@ -103,16 +103,14 @@ export default function OffSeasonPage() {
                   </span>
                 )}
               </div>
-              <div>Picked the Seahawks to win the Super Bowl</div>
+              <div>Picked the Seahawks to win the Super Bowl!</div>
             </div>
 
             <div className="w-full uppercase md:text-xl text-center font-bold text-balance">
-              More stats 👉 <a href="/stats" className="underline">here</a> 👈
+              📊 <a href="/stats" className="underline">More stats</a> 📊
             </div>
             <div className="w-full uppercase md:text-xl text-center font-bold text-balance">
-              Thanks for playing, see y'all next season!
-              <br/>
-              📋 🏈 ✅
+              Thanks for playing, see y'all next season 📋🏈✅
             </div>
 
           </div>

@@ -125,9 +125,11 @@ export async function POST(request: NextRequest) {
         let totalChecked = 0
         let gamesWithPicks = 0
         let gamesWithValidScores = 0
+        let underdogPicks = 0
+        let underdogCorrect = 0
         const debugInfo: any[] = []
         
-        // For each played game, check if user picked and if correct
+        // For each played game, check if user picked and if correct; track underdog picks (favorite from odds/records)
         for (const game of weekGames) {
           if (game.status === 'final' || game.status === 'post') {
             totalChecked++
@@ -145,6 +147,14 @@ export async function POST(request: NextRequest) {
               gamesWithValidScores++
               const homeWon = homeScore > awayScore
               const pickCorrect = (pick === 'home' && homeWon) || (pick === 'away' && !homeWon)
+              
+              // Underdog = opposite of favorite (favorite from ESPN odds or team records)
+              const favorite = game.favoriteTeam
+              const underdog = favorite === 'home' ? 'away' : favorite === 'away' ? 'home' : null
+              if (underdog !== null && pick === underdog) {
+                underdogPicks++
+                if (pickCorrect) underdogCorrect++
+              }
               
               // Debug first few games
               if (debugInfo.length < 3) {
@@ -203,7 +213,9 @@ export async function POST(request: NextRequest) {
             userId: user.id,
             correct,
             total,
-            percentage
+            percentage,
+            underdogPicks,
+            underdogCorrect
           })
         } else if (totalChecked > 0) {
           // Log if we checked games but none had valid scores

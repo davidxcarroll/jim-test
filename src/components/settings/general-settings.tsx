@@ -80,8 +80,9 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
   useEffect(() => {
     async function checkSeasonStatus() {
       try {
-        const nflWeek = await getCurrentNFLWeekFromAPI()
-        if (nflWeek) {
+        const result = await getCurrentNFLWeekFromAPI()
+        if (result && 'week' in result) {
+          const nflWeek = result
           // Season has started if we're in regular season or postseason (not preseason or pro bowl)
           setIsSeasonStarted(nflWeek.weekType === 'regular' || nflWeek.weekType === 'postseason')
         }

@@ -71,11 +71,11 @@ export async function POST(request: NextRequest) {
     // TASK 2: Calculate Week Recaps (runs daily)
     try {
       console.log('📊 Running week recap calculation task...')
-      const currentWeek = await getCurrentNFLWeekFromAPI()
-      if (!currentWeek) {
+      const currentWeekResult = await getCurrentNFLWeekFromAPI()
+      if (!currentWeekResult || 'offSeason' in currentWeekResult) {
         throw new Error('Could not get current NFL week from ESPN API')
       }
-
+      const currentWeek = currentWeekResult
       console.log(`📅 Current week: ${currentWeek.week} (${currentWeek.weekType}), Season: ${currentWeek.season}`)
 
       const allWeeks = await espnApi.getAllAvailableWeeks(currentWeek.season)

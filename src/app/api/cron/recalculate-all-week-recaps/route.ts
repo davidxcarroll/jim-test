@@ -17,15 +17,16 @@ export async function POST(request: NextRequest) {
     console.log('📊 Starting weekly full recalculation of all week recaps...')
 
     // Get current NFL week to know what weeks are in the past
-    const currentWeek = await getCurrentNFLWeekFromAPI()
-    if (!currentWeek) {
-      console.error('❌ Could not get current NFL week from ESPN API')
+    const currentWeekResult = await getCurrentNFLWeekFromAPI()
+    if (!currentWeekResult || 'offSeason' in currentWeekResult) {
+      console.error('❌ Could not get current NFL week from ESPN API (or off-season)')
       return NextResponse.json(
         { error: 'Could not get current NFL week from ESPN API' },
         { status: 500 }
       )
     }
 
+    const currentWeek = currentWeekResult
     console.log(`📅 Current week: ${currentWeek.week} (${currentWeek.weekType}), Season: ${currentWeek.season}`)
 
     // Get all available weeks for the current season
@@ -80,8 +81,10 @@ export async function POST(request: NextRequest) {
             const userPicksDoc = await getDoc(doc(db, 'users', user.id, 'picks', weekId))
             const userPicks = userPicksDoc.exists() ? userPicksDoc.data() : {}
             let correct = 0
+            let underdogPicks = 0
+            let underdogCorrect = 0
 
-            // For each finished game, check if user picked and if correct (use string key to match Firestore/storage)
+            // For each finished game, check if user picked and if correct (use string key to match Firestore/storage); track underdog picks
             for (const game of finishedGames) {
               const gameKey = String(game.id)
               const pick = userPicks[gameKey]?.pickedTeam ?? userPicks[game.id as any]?.pickedTeam
@@ -90,6 +93,13 @@ export async function POST(request: NextRequest) {
               const homeWon = homeScore > awayScore
               const pickCorrect = (pick === 'home' && homeWon) || (pick === 'away' && !homeWon)
               if (pick && pickCorrect) correct++
+
+              const favorite = game.favoriteTeam
+              const underdog = favorite === 'home' ? 'away' : favorite === 'away' ? 'home' : null
+              if (underdog !== null && pick === underdog) {
+                underdogPicks++
+                if (pickCorrect) underdogCorrect++
+              }
             }
 
             const total = finishedGames.length
@@ -99,7 +109,9 @@ export async function POST(request: NextRequest) {
                 userId: user.id,
                 correct,
                 total,
-                percentage
+                percentage,
+                underdogPicks,
+                underdogCorrect
               })
             }
           } catch (error) {

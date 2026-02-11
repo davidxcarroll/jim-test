@@ -137,7 +137,7 @@ export interface LiveGameDetails extends Game {
 
 export const espnApi = {
   // Get current NFL week from ESPN API schedule
-  async getCurrentNFLWeek(): Promise<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'; startDate: Date; endDate: Date; label?: string } | null> {
+  async getCurrentNFLWeek(): Promise<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'; startDate: Date; endDate: Date; label?: string } | { offSeason: true } | null> {
     try {
       const today = new Date()
       const dateStr = formatDate(today, 'yyyyMMdd')
@@ -147,12 +147,21 @@ export const espnApi = {
       if (data.leagues && data.leagues.length > 0) {
         const league = data.leagues[0]
         const season = league.season?.year || new Date().getFullYear()
+
+        // Season conclusion: ESPN exposes league.season.endDate. If we're past it, treat as off-season immediately.
+        const seasonEndDate = league.season?.endDate ? new Date(league.season.endDate) : null
+        if (seasonEndDate && today > seasonEndDate) {
+          console.log('📅 ESPN API: Season over (past league.season.endDate) — treating as off-season')
+          return null
+        }
         
         // Find current week from calendar; if we're in Pro Bowl, skip to the next week (postseason continues)
         if (league.calendar && league.calendar.length > 0) {
           type CalendarEntry = { startDate: Date; endDate: Date; value: string; label?: string; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl' }
           const allEntries: CalendarEntry[] = []
           for (const seasonType of league.calendar) {
+            // Skip Off Season block (value "4" / label "Off Season") — we never treat it as a "current week"
+            if (seasonType.label === 'Off Season' || seasonType.value === '4') continue
             if (seasonType.entries) {
               for (const entry of seasonType.entries) {
                 let weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl' = 'regular'
@@ -174,6 +183,13 @@ export const espnApi = {
           const currentIndex = allEntries.findIndex(e => nowUTC >= e.startDate && nowUTC <= e.endDate)
           if (currentIndex >= 0) {
             const entry = allEntries[currentIndex]
+            // Week turns over on Wednesday. If we're in the last calendar entry (season over) and it's Wednesday, treat as off-season so dashboard/stats redirect.
+            const isWednesday = today.getDay() === 3
+            const isLastEntry = currentIndex === allEntries.length - 1
+            if (isWednesday && isLastEntry) {
+              console.log('📅 ESPN API: Wednesday and in last season week — treating as off-season')
+              return { offSeason: true as const }
+            }
             // If we're in Pro Bowl week, use the next calendar week (e.g. Super Bowl) so we don't redirect to off-season
             const useEntry = entry.weekType === 'pro-bowl' && currentIndex + 1 < allEntries.length
               ? allEntries[currentIndex + 1]
@@ -683,6 +699,8 @@ export const espnApi = {
 
                 // Skip preseason and pro bowl weeks (inconsequential for team records / stats)
                 if (weekType !== 'preseason' && weekType !== 'pro-bowl') {
+                  // NFL regular season is 18 weeks only (272 games). ESPN may expose a 19th entry; exclude it.
+                  if (weekType === 'regular' && (weekNumber < 1 || weekNumber > 18)) continue
                   // Normalize the label for consistent naming
                   const normalizedLabel = entry.label ? normalizeRoundName(entry.label) : undefined
                   weeks.push({ 
@@ -814,6 +832,13 @@ export const espnApi = {
       }
       current.setDate(current.getDate() + 1);
     }
-    return games;
+    // Deduplicate by game id (same game can appear on multiple days in the range)
+    const seen = new Set<string>()
+    return games.filter((g) => {
+      const id = String(g?.id ?? '')
+      if (seen.has(id)) return false
+      seen.add(id)
+      return true
+    })
   }
 } 

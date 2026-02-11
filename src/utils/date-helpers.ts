@@ -118,12 +118,21 @@ export const dateHelpers = {
   }
 } 
 
+// Result can be week data, off-season sentinel (so UI redirects instead of showing error), or null (API/network failure)
+export type CurrentNFLWeekResult =
+  | { week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'; startDate: Date; endDate: Date }
+  | { offSeason: true }
+  | null
+
 // Get current NFL week from ESPN API (primary method - no hardcoded dates)
-export async function getCurrentNFLWeekFromAPI(): Promise<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'; startDate: Date; endDate: Date } | null> {
+export async function getCurrentNFLWeekFromAPI(): Promise<CurrentNFLWeekResult> {
   try {
     // Import espnApi dynamically to avoid circular dependencies
     const { espnApi } = await import('@/lib/espn-api')
-    return await espnApi.getCurrentNFLWeek()
+    const result = await espnApi.getCurrentNFLWeek()
+    // Pass through week data or off-season; null stays null (failure)
+    if (result && 'offSeason' in result) return { offSeason: true }
+    return result
   } catch (error) {
     console.error('Error getting current NFL week from API:', error)
     return null
@@ -133,8 +142,9 @@ export async function getCurrentNFLWeekFromAPI(): Promise<{ week: number; season
 // Get current week number using ESPN API (async version)
 export async function getCurrentWeekNumberFromAPI(): Promise<number> {
   try {
-    const nflWeek = await getCurrentNFLWeekFromAPI()
-    if (nflWeek) {
+    const result = await getCurrentNFLWeekFromAPI()
+    if (result && 'week' in result) {
+      const nflWeek = result
       // Return negative for preseason and pro bowl (excluded from stats), positive for regular/postseason
       if (nflWeek.weekType === 'preseason' || nflWeek.weekType === 'pro-bowl') {
         return -nflWeek.week
@@ -146,15 +156,16 @@ export async function getCurrentWeekNumberFromAPI(): Promise<number> {
     console.error('Error getting week from API:', error)
   }
   
-  // No fallback - we want to fail if API is unavailable
+  // No fallback - we want to fail if API is unavailable or off-season
   throw new Error('Unable to determine current NFL week - ESPN API unavailable')
 } 
 
 // Returns { season, week } for any date using ESPN API
 export async function getSeasonAndWeek(date: Date = new Date()) {
   try {
-    const nflWeek = await getCurrentNFLWeekFromAPI()
-    if (nflWeek) {
+    const result = await getCurrentNFLWeekFromAPI()
+    if (result && 'week' in result) {
+      const nflWeek = result
       const season = String(nflWeek.season)
       const week = nflWeek.weekType === 'preseason' ? `preseason-${nflWeek.week}` : nflWeek.weekType === 'pro-bowl' ? `pro-bowl-${nflWeek.week}` : `week-${nflWeek.week}`
       return { season, week }

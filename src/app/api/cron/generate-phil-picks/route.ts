@@ -16,15 +16,16 @@ export async function POST(request: NextRequest) {
     console.log('🏈 Starting Wednesday Phil picks generation (Two-Pass System)...')
 
     // Get current NFL week from ESPN API
-    const currentWeek = await getCurrentNFLWeekFromAPI()
-    if (!currentWeek) {
-      console.error('❌ Could not get current NFL week from ESPN API')
+    const currentWeekResult = await getCurrentNFLWeekFromAPI()
+    if (!currentWeekResult || 'offSeason' in currentWeekResult) {
+      console.error('❌ Could not get current NFL week from ESPN API (or off-season)')
       return NextResponse.json(
         { error: 'Could not get current NFL week from ESPN API' },
         { status: 500 }
       )
     }
 
+    const currentWeek = currentWeekResult
     // Skip pro bowl (inconsequential for team records; no picks)
     if (currentWeek.weekType === 'pro-bowl') {
       console.log('📅 Current week is Pro Bowl; skipping Phil picks generation')

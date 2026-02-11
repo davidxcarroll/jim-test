@@ -26,11 +26,12 @@ async function generatePhilPicksForCurrentWeek() {
 
   try {
     // Get current NFL week from ESPN API
-    const currentWeek = await getCurrentNFLWeekFromAPI();
-    if (!currentWeek) {
-      console.error('❌ Could not get current NFL week from ESPN API');
+    const currentWeekResult = await getCurrentNFLWeekFromAPI();
+    if (!currentWeekResult || currentWeekResult.offSeason) {
+      console.error('❌ Could not get current NFL week from ESPN API (or off-season)');
       return;
     }
+    const currentWeek = currentWeekResult;
 
     console.log(`📅 Current week: ${currentWeek.week} (${currentWeek.weekType})`);
     console.log(`📅 Week range: ${currentWeek.startDate.toISOString()} to ${currentWeek.endDate.toISOString()}`);

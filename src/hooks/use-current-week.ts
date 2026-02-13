@@ -15,7 +15,7 @@ export function useCurrentWeek() {
         
         // Get week from ESPN API (no fallback - we want to fail if API is unavailable)
         const result = await getCurrentNFLWeekFromAPI()
-        
+
         if (result && 'offSeason' in result) {
           // Intentional off-season (e.g. Wednesday after last week) — no error, let dashboard redirect
           setCurrentWeek(null)

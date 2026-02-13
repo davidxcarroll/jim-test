@@ -152,7 +152,7 @@ export const espnApi = {
         const seasonEndDate = league.season?.endDate ? new Date(league.season.endDate) : null
         if (seasonEndDate && today > seasonEndDate) {
           console.log('📅 ESPN API: Season over (past league.season.endDate) — treating as off-season')
-          return null
+          return { offSeason: true as const }
         }
         
         // Find current week from calendar; if we're in Pro Bowl, skip to the next week (postseason continues)

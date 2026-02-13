@@ -389,13 +389,7 @@ function WeeklyMatchesPage() {
   useEffect(() => {
     // Reset timeout when loading states change
     setLoadTimeout(false)
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/0aadbce7-e22d-4466-ba46-5571e173b2eb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:timeout-effect',message:'timeout effect ran',data:{isLoading,loadingUsers,loadingPicks,clipboardLoading,weekLoading,loadingWeeks},timestamp:Date.now(),hypothesisId:'H1-H4'})}).catch(()=>{});
-    // #endregion
     const timer = setTimeout(() => {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/0aadbce7-e22d-4466-ba46-5571e173b2eb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:timeout-fired',message:'load timeout fired (10s elapsed)',data:{},timestamp:Date.now(),hypothesisId:'H2-H4'})}).catch(()=>{});
-      // #endregion
       setLoadTimeout(true)
     }, 10000) // 10 seconds
     return () => clearTimeout(timer)
@@ -690,9 +684,6 @@ function WeeklyMatchesPage() {
 
   // Show error if timeout occurs
   if (loadTimeout && (isLoading || loadingUsers || loadingPicks || clipboardLoading || weekLoading)) {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/0aadbce7-e22d-4466-ba46-5571e173b2eb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:error-branch',message:'dashboard error shown',data:{loadTimeout,isLoading,loadingUsers,loadingPicks,clipboardLoading,weekLoading,loadingWeeks},timestamp:Date.now(),hypothesisId:'H1-H5'})}).catch(()=>{});
-    // #endregion
     return (
       <div className="flex flex-col items-center justify-center min-h-screen font-chakra text-2xl bg-neutral-100">
         <div className="mb-4 text-red-600 font-bold">Something went wrong loading the dashboard.</div>

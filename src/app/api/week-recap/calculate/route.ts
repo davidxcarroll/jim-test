@@ -14,27 +14,31 @@ export async function POST(request: NextRequest) {
     let season: string
     let week: string
 
-    // If weekId is provided, use it directly; otherwise calculate from weekOffset
+    // If weekId is provided, normalize to canonical form (week-1 not week-01) so we read/write the same doc id the dashboard uses.
     if (providedWeekId) {
-      weekId = providedWeekId
-      const [seasonStr, weekStr] = weekId.split('_')
+      const [seasonStr, weekStr] = providedWeekId.split('_')
       season = seasonStr
-      week = weekStr
+      let canonicalWeek = weekStr
+      if (weekStr?.startsWith('week-')) {
+        const n = parseInt(weekStr.replace('week-', ''), 10)
+        if (!Number.isNaN(n) && n >= 1 && n <= 18) canonicalWeek = `week-${n}`
+      }
+      weekId = `${seasonStr}_${canonicalWeek}`
+      week = canonicalWeek
 
       if (weekStr.startsWith('pro-bowl-')) {
         return NextResponse.json({ success: false, error: 'Pro Bowl weeks are not included in recaps or stats' }, { status: 400 })
       }
 
       // Use the same week source as the dashboard: getAllAvailableWeeks(season) and match by weekKey.
-      // This guarantees the same date range and thus the same games (and game IDs) as the dashboard.
       const allWeeks = await espnApi.getAllAvailableWeeks(parseInt(season))
       const matchingWeek = allWeeks.find(
-        (w) => getWeekKey(w.weekType, w.week, w.label) === weekStr
+        (w) => getWeekKey(w.weekType, w.week, w.label) === canonicalWeek
       )
       if (!matchingWeek) {
         return NextResponse.json({
           success: false,
-          error: `Could not find week ${weekId} in ESPN API (season ${season}, weekKey "${weekStr}")`
+          error: `Could not find week ${weekId} in ESPN API (season ${season}, weekKey "${canonicalWeek}")`
         }, { status: 404 })
       }
       start = matchingWeek.startDate
@@ -207,7 +211,8 @@ export async function POST(request: NextRequest) {
           return false
         }).length
         
-        if (total > 0) {
+        // Only include user in this week's recap if they made at least one pick — otherwise they "missed" the week (asterisk / missing weeks on /stats).
+        if (total > 0 && gamesWithPicks > 0) {
           const percentage = Math.round((correct / total) * 100)
           userStats.push({
             userId: user.id,

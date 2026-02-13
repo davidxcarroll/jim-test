@@ -170,7 +170,6 @@ export default function WeekRecapAdminPage() {
 
   return (
     <div className="min-h-screen bg-neutral-100 font-chakra">
-      <Navigation />
       
       <div className="pt-20 px-8 max-w-4xl mx-auto">
         <h1 className="text-4xl font-bold mb-8">Week Recap Admin</h1>

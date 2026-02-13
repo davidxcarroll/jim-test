@@ -36,7 +36,12 @@ interface UserStats {
     overallPercentage: number
     weeksWon: number
     weeksPlayed: number
+    /** Week IDs (includedWeekIds) this user has an entry in */
+    weekIdsPresent?: string[]
 }
+
+/** Expected total games for full season: 18 regular (272) + postseason (13) = 285. */
+const EXPECTED_TOTAL_GAMES = 285
 
 /** Movie that appears in the most users' top 10 lists */
 interface MostInTop10Movie {
@@ -84,6 +89,9 @@ export default function StatsPage() {
     const [underdogHeroUsers, setUnderdogHeroUsers] = useState<UnderdogHeroUser[]>([])
     const [bestSingleWeekEntries, setBestSingleWeekEntries] = useState<BestSingleWeekEntry[]>([])
     const [error, setError] = useState<string | null>(null)
+    /** Per-week, per-user correct/total from weekRecaps (for reconcile table) */
+    const [weekBreakdown, setWeekBreakdown] = useState<Record<string, Record<string, { correct: number; total: number }>>>({})
+    const [effectiveSeason, setEffectiveSeason] = useState<number | null>(null)
     const { weekInfo, loading: weekLoading } = useCurrentWeek()
 
     const fetchStats = useCallback(async () => {
@@ -114,17 +122,27 @@ export default function StatsPage() {
                 ['wild-card', 'divisional', 'conference', 'super-bowl'].some((k) => weekStr === k || weekStr?.startsWith(k + '-'))
 
             // Expected NFL game counts: 18 regular season weeks = 272 games; postseason = 13 (6+4+2+1). Total = 285 (excl. Pro Bowl).
-            // Derive effective season when off-season (weekInfo null): use latest season present in recaps
+            // When in-season: use API season. When off-season: lock to the season that has the Super Bowl recap (completed season).
             const allRecapIds = weekRecapsSnapshot.docs.map(doc => doc.id)
             const seasonsInRecaps = allRecapIds
                 .map(id => (id || '_').split('_')[0])
                 .filter((s): s is string => /^\d+$/.test(s))
                 .map(s => parseInt(s, 10))
-            const effectiveSeason = weekInfo
-                ? weekInfo.season
-                : (seasonsInRecaps.length > 0 ? Math.max(...seasonsInRecaps) : new Date().getFullYear())
+            let effectiveSeason: number
+            if (weekInfo) {
+                effectiveSeason = weekInfo.season
+            } else {
+                // Off-season: use the season that has a Super Bowl recap (the completed season), so stats stay locked.
+                const superBowls = weekRecapsSnapshot.docs.filter(
+                    d => (d.id || '_').split('_')[1] === 'super-bowl' || ((d.id || '_').split('_')[1] || '').startsWith('super-bowl-')
+                )
+                const seasonsWithSuperBowl = superBowls.map(d => parseInt((d.id || '_').split('_')[0], 10)).filter(n => !Number.isNaN(n))
+                effectiveSeason = seasonsWithSuperBowl.length > 0
+                    ? Math.max(...seasonsWithSuperBowl)
+                    : (seasonsInRecaps.length > 0 ? Math.max(...seasonsInRecaps) : new Date().getFullYear())
+            }
 
-            const weekRecapsRaw: WeekRecap[] = weekRecapsSnapshot.docs
+            const filtered: WeekRecap[] = weekRecapsSnapshot.docs
                 .map(doc => ({
                     weekId: doc.id,
                     ...doc.data()
@@ -133,18 +151,41 @@ export default function StatsPage() {
                     const [seasonStr, weekStr] = (recap.weekId || '_').split('_')
                     if (!/^\d+$/.test(seasonStr) || !seasonStr) return false
                     const season = parseInt(seasonStr, 10)
-                    // Only include the most recent season (from API when in-season, or derived from recaps when off-season)
                     if (season !== effectiveSeason) return false
                     const isRegular = weekStr?.startsWith('week-') && !weekStr?.includes('pro-bowl')
                     const weekNumber = isRegular ? parseInt(weekStr.replace('week-', ''), 10) : NaN
                     const isPostseason = isPostseasonWeek(weekStr)
                     if (!isRegular && !isPostseason) return false
                     if (isRegular && Number.isNaN(weekNumber)) return false
-                    // NFL regular season is 18 weeks (272 games total). Exclude week-19 or any ESPN quirk.
                     if (isRegular && (weekNumber < 1 || weekNumber > 18)) return false
                     if (currentWeekId && recap.weekId === currentWeekId) return false
                     return true
                 })
+
+            // Deduplicate by canonical (season, week) so only one recap per slot counts.
+            const canonicalKey = (recap: WeekRecap) => {
+                const [, weekStr] = (recap.weekId || '_').split('_')
+                if (!weekStr) return recap.weekId
+                const seasonStr = (recap.weekId || '_').split('_')[0] ?? ''
+                if (weekStr.startsWith('week-')) {
+                    const n = parseInt(weekStr.replace('week-', ''), 10)
+                    if (!Number.isNaN(n) && n >= 1 && n <= 18) return `${seasonStr}_week-${n}`
+                }
+                return recap.weekId
+            }
+            const dedupeMap = new Map<string, WeekRecap>()
+            filtered.forEach((recap) => {
+                const canonical = canonicalKey(recap)
+                const existing = dedupeMap.get(canonical)
+                const userCount = (recap.userStats?.length ?? 0)
+                const existingCount = (existing?.userStats?.length ?? 0)
+                if (!existing) {
+                    dedupeMap.set(canonical, recap)
+                } else if (userCount > existingCount) {
+                    dedupeMap.set(canonical, recap)
+                }
+            })
+            let weekRecapsRaw: WeekRecap[] = Array.from(dedupeMap.values())
 
             // Sort: regular season 1–18, then postseason order (wild-card, divisional, conference, super-bowl)
             const postseasonOrder: Record<string, number> = { 'wild-card': 1, 'divisional': 2, 'conference': 3, 'super-bowl': 4 }
@@ -170,7 +211,8 @@ export default function StatsPage() {
                     totalGames: 0,
                     overallPercentage: 0,
                     weeksWon: 0,
-                    weeksPlayed: 0
+                    weeksPlayed: 0,
+                    weekIdsPresent: []
                 })
             })
 
@@ -184,6 +226,7 @@ export default function StatsPage() {
                     userStat.totalCorrect += stat.correct
                     userStat.totalGames += stat.total
                     userStat.weeksPlayed++
+                    if (userStat.weekIdsPresent) userStat.weekIdsPresent.push(recap.weekId)
 
                     // Track weeks won
                     if (stat.isTopScore) {
@@ -222,8 +265,25 @@ export default function StatsPage() {
                 }
             })
 
+            // #region agent log
+            const asteriskUsers = statsArray.filter(s => s.weeksPlayed < weekRecaps.length)
+            fetch('http://127.0.0.1:7243/ingest/0aadbce7-e22d-4466-ba46-5571e173b2eb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stats/page.tsx:fetchStats',message:'stats loaded',data:{currentWeekId:currentWeekId ?? null,weekInfoNull:!weekInfo,includedWeekCount:weekRecaps.length,includedWeekIds:weekRecaps.map(r=>r.weekId),asteriskCount:asteriskUsers.length,asteriskUsers:asteriskUsers.map(u=>({userName:u.userName,weeksPlayed:u.weeksPlayed,totalGames:u.totalGames})),totalUsers:statsArray.length},timestamp:Date.now(),hypothesisId:'asterisk-included-weeks'})}).catch(()=>{});
+            // #endregion
+
+            // Per-week breakdown from recaps (for reconcile-with-manual-count table)
+            const breakdown: Record<string, Record<string, { correct: number; total: number }>> = {}
+            weekRecaps.forEach((recap) => {
+                const byUser: Record<string, { correct: number; total: number }> = {}
+                recap.userStats?.forEach((s: { userId: string; correct: number; total: number }) => {
+                    byUser[s.userId] = { correct: s.correct, total: s.total }
+                })
+                breakdown[recap.weekId] = byUser
+            })
+
             setUserStats(statsArray)
             setIncludedWeekIds(weekRecaps.map((r) => r.weekId))
+            setWeekBreakdown(breakdown)
+            setEffectiveSeason(effectiveSeason)
 
             // Movie in most people's top 10: aggregate moviePicks across all users
             const movieCountByKey = new Map<string, { displayTitle: string; count: number }>()
@@ -560,6 +620,108 @@ export default function StatsPage() {
                             </p>
                         )}
                     </div>
+                </section>
+
+                {/* Verification: outstanding picks vs 285 games */}
+                <section className="mb-4 mt-12 font-chakra">
+                    <details className="border border-black p-4 bg-neutral-200">
+                        <summary className="text-xl font-bold uppercase cursor-pointer">
+                            Verification: outstanding picks (expected {EXPECTED_TOTAL_GAMES} games total)
+                        </summary>
+                        <div className="mt-4 text-sm">
+                            <p className="mb-2">
+                                Included weeks: <strong>{includedWeekIds.length}</strong> ({includedWeekIds.map(id => getWeekLabelFromWeekId(id.split('_')[1] ?? id)).join(', ')})
+                            </p>
+                            <p className="mb-4">
+                                Asterisk (*) = user has fewer weeks played than included weeks — they are missing at least one week&apos;s recap entry.
+                            </p>
+                            <div className="overflow-x-auto">
+                                <table className="w-full border border-black">
+                                    <thead>
+                                        <tr className="border-b border-black font-bold bg-neutral-300">
+                                            <th className="text-left py-1 px-2">Name</th>
+                                            <th className="text-center py-1 px-2">Total games</th>
+                                            <th className="text-center py-1 px-2">Weeks played</th>
+                                            <th className="text-center py-1 px-2">Outstanding (of {EXPECTED_TOTAL_GAMES})</th>
+                                            <th className="text-left py-1 px-2">Missing weeks</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {userStatsWithRanks.map((stat) => {
+                                            const present = stat.weekIdsPresent ?? []
+                                            const missingWeekIds = includedWeekIds.filter(id => !present.includes(id))
+                                            const missingLabels = missingWeekIds.map(id => getWeekLabelFromWeekId(id.split('_')[1] ?? id))
+                                            const outstanding = EXPECTED_TOTAL_GAMES - stat.totalGames
+                                            return (
+                                                <tr key={stat.userId} className="border-b border-black">
+                                                    <td className="py-1 px-2 font-chakra">
+                                                        {stat.userName}
+                                                        {stat.weeksPlayed < includedWeekIds.length && <span title="Did not enter picks for all weeks"> *</span>}
+                                                    </td>
+                                                    <td className="text-center py-1 px-2">{stat.totalGames}</td>
+                                                    <td className="text-center py-1 px-2">{stat.weeksPlayed}</td>
+                                                    <td className="text-center py-1 px-2">{outstanding}</td>
+                                                    <td className="py-1 px-2">{missingLabels.length ? missingLabels.join(', ') : '—'}</td>
+                                                </tr>
+                                            )
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Reconcile with manual count: per-week correct for Jim, Monty, David from weekRecaps */}
+                            {effectiveSeason != null && Object.keys(weekBreakdown).length > 0 && (
+                                <div className="mt-8">
+                                    <p className="font-bold uppercase mb-2">Reconcile with manual count (from weekRecaps)</p>
+                                    <p className="text-xs mb-2">
+                                        Season: {effectiveSeason} · Included weeks: {includedWeekIds.length}. Compare each cell to your spreadsheet to find which week(s) disagree.
+                                    </p>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full border border-black text-sm">
+                                            <thead>
+                                                <tr className="border-b border-black font-bold bg-neutral-300">
+                                                    <th className="text-left py-1 px-2">Name</th>
+                                                    {includedWeekIds.map((weekId) => (
+                                                        <th key={weekId} className="text-center py-1 px-1">
+                                                            {getWeekLabelFromWeekId(weekId.split('_')[1] ?? weekId)}
+                                                        </th>
+                                                    ))}
+                                                    <th className="text-center py-1 px-2 font-bold">Total (app)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {userStatsWithRanks
+                                                    .filter((s) => ['Jim', 'Monty', 'David'].includes(s.userName))
+                                                    .map((stat) => {
+                                                        const sumCorrect = includedWeekIds.reduce(
+                                                            (sum, weekId) => sum + (weekBreakdown[weekId]?.[stat.userId]?.correct ?? 0),
+                                                            0
+                                                        )
+                                                        return (
+                                                            <tr key={stat.userId} className="border-b border-black">
+                                                                <td className="py-1 px-2 font-chakra">{stat.userName}</td>
+                                                                {includedWeekIds.map((weekId) => {
+                                                                    const correct = weekBreakdown[weekId]?.[stat.userId]?.correct
+                                                                    return (
+                                                                        <td key={weekId} className="text-center py-1 px-1">
+                                                                            {correct !== undefined && correct !== null ? correct : '—'}
+                                                                        </td>
+                                                                    )
+                                                                })}
+                                                                <td className="text-center py-1 px-2 font-bold">{sumCorrect}</td>
+                                                            </tr>
+                                                        )
+                                                    })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <p className="text-xs mt-2">
+                                        Your spreadsheet: Jim 188, Monty 186, David 173. If the app total differs, the mismatch is in the weekRecaps data for that user/week.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </details>
                 </section>
 
             </div>

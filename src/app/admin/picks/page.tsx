@@ -53,15 +53,16 @@ export default function AdminPicksPage() {
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
   const [allAvailableWeeks, setAllAvailableWeeks] = useState<Array<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'; startDate: Date; endDate: Date; label?: string }>>([])
   const [loadingWeeks, setLoadingWeeks] = useState(true)
+  // When off-season (weekInfo null), which season to load weeks for (e.g. last completed season)
+  const [offSeasonSelectedSeason, setOffSeasonSelectedSeason] = useState(() => new Date().getFullYear() - 1)
 
-  // Fetch all available weeks from API (same as dashboard)
+  // Fetch all available weeks from API: in-season use weekInfo.season, off-season use offSeasonSelectedSeason
+  const seasonToFetch = weekInfo?.season ?? offSeasonSelectedSeason
   useEffect(() => {
     const fetchAllWeeks = async () => {
-      if (!weekInfo) return
-      
       try {
         setLoadingWeeks(true)
-        const weeks = await espnApi.getAllAvailableWeeks(weekInfo.season)
+        const weeks = await espnApi.getAllAvailableWeeks(seasonToFetch)
         // Exclude Pro Bowl from week selector entirely (no option in dropdown)
         const weeksWithoutProBowl = weeks.filter(
           w => w.weekType !== 'pro-bowl' && !w.label?.toLowerCase().includes('pro bowl')
@@ -74,43 +75,36 @@ export default function AdminPicksPage() {
         setLoadingWeeks(false)
       }
     }
-    
-    fetchAllWeeks()
-  }, [weekInfo?.season])
 
-  // Get available weeks - use all weeks from API, filter to show only past/current weeks (same logic as dashboard)
+    fetchAllWeeks()
+  }, [seasonToFetch])
+
+  // Get available weeks: in-season = weeks up to/including current; off-season = all started weeks for selected season
   const availableWeeks = React.useMemo(() => {
     const today = new Date()
     const isWednesday = dateHelpers.isNewWeekDay(today)
-    
-    // If we have all available weeks from API, use them
-    if (allAvailableWeeks.length > 0 && weekInfo) {
+
+    if (allAvailableWeeks.length === 0) return []
+
+    // In-season: show weeks up to and including current week (same as dashboard)
+    if (weekInfo) {
       const weeks: Array<{ index: number; weekNumber: number; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'; weekKey: string; label?: string; startDate: Date }> = []
-      
-      // Find the index of the current week
-      const currentWeekIndex = allAvailableWeeks.findIndex(w => 
-        w.week === weekInfo.week && 
+      const currentWeekIndex = allAvailableWeeks.findIndex(w =>
+        w.week === weekInfo.week &&
         w.weekType === weekInfo.weekType &&
         w.season === weekInfo.season
       )
-      
-      // Show all weeks up to and including the current week
-      // Only show weeks that have started or are starting today
+
       for (let i = 0; i <= currentWeekIndex; i++) {
         const week = allAvailableWeeks[i]
         const weekHasStarted = week.startDate <= today
-        
-        // Show current week if it's Wednesday or later, or if it has started
         const isCurrentWeek = i === currentWeekIndex
         const shouldShowCurrentWeek = isCurrentWeek && (isWednesday || weekHasStarted)
-        
-        // Skip Pro Bowl — never show in week selector
         const isProBowl = week.weekType === 'pro-bowl' || week.label?.toLowerCase().includes('pro bowl')
         if (isProBowl) continue
 
         if (shouldShowCurrentWeek || (i < currentWeekIndex && weekHasStarted)) {
           const weekKey = getWeekKey(week.weekType, week.week, week.label)
-          
           weeks.push({
             index: i,
             weekNumber: week.week,
@@ -121,29 +115,39 @@ export default function AdminPicksPage() {
           })
         }
       }
-      
       return weeks
     }
-    
-    // Fallback: if API data not available yet, return empty array
-    return []
+
+    // Off-season: show all weeks that have started for the fetched season (so admin can view/manage any week)
+    const started = allAvailableWeeks
+      .filter(w => w.startDate <= today)
+      .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+    return started.map((week, i) => {
+      const weekKey = getWeekKey(week.weekType, week.week, week.label)
+      return {
+        index: i,
+        weekNumber: week.week,
+        weekType: week.weekType,
+        weekKey: `${week.season}_${weekKey}`,
+        label: week.label,
+        startDate: week.startDate
+      }
+    })
   }, [allAvailableWeeks, weekInfo])
 
   // Calculate week data based on the selected week offset (same as dashboard)
   const getWeekData = (offset: number) => {
-    // If we have available weeks from the filtered list, use the one at the offset index
+    const seasonForMatch = weekInfo?.season ?? offSeasonSelectedSeason
     if (availableWeeks.length > 0 && offset < availableWeeks.length && allAvailableWeeks.length > 0) {
       const selectedWeekItem = availableWeeks[offset]
-      // Find the full week info from allAvailableWeeks
-      const selectedWeek = allAvailableWeeks.find(w => 
-        w.week === selectedWeekItem.weekNumber && 
+      const selectedWeek = allAvailableWeeks.find(w =>
+        w.week === selectedWeekItem.weekNumber &&
         w.weekType === selectedWeekItem.weekType &&
-        w.season === weekInfo?.season
+        w.season === seasonForMatch
       )
-      
+
       if (selectedWeek) {
         const weekKey = getWeekKey(selectedWeek.weekType, selectedWeek.week, selectedWeek.label)
-        
         return {
           start: selectedWeek.startDate,
           end: selectedWeek.endDate,
@@ -154,7 +158,7 @@ export default function AdminPicksPage() {
         }
       }
     }
-    
+
     // Fallback to old calculation if weeks not loaded yet
     if (weekInfo) {
       const targetWeekNumber = weekInfo.week - offset
@@ -170,24 +174,24 @@ export default function AdminPicksPage() {
       }
     }
     
-    // Final fallback
+    // Final fallback (e.g. while loading or API failed)
     const today = new Date()
     const fallbackWeekStart = new Date(today.getTime() - (offset * 7 * 24 * 60 * 60 * 1000))
     const fallbackWeekEnd = new Date(fallbackWeekStart.getTime() + (6 * 24 * 60 * 60 * 1000))
-    
+    const fallbackSeason = weekInfo?.season ?? offSeasonSelectedSeason
     return {
       start: fallbackWeekStart,
       end: fallbackWeekEnd,
-      season: '2025',
-      week: `week-${2 - offset}`,
-      weekNumber: 2 - offset
+      season: String(fallbackSeason),
+      week: `week-${Math.max(1, 18 - offset)}`,
+      weekNumber: Math.max(1, 18 - offset)
     }
   }
 
   const currentWeekData = useMemo(() => {
     console.log('📅 Admin picks: Calculating week data for offset:', weekOffset, 'weekInfo:', weekInfo, 'availableWeeks:', availableWeeks.length)
     return getWeekData(weekOffset)
-  }, [weekOffset, weekInfo, availableWeeks, allAvailableWeeks])
+  }, [weekOffset, weekInfo, availableWeeks, allAvailableWeeks, offSeasonSelectedSeason])
   
   const { data: games, isLoading: gamesLoading } = useGamesForWeek(currentWeekData.start, currentWeekData.end)
 
@@ -202,15 +206,21 @@ export default function AdminPicksPage() {
     })
   }, [games, gamesLoading, currentWeekData, weekOffset])
 
-  // Set initial week offset to current week when weeks are loaded
+  // Set initial week when weeks are loaded: in-season = current week; off-season = last week (e.g. Super Bowl)
   useEffect(() => {
-    if (availableWeeks.length > 0 && weekInfo) {
-      const currentWeekIndex = availableWeeks.findIndex(w => 
-        w.weekNumber === weekInfo.week && 
+    if (availableWeeks.length === 0) return
+    if (weekInfo) {
+      const currentWeekIndex = availableWeeks.findIndex(w =>
+        w.weekNumber === weekInfo.week &&
         w.weekType === weekInfo.weekType
       )
       if (currentWeekIndex >= 0 && weekOffset === 0) {
         setWeekOffset(currentWeekIndex)
+      }
+    } else {
+      // Off-season: default to last week (most recent)
+      if (weekOffset === 0) {
+        setWeekOffset(availableWeeks.length - 1)
       }
     }
   }, [availableWeeks.length, weekInfo])
@@ -368,7 +378,24 @@ export default function AdminPicksPage() {
         
         {/* Controls */}
         <div className="bg-white shadow-[inset_0_1px_0_0_#000000,inset_0_-1px_0_0_#000000] p-6 mb-6">
-          <div className="flex gap-4 items-center">
+          <div className="flex gap-4 items-center flex-wrap">
+            {!weekInfo && (
+              <div>
+                <label className="block text-sm font-medium text-black mb-1 uppercase">Season</label>
+                <select
+                  value={offSeasonSelectedSeason}
+                  onChange={(e) => {
+                    setOffSeasonSelectedSeason(Number(e.target.value))
+                    setWeekOffset(0)
+                  }}
+                  className="border-[1px] border-black px-3 py-2 min-w-[100px] font-bold uppercase bg-white"
+                >
+                  {[new Date().getFullYear() - 1, new Date().getFullYear() - 2, new Date().getFullYear() - 3].map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="week-selector relative">
               <label className="block text-sm font-medium text-black mb-1 uppercase">Week</label>
               <div

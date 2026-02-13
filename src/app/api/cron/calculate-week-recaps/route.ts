@@ -104,6 +104,7 @@ export async function POST(request: NextRequest) {
             const userPicksDoc = await getDoc(doc(db, 'users', user.id, 'picks', weekId))
             const userPicks = userPicksDoc.exists() ? userPicksDoc.data() : {}
             let correct = 0
+            let gamesWithPicks = 0
             let underdogPicks = 0
             let underdogCorrect = 0
 
@@ -111,6 +112,7 @@ export async function POST(request: NextRequest) {
             for (const game of finishedGames) {
               const gameKey = String(game.id)
               const pick = userPicks[gameKey]?.pickedTeam ?? userPicks[game.id as any]?.pickedTeam
+              if (pick) gamesWithPicks++
               const homeScore = Number(game.homeScore) || 0
               const awayScore = Number(game.awayScore) || 0
               const homeWon = homeScore > awayScore
@@ -126,7 +128,8 @@ export async function POST(request: NextRequest) {
             }
 
             const total = finishedGames.length
-            if (total > 0) {
+            // Only include user in this week's recap if they made at least one pick — otherwise they "missed" the week (asterisk / missing weeks on /stats).
+            if (total > 0 && gamesWithPicks > 0) {
               const percentage = Math.round((correct / total) * 100)
               userStats.push({
                 userId: user.id,

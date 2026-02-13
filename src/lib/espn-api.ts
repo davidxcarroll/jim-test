@@ -717,12 +717,21 @@ export const espnApi = {
           }
         }
       }
-      
+
+      // Deduplicate by (season, weekType, weekNumber, label) — ESPN calendar can list the same week twice (e.g. two "Week 1" entries)
+      const seen = new Set<string>()
+      const deduped = weeks.filter((w) => {
+        const key = `${w.season}_${w.weekType}_${w.week}_${(w.label || '').replace(/\s+/g, '-')}`
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+
       // Sort by start date (oldest first)
-      weeks.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
-      
-      console.log(`📅 ESPN API: Found ${weeks.length} available weeks (excluding preseason and pro bowl) for season ${season}`)
-      return weeks
+      deduped.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+
+      console.log(`📅 ESPN API: Found ${deduped.length} available weeks (excluding preseason and pro bowl) for season ${season}`)
+      return deduped
     } catch (error) {
       console.error(`Error fetching all weeks for season ${season}:`, error)
       return []

@@ -174,11 +174,11 @@ export default function AdminPicksPage() {
       }
     }
     
-    // Final fallback (e.g. while loading or API failed)
+    // Final fallback (e.g. while loading or API failed); weekInfo is falsy here so use off-season season
     const today = new Date()
     const fallbackWeekStart = new Date(today.getTime() - (offset * 7 * 24 * 60 * 60 * 1000))
     const fallbackWeekEnd = new Date(fallbackWeekStart.getTime() + (6 * 24 * 60 * 60 * 1000))
-    const fallbackSeason = weekInfo?.season ?? offSeasonSelectedSeason
+    const fallbackSeason = offSeasonSelectedSeason
     return {
       start: fallbackWeekStart,
       end: fallbackWeekEnd,

@@ -1,42 +1,32 @@
-export async function sendWeeklyReminders() {
-  try {
-    const response = await fetch('/api/email/weekly-reminder', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
+/**
+ * Client helpers for email testing. Requires a signed-in Firebase user;
+ * sends only to that user's email.
+ */
 
-    if (!response.ok) {
-      throw new Error('Failed to send weekly reminders')
-    }
-
-    const result = await response.json()
-    console.log(`Weekly reminders sent to ${result.sentTo} users`)
-    return result
-  } catch (error) {
-    console.error('Error sending weekly reminders:', error)
-    throw error
+async function getIdToken(): Promise<string> {
+  const { auth } = await import('@/lib/firebase')
+  const user = auth?.currentUser
+  if (!user) {
+    throw new Error('Sign in required to send test emails')
   }
+  return user.getIdToken()
 }
 
-export async function sendTestReminder(email: string) {
-  try {
-    const response = await fetch('/api/email/weekly-reminder', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email }),
-    })
+export async function sendTestReminder(email: string, displayName?: string) {
+  const idToken = await getIdToken()
+  const response = await fetch('/api/email/weekly-reminder', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${idToken}`,
+    },
+    body: JSON.stringify({ email, displayName }),
+  })
 
-    if (!response.ok) {
-      throw new Error('Failed to send test reminder')
-    }
-
-    return await response.json()
-  } catch (error) {
-    console.error('Error sending test reminder:', error)
-    throw error
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new Error(data.error || 'Failed to send test reminder')
   }
-} 
+
+  return response.json()
+}

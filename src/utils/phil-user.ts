@@ -7,7 +7,12 @@ export const PHIL_USER = {
   uid: 'phil-hardcoded',
   displayName: 'Phil',
   email: 'phil@example.com',
-  superBowlPick: 'CAR', // Carolina Panthers
+  /** @deprecated use superBowlPicks */
+  superBowlPick: 'CAR',
+  superBowlPicks: {
+    '2025': 'CAR',
+    '2026': 'CAR'
+  } as Record<string, string>,
   createdAt: new Date('2024-01-01'),
   updatedAt: new Date('2024-01-01')
 }

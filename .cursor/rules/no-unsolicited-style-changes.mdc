@@ -1,0 +1,27 @@
+---
+description: Do not change visual style unless the user asks for it
+alwaysApply: true
+---
+
+# No Unsolicited Style Changes
+
+When fixing bugs or making functional changes, **do not alter visual design** unless the user explicitly asks for style/UI changes.
+
+## Rules
+
+- Fix the underlying behavior only (data, logic, loading, conditions).
+- Keep existing markup, class names, layout, colors, shapes, spacing, and typography as-is.
+- Do not "improve" presentation by borrowing patterns from other components (e.g. wrapping an image in a circular badge) when the task is to make something work.
+- If a style change would help, ask first — do not apply it proactively.
+
+## Examples
+
+```tsx
+// ❌ BAD — user asked to make the logo show; agent redesigned it
+<span className="rounded-full bg-black p-2">
+  <img src={logoSrc} className="w-8 h-8 object-contain" />
+</span>
+
+// ✅ GOOD — same original markup; only ensure src/data is available
+<img src={logoSrc} className="w-16 aspect-video object-cover" />
+```

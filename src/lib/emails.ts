@@ -1,8 +1,5 @@
 import { Resend } from 'resend'
-import { sendSignInLinkToEmail } from 'firebase/auth'
-import { auth } from './firebase'
-
-console.log("RESEND_API_KEY:", process.env.RESEND_API_KEY);
+import { escapeHtml } from '@/utils/html-escape'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -14,28 +11,32 @@ export interface EmailData {
 
 export const emailService = {
   async addToAudience(email: string, displayName?: string) {
+    const audienceId = process.env.RESEND_AUDIENCE_ID
+    if (!audienceId) {
+      return
+    }
+
     try {
-      // Add contact to the "general" audience list
       await resend.contacts.create({
         email,
         first_name: displayName || undefined,
         unsubscribed: false,
-        audience_id: 'general' // This should match your audience ID in Resend
+        audience_id: audienceId,
       })
-      console.log(`Successfully added ${email} to general audience`)
     } catch (error: any) {
       // If contact already exists (409), that's fine - they're already in the audience
       if (error.statusCode === 409) {
-        console.log(`Contact ${email} already exists in general audience`)
-      } else {
-        console.error('Error adding contact to audience:', error)
+        return
       }
+      console.error('Error adding contact to audience:', error)
     }
   },
 
   async sendWelcomeEmail(email: string, displayName?: string) {
-    // Add user to audience list first
     await this.addToAudience(email, displayName)
+
+    const safeName = escapeHtml(displayName || 'there')
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://jimsclipboard.com'
 
     const html = `
       <!DOCTYPE html>
@@ -57,14 +58,13 @@ export const emailService = {
         <body>
           <div class="container">
             <div class="content">
-              <h2>Hey ${displayName || 'there'}!</h2>
+              <h2>Hey ${safeName}!</h2>
               <p>David Carroll here. If you're like me, football season isn't the same without Jim's Clipboard. This app is my attempt to scratch that itch.</p>
-              <p>I tried to make it as true to the original as possible. The only remaining thing required for setup is to login and add your first name in settings.</p>
-              <p>Every Tuesday starts a fresh week and you can make your picks. Note: When a game starts, picking is locked.</p>
-              <p>Other steps you can take in settings: add your prediction for who will win the Super Bowl, and if you want to be reminded to make your picks each week.</p>
-              <p>That's pretty much it! If you notice any bugs or have any feedback feel free to <a class="email-link" href="mailto:david@hazeltine.co">email me</a>.</p>
-              <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://jimsclipboard.com'}/signin" class="button magic-link">📋 TO THE CLIPBOARD!</a></p>
-              <p>PS: Jim! I built this without you knowing so if I'm ruining your legacy just say the word and I'll pull the plug! ;)</p>
+              <p>Anyway, welcome! You're almost done with setup. Go sign in and add your first name in settings.</p>
+              <p>Every Wednesday starts a fresh week. Note: When a game starts, picks (or lack thereof) are locked. So get there while you can!</p>
+              <p>Other steps you can take in settings: Add your prediction for who will win the Super Bowl before regular season starts. Opt-in to weekly email reminders.</p>
+              <p>That's pretty much it. <a class="email-link" href="mailto:david@hazeltine.co">Email me</a> with bugs or feedback.</p>
+              <p><a href="${appUrl}/signin" class="button magic-link">📋 TO THE CLIPBOARD!</a></p>
             </div>
             <div class="footer">
               <p style="font-style: italic;">I promise I won't bug you with a bunch of emails!</p>
@@ -82,11 +82,20 @@ export const emailService = {
     })
   },
 
-  async sendWeeklyReminder(email: string, displayName?: string, weekNumber?: number) {
-    console.log('sendWeeklyReminder called with:', { email, displayName, weekNumber })
-    const weekText = weekNumber ? `Week ${weekNumber} is up!` : 'A new week is up!';
-    const subject = weekNumber ? `Week ${weekNumber} 📋🏈✅ Make Your Picks!` : 'New Week 📋🏈✅ Make Your Picks!';
-    console.log('Email template variables:', { displayName, weekText, finalHeading: displayName ? `${displayName}! ${weekText}` : `Hiya! ${weekText}` })
+  async sendWeeklyReminder(email: string, displayName?: string, weekLabelOrNumber?: string | number) {
+    const weekLabel =
+      typeof weekLabelOrNumber === 'number'
+        ? `Week ${weekLabelOrNumber}`
+        : typeof weekLabelOrNumber === 'string' && weekLabelOrNumber.trim()
+          ? weekLabelOrNumber.trim()
+          : null
+    const weekText = weekLabel ? `${escapeHtml(weekLabel)} is up!` : 'A new week is up!'
+    const subject = weekLabel ? `${weekLabel} 📋🏈✅ Make Your Picks!` : 'New Week 📋🏈✅ Make Your Picks!'
+    const heading = displayName
+      ? `${escapeHtml(displayName)}! ${weekText}`
+      : `Hiya! ${weekText}`
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://jimsclipboard.com'
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -107,11 +116,9 @@ export const emailService = {
         <body>
           <div class="container">
             <div class="content" style="text-align: center;">
-              <h2>${displayName ? `${displayName}! ${weekText}` : `Hiya! ${weekText}`}</h2>
+              <h2>${heading}</h2>
               <p>Reminder, when a game starts, picking is locked, so get there while you can!</p>
-              <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://jimsclipboard.com'}/signin" class="button magic-link">📋 MAKE YOUR PICKS!</a></p>
-            </div>
-            <div class="footer">
+              <p><a href="${appUrl}/signin" class="button magic-link">START PICKIN!</a></p>
               <p style="font-style: italic;">Good luck :)</p>
             </div>
           </div>
@@ -125,5 +132,24 @@ export const emailService = {
       subject,
       html
     })
+  },
+
+  /** Send reminders one-by-one so a single Resend failure doesn't abort the batch. */
+  async sendWeeklyRemindersBatch(
+    recipients: Array<{ email: string; displayName?: string }>,
+    weekLabel: string
+  ): Promise<{ sent: number; failed: number }> {
+    let sent = 0
+    let failed = 0
+    for (const recipient of recipients) {
+      try {
+        await this.sendWeeklyReminder(recipient.email, recipient.displayName, weekLabel)
+        sent++
+      } catch (error) {
+        failed++
+        console.error('Failed to send weekly reminder to a recipient:', error)
+      }
+    }
+    return { sent, failed }
   }
-} 
+}

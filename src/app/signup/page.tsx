@@ -70,10 +70,12 @@ function SignUpPage() {
 
       // Send welcome email
       try {
+        const idToken = await userCredential.user.getIdToken()
         await fetch('/api/email/welcome', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            Authorization: `Bearer ${idToken}`,
           },
           body: JSON.stringify({ email }),
         })

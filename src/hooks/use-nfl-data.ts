@@ -30,11 +30,12 @@ export const useTeams = () => {
   })
 }
 
-export const useGamesForWeek = (start: Date, end: Date) => {
+export const useGamesForWeek = (start: Date, end: Date, enabled = true) => {
   return useQuery({
     queryKey: ['games-for-week', start.toISOString(), end.toISOString()],
     queryFn: () => espnApi.getGamesForDateRange(start, end),
     staleTime: 0, // Always fetch fresh data on mount/refresh
+    enabled,
   })
 }
 

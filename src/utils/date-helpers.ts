@@ -120,7 +120,7 @@ export const dateHelpers = {
 
 // Result can be week data, off-season sentinel (so UI redirects instead of showing error), or null (API/network failure)
 export type CurrentNFLWeekResult =
-  | { week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'; startDate: Date; endDate: Date }
+  | { week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'; startDate: Date; endDate: Date; label?: string }
   | { offSeason: true }
   | null
 
@@ -167,7 +167,7 @@ export async function getSeasonAndWeek(date: Date = new Date()) {
     if (result && 'week' in result) {
       const nflWeek = result
       const season = String(nflWeek.season)
-      const week = nflWeek.weekType === 'preseason' ? `preseason-${nflWeek.week}` : nflWeek.weekType === 'pro-bowl' ? `pro-bowl-${nflWeek.week}` : `week-${nflWeek.week}`
+      const week = getWeekKey(nflWeek.weekType, nflWeek.week, nflWeek.label)
       return { season, week }
     }
   } catch (error) {

@@ -286,18 +286,6 @@ export const espnApi = {
         const bettingFavorite = getFavoriteFromOdds(competition.odds)
         const favoriteTeam = bettingFavorite || getFavoriteTeam(homeTeamData, awayTeamData)
         
-        // Debug logging for favorites
-        if (homeTeamData.abbreviation === 'SEA' || awayTeamData.abbreviation === 'SEA' || 
-            homeTeamData.abbreviation === 'CHI' || awayTeamData.abbreviation === 'CHI') {
-          console.log(`🏈 Today's Game ${homeTeamData.abbreviation} vs ${awayTeamData.abbreviation}:`, {
-            bettingFavorite,
-            homeRecord: `${homeTeamData.wins}-${homeTeamData.losses}-${homeTeamData.ties}`,
-            awayRecord: `${awayTeamData.wins}-${awayTeamData.losses}-${awayTeamData.ties}`,
-            favoriteTeam,
-            odds: competition.odds
-          })
-        }
-        
         return {
           id: String(event.id ?? ''),
           date: event.date,
@@ -660,7 +648,7 @@ export const espnApi = {
     }
   },
 
-  // Get all available weeks for a season (excluding preseason and pro bowl)
+  // Get all available weeks for a season (includes preseason; excludes pro bowl)
   async getAllAvailableWeeks(season: number): Promise<Array<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'; startDate: Date; endDate: Date; label?: string }>> {
     try {
       // Get the schedule for the season
@@ -697,21 +685,19 @@ export const espnApi = {
                 const entryLabelProBowl = entry.label?.toLowerCase().includes('pro bowl') ?? false
                 if (entryLabelProBowl) weekType = 'pro-bowl'
 
-                // Skip preseason and pro bowl weeks (inconsequential for team records / stats)
-                if (weekType !== 'preseason' && weekType !== 'pro-bowl') {
-                  // NFL regular season is 18 weeks only (272 games). ESPN may expose a 19th entry; exclude it.
-                  if (weekType === 'regular' && (weekNumber < 1 || weekNumber > 18)) continue
-                  // Normalize the label for consistent naming
-                  const normalizedLabel = entry.label ? normalizeRoundName(entry.label) : undefined
-                  weeks.push({ 
-                    week: weekNumber, 
-                    season, 
-                    weekType, 
-                    startDate, 
-                    endDate, 
-                    label: normalizedLabel 
-                  })
-                }
+                // Skip pro bowl only — preseason is included for dress-rehearsal picks
+                if (weekType === 'pro-bowl') continue
+                // NFL regular season is 18 weeks only (272 games). ESPN may expose a 19th entry; exclude it.
+                if (weekType === 'regular' && (weekNumber < 1 || weekNumber > 18)) continue
+                const normalizedLabel = entry.label ? normalizeRoundName(entry.label) : undefined
+                weeks.push({
+                  week: weekNumber,
+                  season,
+                  weekType,
+                  startDate,
+                  endDate,
+                  label: normalizedLabel
+                })
               }
             }
           }
@@ -730,7 +716,7 @@ export const espnApi = {
       // Sort by start date (oldest first)
       deduped.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
 
-      console.log(`📅 ESPN API: Found ${deduped.length} available weeks (excluding preseason and pro bowl) for season ${season}`)
+      console.log(`📅 ESPN API: Found ${deduped.length} available weeks (incl. preseason, excl. pro bowl) for season ${season}`)
       return deduped
     } catch (error) {
       console.error(`Error fetching all weeks for season ${season}:`, error)
@@ -811,18 +797,6 @@ export const espnApi = {
           // Use betting odds to determine favorite, fallback to win-loss records
           const bettingFavorite = getFavoriteFromOdds(competition.odds)
           const favoriteTeam = bettingFavorite || getFavoriteTeam(homeTeamData, awayTeamData)
-          
-          // Debug logging for favorites
-          if (homeTeamData.abbreviation === 'SEA' || awayTeamData.abbreviation === 'SEA' || 
-              homeTeamData.abbreviation === 'CHI' || awayTeamData.abbreviation === 'CHI') {
-            console.log(`🏈 Game ${homeTeamData.abbreviation} vs ${awayTeamData.abbreviation}:`, {
-              bettingFavorite,
-              homeRecord: `${homeTeamData.wins}-${homeTeamData.losses}-${homeTeamData.ties}`,
-              awayRecord: `${awayTeamData.wins}-${awayTeamData.losses}-${awayTeamData.ties}`,
-              favoriteTeam,
-              odds: competition.odds
-            })
-          }
           
           return {
             id: String(event.id ?? ''),

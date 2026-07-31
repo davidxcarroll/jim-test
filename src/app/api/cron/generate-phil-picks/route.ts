@@ -2,15 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { generateAndStorePhilPicks } from '@/utils/phil-user'
 import { espnApi } from '@/lib/espn-api'
 import { getCurrentNFLWeekFromAPI, getWeekKey } from '@/utils/date-helpers'
+import { assertCronAuthorized } from '@/lib/api-auth'
 
 export async function POST(request: NextRequest) {
-  // Verify the request is from a legitimate cron service
-  const authHeader = request.headers.get('authorization')
-  
-  // Verify the request is from Vercel cron
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authError = assertCronAuthorized(request)
+  if (authError) return authError
 
   try {
     console.log('🏈 Starting Wednesday Phil picks generation (Two-Pass System)...')

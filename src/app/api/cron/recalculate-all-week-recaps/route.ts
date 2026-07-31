@@ -2,36 +2,33 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/firebase'
 import { collection, getDocs, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { espnApi } from '@/lib/espn-api'
-import { getCurrentNFLWeekFromAPI, getWeekKey } from '@/utils/date-helpers'
+import { getWeekKey } from '@/utils/date-helpers'
+import { assertCronAuthorized } from '@/lib/api-auth'
+import { resolveRecapSeasonContext } from '@/utils/recap-season'
 
 export async function POST(request: NextRequest) {
-  // Verify the request is from a legitimate cron service
-  const authHeader = request.headers.get('authorization')
-  
-  // Verify the request is from Vercel cron
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authError = assertCronAuthorized(request)
+  if (authError) return authError
 
   try {
     console.log('📊 Starting weekly full recalculation of all week recaps...')
 
-    // Get current NFL week to know what weeks are in the past
-    const currentWeekResult = await getCurrentNFLWeekFromAPI()
-    if (!currentWeekResult || 'offSeason' in currentWeekResult) {
-      console.error('❌ Could not get current NFL week from ESPN API (or off-season)')
+    const seasonCtx = await resolveRecapSeasonContext()
+    if (!seasonCtx) {
+      console.error('❌ Could not resolve NFL season for week recaps')
       return NextResponse.json(
-        { error: 'Could not get current NFL week from ESPN API' },
+        { error: 'Could not resolve NFL season for week recaps' },
         { status: 500 }
       )
     }
 
-    const currentWeek = currentWeekResult
-    console.log(`📅 Current week: ${currentWeek.week} (${currentWeek.weekType}), Season: ${currentWeek.season}`)
+    const season = seasonCtx.season
+    console.log(
+      `📅 Recap season: ${season}${seasonCtx.offSeason ? ' (off-season finalize)' : ''}`
+    )
 
-    // Get all available weeks for the current season
-    const allWeeks = await espnApi.getAllAvailableWeeks(currentWeek.season)
-    console.log(`📅 Found ${allWeeks.length} weeks for season ${currentWeek.season}`)
+    const allWeeks = await espnApi.getAllAvailableWeeks(season)
+    console.log(`📅 Found ${allWeeks.length} weeks for season ${season}`)
 
     // Get all users
     const usersSnapshot = await getDocs(collection(db, 'users'))

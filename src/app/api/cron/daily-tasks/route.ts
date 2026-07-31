@@ -2,20 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { emailService } from '@/lib/emails'
 import { collection, query, where, getDocs, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { getSeasonAndWeek, getCurrentNFLWeekFromAPI, getWeekKey } from '@/utils/date-helpers'
+import { getRoundDisplayName, getWeekKey } from '@/utils/date-helpers'
 import { espnApi } from '@/lib/espn-api'
+import { assertCronAuthorized } from '@/lib/api-auth'
+import { resolveRecapSeasonContext } from '@/utils/recap-season'
 
 export async function POST(request: NextRequest) {
-  // Verify the request is from a legitimate cron service
-  const authHeader = request.headers.get('authorization')
-  
-  // Verify the request is from Vercel cron
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authError = assertCronAuthorized(request)
+  if (authError) return authError
 
   const results: {
-    weeklyReminders?: { success: boolean; sentTo?: number; error?: string }
+    weeklyReminders?: { success: boolean; sentTo?: number; failed?: number; error?: string }
     weekRecaps?: { success: boolean; processed?: number; succeeded?: number; failed?: number; error?: string }
   } = {}
 
@@ -23,7 +20,6 @@ export async function POST(request: NextRequest) {
   const dayOfWeek = today.getDay() // 0 = Sunday, 1 = Monday, etc.
 
   try {
-    // Check if Firebase is initialized
     if (!db) {
       return NextResponse.json(
         { error: 'Firebase not initialized' },
@@ -31,34 +27,51 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // TASK 1: Weekly Reminders (only on Mondays)
-    if (dayOfWeek === 1) {
+    // TASK 1: Weekly Reminders (Wednesdays — when the NFL week turns over)
+    if (dayOfWeek === 3) {
       try {
         console.log('📧 Running weekly reminders task...')
-        const { season, week } = await getSeasonAndWeek(today)
-        const finalWeekNumber = parseInt(week.replace('week-', ''), 10)
-
-        const usersRef = collection(db, 'users')
-        const q = query(usersRef, where('emailNotifications', '==', true))
-        const querySnapshot = await getDocs(q)
-        
-        const emailPromises = querySnapshot.docs.map(doc => {
-          const userData = doc.data()
-          console.log('Sending email to user:', { email: userData.email, displayName: userData.displayName })
-          return emailService.sendWeeklyReminder(
-            userData.email,
-            userData.displayName,
-            finalWeekNumber
+        const seasonCtx = await resolveRecapSeasonContext()
+        if (!seasonCtx || seasonCtx.offSeason || !seasonCtx.currentWeek) {
+          console.log('📧 Skipping weekly reminders — off-season or no current week')
+          results.weeklyReminders = { success: true, sentTo: 0 }
+        } else {
+          const currentWeek = seasonCtx.currentWeek
+          const weekLabel = getRoundDisplayName(
+            currentWeek.label,
+            currentWeek.weekType,
+            currentWeek.week
           )
-        })
 
-        await Promise.all(emailPromises)
-        
-        results.weeklyReminders = {
-          success: true,
-          sentTo: querySnapshot.size
+          const usersRef = collection(db, 'users')
+          const q = query(usersRef, where('emailNotifications', '==', true))
+          const querySnapshot = await getDocs(q)
+
+          const recipients = []
+          for (const userDoc of querySnapshot.docs) {
+            const userData = userDoc.data()
+            if (!userData.email) {
+              console.warn('Skipping user without email:', userDoc.id)
+              continue
+            }
+            recipients.push({
+              email: userData.email as string,
+              displayName: userData.displayName as string | undefined,
+            })
+          }
+
+          const { sent, failed } = await emailService.sendWeeklyRemindersBatch(
+            recipients,
+            weekLabel
+          )
+
+          results.weeklyReminders = {
+            success: true,
+            sentTo: sent,
+            failed,
+          }
+          console.log(`✅ Weekly reminders sent to ${sent} users (${weekLabel}), ${failed} failed`)
         }
-        console.log(`✅ Weekly reminders sent to ${querySnapshot.size} users`)
       } catch (error) {
         console.error('❌ Error sending weekly reminder emails:', error)
         results.weeklyReminders = {
@@ -68,29 +81,32 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // TASK 2: Calculate Week Recaps (runs daily)
+    // TASK 2: Calculate Week Recaps (runs daily; continues in off-season for last season)
     try {
       console.log('📊 Running week recap calculation task...')
-      const currentWeekResult = await getCurrentNFLWeekFromAPI()
-      if (!currentWeekResult || 'offSeason' in currentWeekResult) {
-        throw new Error('Could not get current NFL week from ESPN API')
+      const seasonCtx = await resolveRecapSeasonContext()
+      if (!seasonCtx) {
+        throw new Error('Could not resolve NFL season for week recaps')
       }
-      const currentWeek = currentWeekResult
-      console.log(`📅 Current week: ${currentWeek.week} (${currentWeek.weekType}), Season: ${currentWeek.season}`)
 
-      const allWeeks = await espnApi.getAllAvailableWeeks(currentWeek.season)
-      console.log(`📅 Found ${allWeeks.length} weeks for season ${currentWeek.season}`)
+      const season = seasonCtx.season
+      console.log(
+        `📅 Recap season: ${season}${seasonCtx.offSeason ? ' (off-season finalize)' : ''}`
+      )
+
+      const allWeeks = await espnApi.getAllAvailableWeeks(season)
+      console.log(`📅 Found ${allWeeks.length} weeks for season ${season}`)
 
       const weekRecapsSnapshot = await getDocs(collection(db, 'weekRecaps'))
       const existingRecaps = new Map(
-        weekRecapsSnapshot.docs.map(doc => [doc.id, doc.data()])
+        weekRecapsSnapshot.docs.map((docSnap) => [docSnap.id, docSnap.data()])
       )
       console.log(`💾 Found ${existingRecaps.size} existing week recaps`)
 
       const usersSnapshot = await getDocs(collection(db, 'users'))
-      const users = usersSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+      const users = usersSnapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
       } as any)).filter((user: any) => user.displayName)
       console.log(`👥 Found ${users.length} users`)
 
@@ -101,16 +117,14 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Use getWeekKey to ensure consistent formatting with how picks are stored
         const weekKey = getWeekKey(week.weekType, week.week, week.label)
-        
         const weekId = `${week.season}_${weekKey}`
         const existingRecap = existingRecaps.get(weekId)
 
         if (existingRecap) {
           const recapCalculatedAt = existingRecap.calculatedAt?.toDate?.() || new Date(existingRecap.calculatedAt || 0)
           const weekEnded = week.endDate < today
-          
+
           if (weekEnded && recapCalculatedAt < week.endDate) {
             console.log(`⚠️  ${weekId} - recap calculated before week ended, will recalculate`)
           } else {
@@ -226,7 +240,7 @@ export async function POST(request: NextRequest) {
       message: 'Daily tasks completed',
       dayOfWeek,
       tasksRun: {
-        weeklyReminders: dayOfWeek === 1,
+        weeklyReminders: dayOfWeek === 3,
         weekRecaps: true
       },
       results,
@@ -245,4 +259,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-

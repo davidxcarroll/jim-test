@@ -9,7 +9,10 @@ import { Team } from '@/types/nfl'
 import { loadTeamColorMappings, getTeamColorMapping } from '@/store/team-color-mapping-store'
 import { useClipboardVisibilityStore } from '@/store/clipboard-visibility-store'
 import { useAuthStore } from '@/store/auth-store'
-import { PHIL_USER } from '@/utils/phil-user'
+import {
+  getActiveSuperBowlSeasonYear,
+  getSuperBowlPickForSeason
+} from '@/utils/super-bowl-picks'
 import React from 'react'
 
 interface User {
@@ -182,19 +185,19 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
       const usersQuery = query(collection(db, 'users'), orderBy('displayName'))
       const querySnapshot = await getDocs(usersQuery)
 
+      const seasonYear = getActiveSuperBowlSeasonYear()
       const usersData: User[] = []
-      querySnapshot.forEach((doc) => {
-        const data = doc.data()
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data()
         usersData.push({
-          uid: doc.id,
+          uid: docSnap.id,
           email: data.email || '',
           displayName: data.displayName || 'Unknown',
-          superBowlPick: data.superBowlPick || '',
+          superBowlPick: getSuperBowlPickForSeason(data, seasonYear),
           createdAt: data.createdAt,
           updatedAt: data.updatedAt
         })
       })
-
 
       setUsers(usersData)
 

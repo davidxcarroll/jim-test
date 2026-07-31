@@ -2,19 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { emailService } from '@/lib/emails'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { getSeasonAndWeek } from '@/utils/date-helpers'
+import { getCurrentNFLWeekFromAPI, getRoundDisplayName } from '@/utils/date-helpers'
+import { assertCronAuthorized } from '@/lib/api-auth'
 
+/**
+ * Manual / legacy weekly reminder endpoint.
+ * Production schedule uses /api/cron/daily-tasks on Wednesdays.
+ */
 export async function POST(request: NextRequest) {
-  // Verify the request is from a legitimate cron service
-  const authHeader = request.headers.get('authorization')
-  
-  // Verify the request is from Vercel cron
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authError = assertCronAuthorized(request)
+  if (authError) return authError
 
   try {
-    // Check if Firebase is initialized
     if (!db) {
       return NextResponse.json(
         { error: 'Firebase not initialized' },
@@ -22,45 +21,65 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const today = new Date()
-    const { season, week } = await getSeasonAndWeek(today)
-
-    // Accept weekNumber from request body if provided (for manual override)
-    let manualWeekNumber: number | undefined = undefined
+    let manualWeekLabel: string | undefined
     try {
       const body = await request.json()
-      if (body && typeof body.weekNumber === 'number') {
-        manualWeekNumber = body.weekNumber
+      if (body && typeof body.weekLabel === 'string') {
+        manualWeekLabel = body.weekLabel
+      } else if (body && typeof body.weekNumber === 'number') {
+        manualWeekLabel = `Week ${body.weekNumber}`
       }
-    } catch (e) {
+    } catch {
       // Ignore if no body or invalid JSON
     }
 
-    // Use manual week number if provided, otherwise extract number from week string
-    const finalWeekNumber = manualWeekNumber || parseInt(week.replace('week-', ''), 10)
+    const currentWeekResult = await getCurrentNFLWeekFromAPI()
+    if (!currentWeekResult || 'offSeason' in currentWeekResult) {
+      return NextResponse.json({
+        success: true,
+        sentTo: 0,
+        skipped: true,
+        reason: 'off-season or no current week',
+        timestamp: new Date().toISOString(),
+      })
+    }
 
-    // Get all users who have opted in to email notifications
+    const weekLabel =
+      manualWeekLabel ||
+      getRoundDisplayName(
+        currentWeekResult.label,
+        currentWeekResult.weekType,
+        currentWeekResult.week
+      )
+
     const usersRef = collection(db, 'users')
     const q = query(usersRef, where('emailNotifications', '==', true))
     const querySnapshot = await getDocs(q)
-    
-    const emailPromises = querySnapshot.docs.map(doc => {
-      const userData = doc.data()
-      console.log('Sending email to user:', { email: userData.email, displayName: userData.displayName })
-      return emailService.sendWeeklyReminder(
-        userData.email,
-        userData.displayName,
-        finalWeekNumber
-      )
-    })
 
-    await Promise.all(emailPromises)
-    
-    return NextResponse.json({ 
-      success: true, 
-      sentTo: querySnapshot.size,
-      weekNumber: finalWeekNumber,
-      timestamp: new Date().toISOString()
+    const recipients = []
+    for (const userDoc of querySnapshot.docs) {
+      const userData = userDoc.data()
+      if (!userData.email) {
+        console.warn('Skipping user without email:', userDoc.id)
+        continue
+      }
+      recipients.push({
+        email: userData.email as string,
+        displayName: userData.displayName as string | undefined,
+      })
+    }
+
+    const { sent, failed } = await emailService.sendWeeklyRemindersBatch(
+      recipients,
+      weekLabel
+    )
+
+    return NextResponse.json({
+      success: true,
+      sentTo: sent,
+      failed,
+      weekLabel,
+      timestamp: new Date().toISOString(),
     })
   } catch (error) {
     console.error('Error sending weekly reminder emails:', error)
@@ -69,4 +88,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-} 
+}

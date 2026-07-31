@@ -22,6 +22,8 @@ import * as Checks from '@/components/checks'
 import * as Circles from '@/components/circles'
 import React from 'react'
 import { LiveGameDisplay } from '@/components/live-game-display'
+import { OffSeasonContent } from '@/components/off-season-content'
+import { ClipboardFooter } from '@/components/clipboard-footer'
 import { isWeekComplete, shouldWaitUntilNextMorning, getWeekKey, getRoundDisplayName } from '@/utils/date-helpers'
 import { useCurrentWeek } from '@/hooks/use-current-week'
 
@@ -200,9 +202,7 @@ function DashboardSkeleton() {
         </div>
       </div>
 
-      <div className="w-[] mt-8 2xl:text-8xl xl:text-7xl lg:text-6xl md:text-5xl sm:text-4xl text-3xl leading-none text-center font-bold text-black uppercase mix-blend-soft-light">
-        Long Live The Clipboard
-      </div>
+      <ClipboardFooter />
     </div>
   )
 }
@@ -216,21 +216,37 @@ function WeeklyMatchesPage() {
   const [isWeekDropdownOpen, setIsWeekDropdownOpen] = useState(false)
   const [allAvailableWeeks, setAllAvailableWeeks] = useState<Array<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'; startDate: Date; endDate: Date; label?: string }>>([])
   const [loadingWeeks, setLoadingWeeks] = useState(true)
+
+  type WeekSelectorItem = {
+    index: number
+    label?: string
+    weekNumber?: number
+    weekType?: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'
+    weekKey?: string
+    startDate?: Date
+  }
   
-  // Fetch all available weeks from API
+  // Fetch weeks for the current ESPN season only (off-season: no week list — wrap-up view)
   useEffect(() => {
     const fetchAllWeeks = async () => {
-      if (!weekInfo) return
-      
+      if (!weekInfo) {
+        setAllAvailableWeeks([])
+        setLoadingWeeks(false)
+        return
+      }
       try {
         setLoadingWeeks(true)
         const { espnApi } = await import('@/lib/espn-api')
         const weeks = await espnApi.getAllAvailableWeeks(weekInfo.season)
-        // Exclude Pro Bowl from week selector entirely (no option in dropdown)
         const weeksWithoutProBowl = weeks.filter(
-          w => w.weekType !== 'pro-bowl' && !w.label?.toLowerCase().includes('pro bowl')
+          (w) => w.weekType !== 'pro-bowl' && !w.label?.toLowerCase().includes('pro bowl')
         )
-        setAllAvailableWeeks(weeksWithoutProBowl)
+        // Preseason dress rehearsal: only preseason weeks. Regular/postseason: exclude preseason.
+        const filtered =
+          weekInfo.weekType === 'preseason'
+            ? weeksWithoutProBowl.filter((w) => w.weekType === 'preseason')
+            : weeksWithoutProBowl.filter((w) => w.weekType !== 'preseason')
+        setAllAvailableWeeks(filtered)
       } catch (error) {
         console.error('Error fetching all available weeks:', error)
         setAllAvailableWeeks([])
@@ -238,118 +254,114 @@ function WeeklyMatchesPage() {
         setLoadingWeeks(false)
       }
     }
-    
     fetchAllWeeks()
-  }, [weekInfo?.season])
+  }, [weekInfo?.season, weekInfo?.weekType])
 
-  // Get available weeks - use all weeks from API, filter to show only past/current weeks
-  const availableWeeks = React.useMemo(() => {
+  // Week selector items for current season (no prior-season bookend in the picks UI)
+  const availableWeeks = React.useMemo((): WeekSelectorItem[] => {
+    if (!weekInfo) return []
+
+    const weeks: WeekSelectorItem[] = []
     const today = new Date()
     const isWednesday = dateHelpers.isNewWeekDay(today)
-    
-    // If we have all available weeks from API, use them
-    if (allAvailableWeeks.length > 0 && weekInfo) {
-      const weeks: Array<{ index: number; weekNumber: number; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'; weekKey: string; label?: string; startDate: Date }> = []
-      
-      // Find the index of the current week
-      const currentWeekIndex = allAvailableWeeks.findIndex(w => 
-        w.week === weekInfo.week && 
+    const currentWeekIndexInApi = allAvailableWeeks.findIndex(
+      (w) =>
+        w.week === weekInfo.week &&
         w.weekType === weekInfo.weekType &&
         w.season === weekInfo.season
-      )
-      
-      // Show all weeks up to and including the current week
-      // Only show weeks that have started or are starting today
-      for (let i = 0; i <= currentWeekIndex; i++) {
-        const week = allAvailableWeeks[i]
-        const weekHasStarted = week.startDate <= today
-        
-        // Show current week if it's Wednesday or later, or if it has started
-        const isCurrentWeek = i === currentWeekIndex
-        const shouldShowCurrentWeek = isCurrentWeek && (isWednesday || weekHasStarted)
-        
-        // Skip Pro Bowl — never show in week selector
-        const isProBowl = week.weekType === 'pro-bowl' || week.label?.toLowerCase().includes('pro bowl')
-        if (isProBowl) continue
+    )
 
-        if (shouldShowCurrentWeek || (i < currentWeekIndex && weekHasStarted)) {
-          const weekKey = getWeekKey(week.weekType, week.week, week.label)
-          
-          weeks.push({
-            index: i,
-            weekNumber: week.week,
-            weekType: week.weekType,
-            weekKey: `${week.season}_${weekKey}`,
-            label: week.label,
-            startDate: week.startDate
-          })
-        }
+    for (let i = 0; i < allAvailableWeeks.length; i++) {
+      const week = allAvailableWeeks[i]
+      const weekHasStarted = week.startDate <= today
+      const isCurrentWeek = i === currentWeekIndexInApi
+      const shouldShowCurrentWeek = isCurrentWeek && (isWednesday || weekHasStarted)
+
+      if (shouldShowCurrentWeek || (currentWeekIndexInApi >= 0 && i < currentWeekIndexInApi && weekHasStarted)) {
+        const weekKey = getWeekKey(week.weekType, week.week, week.label)
+        weeks.push({
+          index: weeks.length,
+          weekNumber: week.week,
+          weekType: week.weekType,
+          weekKey: `${week.season}_${weekKey}`,
+          label: week.label,
+          startDate: week.startDate
+        })
       }
-      
-      return weeks
     }
-    
-    // Fallback: if API data not available yet, return empty array
-    return []
+
+    // Always expose the current week if the calendar list is empty or match failed
+    if (weeks.length === 0) {
+      const weekKey = getWeekKey(weekInfo.weekType, weekInfo.week, weekInfo.label)
+      weeks.push({
+        index: 0,
+        weekNumber: weekInfo.week,
+        weekType: weekInfo.weekType,
+        weekKey: `${weekInfo.season}_${weekKey}`,
+        label: weekInfo.label,
+        startDate: weekInfo.startDate
+      })
+    }
+
+    return weeks
   }, [allAvailableWeeks, weekInfo])
 
   // Calculate week data based on the selected week offset
   const getWeekData = (offset: number) => {
-    // If we have available weeks from the filtered list, use the one at the offset index
-    if (availableWeeks.length > 0 && offset < availableWeeks.length && allAvailableWeeks.length > 0) {
-      const selectedWeekItem = availableWeeks[offset]
-      // Find the full week info from allAvailableWeeks
-      const selectedWeek = allAvailableWeeks.find(w => 
-        w.week === selectedWeekItem.weekNumber && 
-        w.weekType === selectedWeekItem.weekType &&
-        w.season === weekInfo?.season
+    // Off-season wrap-up: no games
+    if (!weekInfo) {
+      const dummyStart = new Date('2000-01-01')
+      const dummyEnd = new Date('2000-01-02')
+      return {
+        start: dummyStart,
+        end: dummyEnd,
+        season: String(new Date().getFullYear()),
+        week: 'season',
+        weekNumber: 0,
+        isSeasonSummary: true as const
+      }
+    }
+
+    const selectedItem = availableWeeks[offset]
+    const seasonForLookup = weekInfo.season
+    if (availableWeeks.length > 0 && selectedItem) {
+      const selectedWeek = allAvailableWeeks.find(
+        (w) =>
+          w.week === selectedItem.weekNumber &&
+          w.weekType === selectedItem.weekType &&
+          w.season === seasonForLookup
       )
-      
       if (selectedWeek) {
         const weekKey = getWeekKey(selectedWeek.weekType, selectedWeek.week, selectedWeek.label)
-        
         return {
           start: selectedWeek.startDate,
           end: selectedWeek.endDate,
           season: String(selectedWeek.season),
           week: weekKey,
           weekNumber: selectedWeek.week,
-          weekInfo: selectedWeek
+          weekInfo: selectedWeek,
+          isSeasonSummary: false as const
         }
       }
     }
-    
-    // Fallback to old calculation if weeks not loaded yet
-    if (weekInfo) {
-      const targetWeekNumber = weekInfo.week - offset
-      const targetWeekStart = new Date(weekInfo.startDate.getTime() - (offset * 7 * 24 * 60 * 60 * 1000))
-      const targetWeekEnd = new Date(weekInfo.endDate.getTime() - (offset * 7 * 24 * 60 * 60 * 1000))
-      
-      return {
-        start: targetWeekStart,
-        end: targetWeekEnd,
-        season: String(weekInfo.season),
-        week: weekInfo.weekType === 'preseason' ? `preseason-${targetWeekNumber}` : weekInfo.weekType === 'pro-bowl' ? `pro-bowl-${targetWeekNumber}` : `week-${targetWeekNumber}`,
-        weekNumber: targetWeekNumber
-      }
-    }
-    
-    // Final fallback
-    const today = new Date()
-    const fallbackWeekStart = new Date(today.getTime() - (offset * 7 * 24 * 60 * 60 * 1000))
-    const fallbackWeekEnd = new Date(fallbackWeekStart.getTime() + (6 * 24 * 60 * 60 * 1000))
-    
+
+    const weekKey = getWeekKey(weekInfo.weekType, weekInfo.week, weekInfo.label)
     return {
-      start: fallbackWeekStart,
-      end: fallbackWeekEnd,
-      season: '2025',
-      week: `week-${2 - offset}`,
-      weekNumber: 2 - offset
+      start: weekInfo.startDate,
+      end: weekInfo.endDate,
+      season: String(weekInfo.season),
+      week: weekKey,
+      weekNumber: weekInfo.week,
+      isSeasonSummary: false as const
     }
   }
 
   const currentWeekData = getWeekData(weekOffset)
-  const { data: games, isLoading } = useGamesForWeek(currentWeekData.start, currentWeekData.end)
+  const { data: games, isLoading } = useGamesForWeek(
+    currentWeekData.start,
+    currentWeekData.end,
+    !currentWeekData.isSeasonSummary
+  )
   
 
   const [users, setUsers] = useState<any[]>([])
@@ -456,8 +468,9 @@ function WeeklyMatchesPage() {
   // Note: Phil's picks are generated automatically on Wednesday mornings via cron job
   // However, we also generate them on-demand if they're missing to ensure they always appear
 
-  // Fetch all user picks for this week
+  // Fetch all user picks for this week (skip when "2025 Season" bookend is selected)
   useEffect(() => {
+    if ('isSeasonSummary' in currentWeekData && currentWeekData.isSeasonSummary) return
     if (visibleUsers.length === 0 || clipboardLoading || !games || games.length === 0) return
 
     // Add a small delay to prevent rapid re-fetching when settings change
@@ -636,28 +649,30 @@ function WeeklyMatchesPage() {
     }
   }
 
-  // Set initial week offset to current week when weeks are loaded
+  // Default to current week when the selector is ready
+  const hasSetInitialWeek = React.useRef(false)
   useEffect(() => {
-    if (availableWeeks.length > 0 && weekInfo) {
-      const currentWeekIndex = availableWeeks.findIndex(w => 
-        w.weekNumber === weekInfo.week && 
-        w.weekType === weekInfo.weekType
-      )
-      if (currentWeekIndex >= 0 && weekOffset === 0) {
-        setWeekOffset(currentWeekIndex)
-      }
-    }
-  }, [availableWeeks.length, weekInfo])
-
-  // Redirect to off-season page if no week info available (Pro Bowl week is skipped; API returns next week)
+    hasSetInitialWeek.current = false
+  }, [weekInfo?.season, weekInfo?.weekType])
   useEffect(() => {
-    if (!weekLoading && !weekError && !weekInfo) {
-      router.push('/off-season')
+    if (hasSetInitialWeek.current || !weekInfo || availableWeeks.length === 0) return
+    const currentWeekItem = availableWeeks.find(
+      (w) => w.weekNumber === weekInfo.week && w.weekType === weekInfo.weekType
+    )
+    if (currentWeekItem !== undefined) {
+      setWeekOffset(currentWeekItem.index)
+      hasSetInitialWeek.current = true
+    } else {
+      setWeekOffset(availableWeeks.length - 1)
+      hasSetInitialWeek.current = true
     }
-  }, [weekLoading, weekError, weekInfo, router])
+  }, [availableWeeks, weekInfo])
 
-  // Show skeleton while loading
-  if ((isLoading || loadingUsers || loadingPicks || clipboardLoading || weekLoading || loadingWeeks) && !loadTimeout) {
+  const isSeasonSummaryView = !weekInfo
+  const stillLoadingForSeasonView = weekLoading
+  const stillLoadingForWeekView = isLoading || loadingUsers || loadingPicks || clipboardLoading || weekLoading || loadingWeeks
+
+  if ((isSeasonSummaryView ? stillLoadingForSeasonView : stillLoadingForWeekView) && !loadTimeout) {
     return <DashboardSkeleton />
   }
 
@@ -677,13 +692,12 @@ function WeeklyMatchesPage() {
     )
   }
 
-  // If no week info and not loading, show loading state while redirect happens
-  if (!weekInfo && !weekLoading) {
-    return <DashboardSkeleton />
-  }
-
-  // Show error if timeout occurs
-  if (loadTimeout && (isLoading || loadingUsers || loadingPicks || clipboardLoading || weekLoading)) {
+  // Show error if timeout occurs (never when season summary view — we have enough to show the bookend)
+  if (
+    loadTimeout &&
+    !isSeasonSummaryView &&
+    (isLoading || loadingUsers || loadingPicks || clipboardLoading || weekLoading)
+  ) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen font-chakra text-2xl bg-neutral-100">
         <div className="mb-4 text-red-600 font-bold">Something went wrong loading the dashboard.</div>
@@ -708,6 +722,11 @@ function WeeklyMatchesPage() {
 
       <div className="flex flex-col lg:px-8 md:px-4 sm:px-2">
         <div className="flex flex-col pt-10 bg-neutral-100">
+          {/* Off-season wrap-up (winner + stats) */}
+          {isSeasonSummaryView ? (
+            <OffSeasonContent />
+          ) : (
+          <>
           {/* Main scrollable container */}
           <div className="md:pb-8 pb-4">
             <table className="min-w-full bg-neutral-100 border-separate" style={{ borderSpacing: 0 }}>
@@ -722,18 +741,14 @@ function WeeklyMatchesPage() {
                       >
                         {/* label */}
                         {(() => {
-                          // Find the current week info from available weeks
                           const currentWeekInfo = availableWeeks.find(w => w.index === weekOffset)
-
                           if (currentWeekInfo) {
                             return getRoundDisplayName(
                               currentWeekInfo.label,
-                              currentWeekInfo.weekType,
-                              currentWeekInfo.weekNumber
+                              currentWeekInfo.weekType!,
+                              currentWeekInfo.weekNumber!
                             )
                           }
-
-                          // Fallback if week not found
                           return 'Loading...'
                         })()}
                         <span className={`material-symbols-sharp transition-transform`}>
@@ -743,7 +758,7 @@ function WeeklyMatchesPage() {
                       {/* Dropdown overlay */}
                       {isWeekDropdownOpen && (
                         <div className="absolute top-full left-1/2 right-0 -translate-x-1/2 -translate-y-2 w-[calc(100%-20px)] xl:text-base text-sm bg-white shadow-[inset_0_0_0_1px_#000000] z-[70] shadow-2xl max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-black scrollbar-track-black">
-                          {[...availableWeeks].reverse().map((weekItem, index) => (
+                      {[...availableWeeks].reverse().map((weekItem) => (
                             <div
                               key={weekItem.index}
                               className={`px-3 py-2 cursor-pointer hover:bg-black hover:text-white font-bold text-center uppercase ${weekItem.index === weekOffset ? 'bg-black/10' : ''}`}
@@ -754,8 +769,8 @@ function WeeklyMatchesPage() {
                             >
                               {getRoundDisplayName(
                                 weekItem.label,
-                                weekItem.weekType,
-                                weekItem.weekNumber
+                                weekItem.weekType!,
+                                weekItem.weekNumber!
                               )}
                             </div>
                           ))}
@@ -1053,12 +1068,12 @@ function WeeklyMatchesPage() {
               </tbody>
             </table>
           </div>
+          </>
+          )}
         </div>
       </div>
 
-      <div className="w-[98dvw] mt-8 2xl:text-8xl xl:text-7xl lg:text-6xl md:text-5xl sm:text-4xl text-3xl leading-none text-center font-bold text-black uppercase mix-blend-soft-light">
-        Long Live The Clipboard
-      </div>
+      <ClipboardFooter />
 
       {/* User Stats Modal */}
       {selectedUser && (

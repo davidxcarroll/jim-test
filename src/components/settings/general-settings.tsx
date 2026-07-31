@@ -14,6 +14,12 @@ import { espnApi } from '@/lib/espn-api'
 import { loadTeamColorMappings, subscribeToTeamColorMappingChanges, getTeamColorMapping } from '@/store/team-color-mapping-store'
 import { isOnline, getNetworkStatusMessage } from '@/utils/network-utils'
 import { getCurrentNFLWeekFromAPI } from '@/utils/date-helpers'
+import {
+  getActiveSuperBowlSeasonYear,
+  getSuperBowlPickForSeason,
+  buildSuperBowlPicksUpdate,
+  SuperBowlPicksMap
+} from '@/utils/super-bowl-picks'
 
 interface UserSettings {
   displayName: string
@@ -39,7 +45,12 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
   const [selectedTeamStyle, setSelectedTeamStyle] = useState<{ background: string; logoType: 'default' | 'dark' | 'scoreboard' | 'darkScoreboard' }>({ background: '#F5F5F5', logoType: 'dark' })
   const [teams, setTeams] = useState<Team[]>([])
   const [networkStatus, setNetworkStatus] = useState<string>('')
+  /** Super Bowl pick locked once regular/postseason begins */
   const [isSeasonStarted, setIsSeasonStarted] = useState<boolean>(false)
+  /** Show Super Bowl picker only once preseason (or later) has started */
+  const [showSuperBowlPick, setShowSuperBowlPick] = useState<boolean>(false)
+  const [superBowlSeasonYear, setSuperBowlSeasonYear] = useState<number>(() => getActiveSuperBowlSeasonYear())
+  const [superBowlPicksMap, setSuperBowlPicksMap] = useState<SuperBowlPicksMap>({})
   const router = useRouter()
 
   // Fetch official, active teams from ESPN API on mount
@@ -76,31 +87,37 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
     loadTeamColorMappings(true)
   }, [])
 
-  // Check if season has started
+  // Super Bowl pick: hidden in off-season; editable in preseason; locked in regular/postseason
   useEffect(() => {
     async function checkSeasonStatus() {
       try {
         const result = await getCurrentNFLWeekFromAPI()
         if (result && 'week' in result) {
           const nflWeek = result
-          // Season has started if we're in regular season or postseason (not preseason or pro bowl)
+          setSuperBowlSeasonYear(getActiveSuperBowlSeasonYear(nflWeek.season))
+          setShowSuperBowlPick(true)
           setIsSeasonStarted(nflWeek.weekType === 'regular' || nflWeek.weekType === 'postseason')
+        } else {
+          // Off-season (or API returned offSeason): hide until preseason starts
+          setSuperBowlSeasonYear(getActiveSuperBowlSeasonYear())
+          setShowSuperBowlPick(false)
+          setIsSeasonStarted(false)
         }
       } catch (error) {
         console.error('Error checking season status:', error)
-        // Default to false if we can't determine
+        setShowSuperBowlPick(false)
         setIsSeasonStarted(false)
       }
     }
     checkSeasonStatus()
   }, [])
 
-  // Load user settings on component mount
+  // Load user settings on mount and when the active Super Bowl season year is known
   useEffect(() => {
     if (user) {
       loadUserSettings()
     }
-  }, [user])
+  }, [user, superBowlSeasonYear])
 
   // Load team data when Super Bowl pick changes
   useEffect(() => {
@@ -191,10 +208,17 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
       if (userDoc.exists()) {
         const data = userDoc.data()
         setOriginalUserData(data)
-        
+        const picksMap: SuperBowlPicksMap = { ...(data.superBowlPicks || {}) }
+        if (!picksMap['2025'] && data.superBowlPick) {
+          picksMap['2025'] = data.superBowlPick
+        }
+        setSuperBowlPicksMap(picksMap)
         setSettings({
           displayName: data.displayName || '',
-          superBowlPick: data.superBowlPick || '',
+          superBowlPick: getSuperBowlPickForSeason(
+            { superBowlPicks: picksMap, superBowlPick: data.superBowlPick },
+            superBowlSeasonYear
+          ),
           emailNotifications: data.emailNotifications || false
         })
       }
@@ -276,11 +300,33 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
   }
 
   const saveSuperBowlPick = async (teamAbbreviation: string) => {
-    const success = await saveField('superBowlPick', teamAbbreviation)
-    if (success) {
-      const teamName = teamDisplayNames[teamAbbreviation] || teams.find(t => t.abbreviation === teamAbbreviation)?.name || teamAbbreviation
-      onToast({ message: `Super Bowl pick saved: ${teamName}!`, type: 'success' })
-    } else {
+    if (!user || !db) return
+    const nextMap = buildSuperBowlPicksUpdate(
+      superBowlPicksMap,
+      superBowlSeasonYear,
+      teamAbbreviation,
+      originalUserData?.superBowlPick
+    )
+    try {
+      await setDoc(
+        doc(db, 'users', user.uid),
+        {
+          superBowlPicks: nextMap,
+          updatedAt: new Date()
+        },
+        { merge: true }
+      )
+      setSuperBowlPicksMap(nextMap)
+      if (typeof window !== 'undefined' && (window as any).refreshUserData) {
+        ;(window as any).refreshUserData()
+      }
+      const teamName =
+        teamDisplayNames[teamAbbreviation] ||
+        teams.find((t) => t.abbreviation === teamAbbreviation)?.name ||
+        teamAbbreviation
+      onToast({ message: `${superBowlSeasonYear} Super Bowl pick saved: ${teamName}!`, type: 'success' })
+    } catch (error) {
+      console.error('Error saving Super Bowl pick:', error)
       onToast({ message: 'Error saving Super Bowl pick. Please try again.', type: 'error' })
     }
   }
@@ -400,53 +446,72 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
         </div>
       </div>
 
-      <div className="relative">
-        <label htmlFor="superBowlPick" className="block text-center text-sm font-bold text-black uppercase mb-1">
-          <span className="flex items-center justify-center gap-1">
-            {isSeasonStarted && <span className="material-symbols-sharp !text-sm">lock</span>}
-            Super Bowl Pick
+      {showSuperBowlPick && (
+        <div className="relative">
+          <label htmlFor="superBowlPick" className="block text-center text-sm font-bold text-black uppercase mb-1">
+            <span className="flex items-center justify-center gap-1">
+              {isSeasonStarted && <span className="material-symbols-sharp !text-sm">lock</span>}
+              {superBowlSeasonYear} Super Bowl Pick
+            </span>
+          </label>
+          <select
+            id="superBowlPick"
+            value={settings.superBowlPick}
+            onChange={(e) => handleSuperBowlPickChange(e.target.value)}
+            disabled={isSeasonStarted}
+            className="absolute inset-0 opacity-0 z-20"
+            style={{ cursor: isSeasonStarted ? 'not-allowed' : 'pointer' }}
+          >
+            <option value="">Select a team</option>
+            {teams.map((team) => (
+              <option key={team.abbreviation} value={team.abbreviation}>
+                {teamDisplayNames[team.abbreviation] || team.name}
+              </option>
+            ))}
+          </select>
+          <div
+            className={`relative w-full h-20 flex items-center justify-center shadow-[0_0_0_1px_#000000] ${isSeasonStarted ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+            style={{
+              background: selectedTeamStyle.background
+            }}
+          >
+            {selectedTeam?.logo ? (
+              <div className="w-full flex flex-row items-center justify-center gap-2 z-10 text-white">
+                <img
+                  src={getTeamLogo(selectedTeam, selectedTeamStyle.logoType)}
+                  alt={`${selectedTeam.name} logo`}
+                  className="w-16 h-16 object-contain"
+                />
+                <div className="text-center uppercase font-bold max-xl:text-base">
+                  {teamDisplayNames[selectedTeam.abbreviation] || selectedTeam.name}
+                </div>
+                {!isSeasonStarted && <span className="material-symbols-sharp ml-1">arrow_drop_down</span>}
+              </div>
+            ) : (
+              <div className="flex flex-row items-center justify-center text-center text-black/50 uppercase font-bold z-10">
+                {isSeasonStarted ? 'Locked - Season Started' : 'Select a Team'}
+                {!isSeasonStarted && <span className="material-symbols-sharp ml-1">arrow_drop_down</span>}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="w-full">
+        <label className="flex items-center justify-center gap-3 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={settings.emailNotifications}
+            onChange={(e) => handleEmailNotificationsChange(e.target.checked)}
+            className="w-5 h-5 accent-black cursor-pointer"
+          />
+          <span className="font-bold text-black uppercase">
+            Send me weekly email reminders
           </span>
         </label>
-        <select
-          id="superBowlPick"
-          value={settings.superBowlPick}
-          onChange={(e) => handleSuperBowlPickChange(e.target.value)}
-          disabled={isSeasonStarted}
-          className="absolute inset-0 opacity-0 z-20"
-          style={{ cursor: isSeasonStarted ? 'not-allowed' : 'pointer' }}
-        >
-          <option value="">Select a team</option>
-          {teams.map((team) => (
-            <option key={team.abbreviation} value={team.abbreviation}>
-              {teamDisplayNames[team.abbreviation] || team.name}
-            </option>
-          ))}
-        </select>
-        <div
-          className={`relative w-full h-20 flex items-center justify-center shadow-[0_0_0_1px_#000000] ${isSeasonStarted ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-          style={{
-            background: selectedTeamStyle.background
-          }}
-        >
-          {selectedTeam?.logo ? (
-            <div className="w-full flex flex-row items-center justify-center gap-2 z-10 text-white">
-              <img
-                src={getTeamLogo(selectedTeam, selectedTeamStyle.logoType)}
-                alt={`${selectedTeam.name} logo`}
-                className="w-16 h-16 object-contain"
-              />
-              <div className="text-center uppercase font-bold max-xl:text-base">
-                {teamDisplayNames[selectedTeam.abbreviation] || selectedTeam.name}
-              </div>
-              {!isSeasonStarted && <span className="material-symbols-sharp ml-1">arrow_drop_down</span>}
-            </div>
-          ) : (
-            <div className="flex flex-row items-center justify-center text-center text-black/50 uppercase font-bold z-10">
-              {isSeasonStarted ? 'Locked - Season Started' : 'Select a Team'}
-              {!isSeasonStarted && <span className="material-symbols-sharp ml-1">arrow_drop_down</span>}
-            </div>
-          )}
-        </div>
+        <p className="mt-1 text-xs text-black/50 uppercase font-bold">
+          Wednesdays when a new week opens
+        </p>
       </div>
 
       <hr className="w-full border-t-[1px] border-black/50" />

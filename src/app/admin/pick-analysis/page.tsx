@@ -37,7 +37,7 @@ interface User {
 
 export default function PickAnalysisPage() {
   const { user } = useAuthStore()
-  const [season, setSeason] = useState('2025')
+  const [season, setSeason] = useState(() => String(new Date().getFullYear()))
   const [week, setWeek] = useState('1')
   const [users, setUsers] = useState<User[]>([])
   const [userPicks, setUserPicks] = useState<Record<string, UserPicks>>({})

@@ -12,6 +12,7 @@ import { loadTeamColorMappings } from '@/store/team-color-mapping-store'
 import { tmdbApi } from '@/lib/tmdb-api'
 import { PHIL_USER, isPhil } from '@/utils/phil-user'
 import { useCurrentWeek } from '@/hooks/use-current-week'
+import { getActiveSuperBowlSeasonYear, getSuperBowlPickForSeason } from '@/utils/super-bowl-picks'
 
 
 interface UserStatsModalProps {
@@ -193,17 +194,18 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
       let movies: any[] = []
       let superBowlPick: string = ''
       
+      const sbSeason = getActiveSuperBowlSeasonYear(weekInfo?.season)
       // Check if this is Phil (hardcoded user)
       if (isPhil(userId)) {
         userData = PHIL_USER
         movies = userData.moviePicks || []
-        superBowlPick = userData.superBowlPick || ''
+        superBowlPick = getSuperBowlPickForSeason(userData, sbSeason)
       } else {
         // Regular user - fetch from Firebase
         const userDoc = await getDoc(doc(db, 'users', userId))
         userData = userDoc.exists() ? userDoc.data() : {}
         movies = userData.moviePicks || []
-        superBowlPick = userData.superBowlPick || ''
+        superBowlPick = getSuperBowlPickForSeason(userData, sbSeason)
       }
 
       // Process movies - handle both old format (string[]) and new format (object[])

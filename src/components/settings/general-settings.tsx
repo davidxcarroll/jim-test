@@ -59,9 +59,6 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
       try {
         console.log('Fetching teams from ESPN API...')
         const apiTeams = await espnApi.getTeams()
-        // #region agent log
-        fetch('http://127.0.0.1:7685/ingest/8b75b7ca-3404-4cc9-850e-b28c6853e057',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'46315a'},body:JSON.stringify({sessionId:'46315a',runId:'post-fix',hypothesisId:'C',location:'general-settings.tsx:fetchTeams',message:'Settings received teams for Super Bowl dropdown',data:{teamCount:apiTeams.length,sampleAbbrevs:apiTeams.slice(0,3).map((t: {abbreviation: string})=>t.abbreviation),host:typeof window!=='undefined'?window.location.host:null},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         
         if (apiTeams.length === 0) {
           console.warn('No teams returned from ESPN API - this may indicate a network issue')

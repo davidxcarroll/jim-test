@@ -15,9 +15,6 @@ export async function GET() {
       count: teams.length,
       timestamp: new Date().toISOString(),
     }
-    // #region agent log
-    fetch('http://127.0.0.1:7685/ingest/8b75b7ca-3404-4cc9-850e-b28c6853e057',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'46315a'},body:JSON.stringify({sessionId:'46315a',runId:'post-fix',hypothesisId:'A',location:'api/espn/teams/route.ts:GET',message:'Proxy route returning teams payload',data:{count:payload.count,timestamp:payload.timestamp,isServer:typeof window==='undefined'},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
 
     if (teams.length === 0) {
       return NextResponse.json(
@@ -40,9 +37,6 @@ export async function GET() {
     })
   } catch (error) {
     console.error('Error fetching ESPN teams via proxy:', error)
-    // #region agent log
-    fetch('http://127.0.0.1:7685/ingest/8b75b7ca-3404-4cc9-850e-b28c6853e057',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'46315a'},body:JSON.stringify({sessionId:'46315a',runId:'post-fix',hypothesisId:'B',location:'api/espn/teams/route.ts:catch',message:'Proxy route threw',data:{error:error instanceof Error?error.message:String(error)},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
 
     return NextResponse.json(
       {

@@ -571,9 +571,6 @@ export const espnApi = {
       if (typeof window !== 'undefined') {
         const response = await fetchWithRetry('/api/espn/teams', { cache: 'no-store' })
         const payload = await response.json()
-        // #region agent log
-        fetch('http://127.0.0.1:7685/ingest/8b75b7ca-3404-4cc9-850e-b28c6853e057',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'46315a'},body:JSON.stringify({sessionId:'46315a',runId:'post-fix',hypothesisId:'C',location:'espn-api.ts:getTeams:client',message:'Client proxy teams response',data:{ok:response.ok,status:response.status,success:payload?.success,count:payload?.count,dataLen:Array.isArray(payload?.data)?payload.data.length:-1,timestamp:payload?.timestamp,error:payload?.error??null},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         if (!payload?.success || !Array.isArray(payload.data)) {
           throw new Error(payload?.error || 'Invalid teams proxy response')
         }
@@ -583,10 +580,6 @@ export const espnApi = {
       // Bypass Next.js Data Cache so a failed/empty ESPN response cannot stick forever.
       const response = await fetchWithRetry(`${ESPN_BASE_URL}/teams`, { cache: 'no-store' })
       const data = await response.json()
-      const rawTeamCount = data?.sports?.[0]?.leagues?.[0]?.teams?.length ?? -1
-      // #region agent log
-      fetch('http://127.0.0.1:7685/ingest/8b75b7ca-3404-4cc9-850e-b28c6853e057',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'46315a'},body:JSON.stringify({sessionId:'46315a',runId:'post-fix',hypothesisId:'D',location:'espn-api.ts:getTeams:server',message:'Server ESPN teams fetch result',data:{ok:response.ok,status:response.status,rawTeamCount,hasSports:!!data?.sports,cacheHeader:response.headers.get('x-vercel-cache')||response.headers.get('cf-cache-status')||null},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       
       if (!data.sports || !data.sports[0] || !data.sports[0].leagues || !data.sports[0].leagues[0] || !data.sports[0].leagues[0].teams) {
         throw new Error('Invalid data structure from ESPN API')
@@ -613,9 +606,6 @@ export const espnApi = {
       }))
     } catch (error) {
       console.error('Error fetching teams from ESPN API:', error)
-      // #region agent log
-      fetch('http://127.0.0.1:7685/ingest/8b75b7ca-3404-4cc9-850e-b28c6853e057',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'46315a'},body:JSON.stringify({sessionId:'46315a',runId:'pre-fix',hypothesisId:'B',location:'espn-api.ts:getTeams:catch',message:'getTeams swallowed error, returning []',data:{isClient:typeof window!=='undefined',error:error instanceof Error?error.message:String(error)},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       // Return empty array instead of throwing to prevent app crashes
       return []
     }

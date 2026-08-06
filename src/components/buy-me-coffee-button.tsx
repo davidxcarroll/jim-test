@@ -6,7 +6,7 @@
  */
 export function BuyMeCoffeeButton() {
   return (
-    <div className="flex justify-center mt-4 mb-4">
+    <div className="flex justify-center">
       <a
         href="https://www.buymeacoffee.com/hazeltine"
         target="_blank"

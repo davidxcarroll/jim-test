@@ -64,7 +64,7 @@ export const emailService = {
               <p>Every Wednesday starts a fresh week. Note: When a game starts, picks (or lack thereof) are locked. So get there while you can!</p>
               <p>Other steps you can take in settings: Add your prediction for who will win the Super Bowl before regular season starts. Opt-in to weekly email reminders.</p>
               <p>That's pretty much it. <a class="email-link" href="mailto:david@hazeltine.co">Email me</a> with bugs or feedback.</p>
-              <p><a href="${appUrl}/signin" class="button magic-link">📋 TO THE CLIPBOARD!</a></p>
+              <p><a href="${appUrl}/signin" class="button magic-link">TO THE CLIPBOARD!</a></p>
             </div>
             <div class="footer">
               <p style="font-style: italic;">I promise I won't bug you with a bunch of emails!</p>

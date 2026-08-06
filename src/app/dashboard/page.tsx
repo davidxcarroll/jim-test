@@ -712,7 +712,7 @@ function WeeklyMatchesPage() {
   }
 
   return (
-    <div className="font-chakra pb-16 select-none">
+    <div className="min-h-dvh flex flex-col font-chakra select-none">
 
       <Navigation />
 

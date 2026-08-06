@@ -69,7 +69,11 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
         // Remove duplicates by abbreviation (shouldn't be any, but just in case)
         const uniqueTeams = Array.from(
           new Map(apiTeams.map(team => [team.abbreviation, team])).values()
-        )
+        ).sort((a, b) => {
+          const nameA = teamDisplayNames[a.abbreviation] || a.name
+          const nameB = teamDisplayNames[b.abbreviation] || b.name
+          return nameA.localeCompare(nameB)
+        })
         console.log(`Successfully loaded ${uniqueTeams.length} teams`)
         setTeams(uniqueTeams)
       } catch (error) {

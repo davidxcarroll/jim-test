@@ -14,6 +14,7 @@
 html {
   background-color: #000;
   min-width: fit-content;
+  font-variant-emoji: text;
 }
 
 body {
@@ -23,6 +24,17 @@ body {
   background-repeat: repeat;
   background-size: 2000px;
   border-radius: 3rem;
+  font-variant-emoji: text;
+}
+
+/* One-color Noto Emoji (Light 300) for all emoji */
+.emoji,
+[role="img"] {
+  font-family: "Noto Emoji", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 300;
+  font-style: normal;
+  font-variant-emoji: text;
 }
 
 .material-symbols-sharp {

@@ -11,22 +11,25 @@ export function BuyMeCoffeeButton() {
         href="https://www.buymeacoffee.com/hazeltine"
         target="_blank"
         rel="noopener noreferrer"
-        className="bmc-btn inline-flex items-center box-border no-underline hover:no-underline focus:no-underline active:no-underline cursor-pointer"
+        className="bmc-btn inline-flex items-center box-border no-underline hover:no-underline focus:no-underline active:no-underline cursor-pointer font-bold xl:text-base text-sm shadow-[inset_0_0_0_1px_#000000]"
         style={{
-          minWidth: 210,
-          height: 48,
+          height: 40,
           borderRadius: 0,
           padding: '0 16px',
           fontFamily: 'var(--font-chakra-petch), sans-serif',
-          fontSize: 24,
           fontWeight: 'bold',
-          lineHeight: '27px',
-          border: '2px solid',
-          borderColor: '#000000',
         }}
       >
-        <span className="text-[32px] leading-none select-none" aria-hidden>
-          ☕
+        <span className="inline-flex items-center gap-1 text-[32px] leading-none select-none" aria-hidden>
+          <span
+            title="System text emoji"
+            style={{
+              fontFamily: 'Apple Color Emoji, Segoe UI Emoji, system-ui, sans-serif',
+              fontVariantEmoji: 'text',
+            }}
+          >
+            ☕
+          </span>
         </span>
         <span
           className="bmc-btn-text"
@@ -36,7 +39,7 @@ export function BuyMeCoffeeButton() {
             fontFamily: 'var(--font-chakra-petch), sans-serif',
           }}
         >
-          Buy me a coffee!
+          Buy me a coffee
         </span>
       </a>
     </div>

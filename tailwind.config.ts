@@ -9,8 +9,8 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        'jim': ['JimCasual', 'sans-serif'],
-        'chakra': ['var(--font-chakra-petch)', 'sans-serif'],
+        'jim': ['JimCasual', '"Noto Emoji"', 'sans-serif'],
+        'chakra': ['var(--font-chakra-petch)', '"Noto Emoji"', 'sans-serif'],
       },
       colors: {
         'nfl-blue': '#013369',

@@ -567,6 +567,16 @@ export const espnApi = {
   // Get all teams
   async getTeams(): Promise<Team[]> {
     try {
+      // Browser cannot call ESPN /teams (CORS). Use same-origin API proxy on the client.
+      if (typeof window !== 'undefined') {
+        const response = await fetchWithRetry('/api/espn/teams')
+        const payload = await response.json()
+        if (!payload?.success || !Array.isArray(payload.data)) {
+          throw new Error(payload?.error || 'Invalid teams proxy response')
+        }
+        return payload.data as Team[]
+      }
+
       const response = await fetchWithRetry(`${ESPN_BASE_URL}/teams`)
       const data = await response.json()
       

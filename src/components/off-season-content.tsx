@@ -23,16 +23,27 @@ function getCountdownParts(target: Date, now: Date = new Date()): CountdownParts
   return { days, hours, minutes, seconds }
 }
 
-function formatCountdown(parts: CountdownParts): string {
+function pad2(n: number): string {
+  return String(n).padStart(2, '0')
+}
+
+function MonoNum({ value }: { value: number }) {
+  return <span className="font-mono">{pad2(value)}</span>
+}
+
+function formatCountdown(parts: CountdownParts) {
   const { days, hours, minutes, seconds } = parts
   if (days === 0 && hours === 0 && minutes === 0 && seconds === 0) {
     return 'now...'
   }
-  const dayLabel = days === 1 ? '1 day' : `${days} days`
-  const hourLabel = hours === 1 ? '1 hour' : `${hours} hours`
-  const minuteLabel = minutes === 1 ? '1 minute' : `${minutes} minutes`
-  const secondLabel = seconds === 1 ? '1 second' : `${seconds} seconds`
-  return `in ${dayLabel}, ${hourLabel}, ${minuteLabel}, ${secondLabel}...`
+  return (
+    <>
+      in <MonoNum value={days} /> {days === 1 ? 'day' : 'days'},{' '}
+      <MonoNum value={hours} /> {hours === 1 ? 'hour' : 'hours'},{' '}
+      <MonoNum value={minutes} /> {minutes === 1 ? 'minute' : 'minutes'},{' '}
+      <MonoNum value={seconds} /> {seconds === 1 ? 'second' : 'seconds'}...
+    </>
+  )
 }
 
 /** First Thursday of August for a given year (typical preseason kickoff window). */
@@ -150,31 +161,30 @@ export function OffSeasonContent() {
 
   return (
     <div className="flex flex-col gap-8 items-center justify-center flex-1 pt-8 pb-24 px-4">
-      <div className="flex flex-col">
+     
+     <div className="flex flex-col">
         <div className="w-full uppercase md:text-5xl text-3xl text-center font-bold text-balance">
-          {completedSeasonYear != null ? completedSeasonYear : '—'} 🏆 Winner
+          {completedSeasonYear != null ? completedSeasonYear : '—'}{' '}
+          <span role="img">🏆</span> Winner
         </div>
         <div className="w-full max-w-6xl font-jim text-center text-6xl md:text-7xl lg:text-8xl xl:text-9xl leading-none text-balance">
           {winnerLabel}
         </div>
       </div>
 
-      <hr className="w-full my-4 border-t-2 border-black/10" />
-
-      <div className="w-full uppercase md:text-xl text-center font-bold text-balance">
-        Thanks for playing!
+      <div className="w-full flex flex-col items-center justify-center gap-2 my-4 p-4 bg-red-600 text-white">
+        <div className="w-full uppercase md:text-5xl text-3xl text-center font-bold text-balance">
+          Thanks for playing!
+        </div>
+        <div className="w-full uppercase md:text-xl text-center font-bold text-balance">
+          Next season starts{' '}
+          {countdown == null ? 'soon' : formatCountdown(countdown)}
+        </div>
       </div>
-      
-      <div className="w-full uppercase md:text-xl text-center font-bold text-balance">
-        Next season starts{' '}
-        {countdown == null ? 'soon' : formatCountdown(countdown)}
-      </div>
-
-      <hr className="w-full my-4 border-t-2 border-black/10" />
 
       <div className="w-full max-w-6xl">
         <StatsContent lockedSeason={completedSeasonYear} embedded />
       </div>
-    </div>
+    </div >
   )
 }

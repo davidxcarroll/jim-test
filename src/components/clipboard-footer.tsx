@@ -9,7 +9,7 @@ export function ClipboardFooter() {
       <div className="w-full mt-8 2xl:text-8xl xl:text-7xl lg:text-6xl md:text-5xl sm:text-4xl text-3xl leading-none text-center font-bold text-black uppercase mix-blend-soft-light">
         Long Live The Clipboard
       </div>
-      <div className="relative w-full flex xl:flex-row flex-col items-center justify-center gap-x-4 gap-y-3 mx-auto mt-8 py-4 px-8">
+      <div className="relative w-fit flex xl:flex-row flex-col items-center justify-center gap-x-4 gap-y-3 mx-auto mt-8 py-4 px-8">
         <p className="relative z-10 font-bold xl:text-base text-sm text-balance xl:text-left text-center leading-none">
           Hey! David here. <a
             href="https://www.youtube.com/watch?v=UfPloyCQeS0&t=289s"

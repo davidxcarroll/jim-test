@@ -782,7 +782,7 @@ function WeeklyMatchesPage() {
                   {userDisplayNames.map((name, userIndex) => (
                     <th
                       key={userIndex}
-                      className="sticky top-0 z-50 bg-neutral-100 shadow-[-1px_0_0_#000000] h-16 align-middle px-2"
+                      className="sticky top-0 z-50 bg-neutral-100 shadow-[-1px_0_0_#000000] h-16 align-middle px-1"
                       style={{ willChange: 'transform' }}
                     >
                       <div

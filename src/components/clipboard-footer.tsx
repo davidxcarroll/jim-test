@@ -11,7 +11,13 @@ export function ClipboardFooter() {
       </div>
       <div className="relative w-full flex xl:flex-row flex-col items-center justify-center gap-x-4 gap-y-3 mx-auto mt-8 py-4 px-8 bg-orange-500 mix-blend-darken">
         <p className="font-bold xl:text-base text-sm text-balance xl:text-left text-center leading-none">
-          Hey! David here. This app is a labor of love. There are some costs to run it.
+          <a
+            href="https://www.youtube.com/watch?v=UfPloyCQeS0&t=289s"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Hey! David here. This app is a labor of love. There are some costs to run it.
+          </a>
         </p>
         <BuyMeCoffeeButton />
       </div>

@@ -39,7 +39,7 @@ export function BuyMeCoffeeButton() {
             fontFamily: 'var(--font-chakra-petch), sans-serif',
           }}
         >
-          Buy me a coffee
+          Buy me a coffee!
         </span>
       </a>
     </div>

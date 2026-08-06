@@ -510,7 +510,7 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
             className="w-5 h-5 accent-black cursor-pointer"
           />
           <span className="font-bold text-black uppercase">
-            Send me weekly email reminders
+            Get weekly email reminders
           </span>
         </div>
         <p className="mt-1 text-xs text-black/50 uppercase font-bold text-center">

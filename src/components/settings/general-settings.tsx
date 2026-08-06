@@ -501,8 +501,8 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
         </div>
       )}
 
-      <div className="w-full">
-        <label className="flex items-center justify-center gap-3 cursor-pointer select-none">
+      <label className="w-full p-4 border border-black cursor-pointer select-none block">
+        <div className="flex items-center justify-center gap-3">
           <input
             type="checkbox"
             checked={settings.emailNotifications}
@@ -512,13 +512,13 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
           <span className="font-bold text-black uppercase">
             Send me weekly email reminders
           </span>
-        </label>
-        <p className="mt-1 text-xs text-black/50 uppercase font-bold">
-          Wednesdays when a new week opens
+        </div>
+        <p className="mt-1 text-xs text-black/50 uppercase font-bold text-center">
+          {settings.emailNotifications
+            ? 'You will receive an email every Wednesday'
+            : 'You will not receive a reminder email every Wednesday'}
         </p>
-      </div>
-
-      <hr className="w-full border-t-[1px] border-black/50" />
+      </label>
 
       <button
         onClick={() => router.push('/dashboard')}

@@ -885,10 +885,10 @@ function WeeklyMatchesPage() {
                       </td>
                       {recapStats.map((stat, idx) => (
                         <td key={stat.userId} className="text-center align-middle font-bold xl:text-base text-sm shadow-[-1px_0_0_#000000]">
-                          <span className="inline-flex items-center justify-center gap-1">
+                          <span className="inline-flex items-center justify-center">
                             {stat.percentage}%
                             {winnerIds.includes(stat.userId) && (
-                              <span title="Top Score" className="ml-0.5" role="img">🔥</span>
+                              <span title="Top Score" className="ml-0.5 text-orange-600" role="img">🔥</span>
                             )}
                           </span>
                           <br />

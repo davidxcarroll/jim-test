@@ -5,8 +5,8 @@ import { BuyMeCoffeeButton } from '@/components/buy-me-coffee-button'
 /** Shared page footer: tagline + Buy Me a Coffee. */
 export function ClipboardFooter() {
   return (
-    <div className="sticky left-0 self-start w-[98dvw] flex-1 flex flex-col justify-end px-6 lg:px-8 pb-[calc(env(safe-area-inset-bottom,0px)+8rem)] lg:pb-8">
-      <div className="w-full mt-8 2xl:text-8xl xl:text-7xl lg:text-6xl md:text-5xl sm:text-4xl text-3xl leading-none text-center font-bold text-black uppercase mix-blend-soft-light">
+    <div className="sticky left-0 self-start w-[98dvw] flex-1 flex flex-col justify-end lg:px-8 px-6 lg:pb-8 pb-6">
+      <div className="w-full mt-8 2xl:text-8xl xl:text-7xl lg:text-6xl md:text-5xl sm:text-4xl text-3xl leading-none text-center font-bold text-black uppercase">
         Long Live The Clipboard
       </div>
       <div className="relative w-fit flex xl:flex-row flex-col items-center justify-center gap-x-4 gap-y-3 mx-auto mt-8 py-4 px-8">
@@ -21,7 +21,7 @@ export function ClipboardFooter() {
         <div className="relative z-10">
           <BuyMeCoffeeButton />
         </div>
-        <div className="absolute inset-0 z-0 bg-amber-500 mix-blend-lighten"/>
+        <div className="absolute inset-0 z-0 bg-olive-400"/>
       </div>
     </div>
   )

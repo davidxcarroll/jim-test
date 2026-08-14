@@ -739,9 +739,12 @@ function WeeklyMatchesPage() {
           ) : (
             <>
 
-              <p className="p-4 pt-8 font-chakra font-bold lg:text-9xl text-7xl uppercase leading-none 2xl:text-center text-left">
-                {weekTitle}
-              </p>
+              {/* Week title */}
+              <div className="sm:-mx-2 md:-mx-4 lg:-mx-8">
+                <p className="sticky left-0 self-start shrink-0 w-[98dvw] p-6 pt-12 font-chakra font-bold text-[clamp(2rem,min(5dvw,7dvh),5rem)] text-center uppercase leading-none">
+                  {weekTitle}
+                </p>
+              </div>
 
               {/* Main scrollable container */}
               <div className="md:pb-8 pb-4">

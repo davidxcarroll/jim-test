@@ -14,7 +14,7 @@ export function Navigation() {
   }
 
   return (
-    <div className="relative z-[60] w-[98dvw] flex flex-row items-center justify-center max-md:gap-8 leading-none xl:text-xl text-base text-white">
+    <div className="sticky left-0 self-start shrink-0 z-[60] w-[98dvw] flex flex-row items-center justify-center max-md:gap-8 leading-none xl:text-xl text-base text-white">
 
       <Link
         href="/dashboard"

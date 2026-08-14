@@ -267,24 +267,38 @@ export function normalizeRoundName(label: string | undefined | null): string | u
 }
 
 /**
- * Get display name for a round (uppercase for UI)
+ * Get display name for a round (uppercase for UI).
+ * Pass `{ verbose: true }` for page titles (colloquial, slightly longer).
  */
-export function getRoundDisplayName(label: string | undefined | null, weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl', weekNumber: number): string {
+export function getRoundDisplayName(
+  label: string | undefined | null,
+  weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl',
+  weekNumber: number,
+  options?: { verbose?: boolean }
+): string {
+  const verbose = options?.verbose === true
+
   if (weekType === 'preseason') {
-    return `PRESEASON ${weekNumber}`
+    return verbose ? `PRESEASON WEEK ${weekNumber}` : `PRESEASON ${weekNumber}`
   }
   // Pro bowl is excluded from UI/stats; display name not used in selectable weeks
   if (weekType === 'pro-bowl') {
     return `WEEK ${weekNumber}`
   }
-  
+
   if (weekType === 'postseason' && label) {
     const normalized = normalizeRoundName(label)
     // Never show "Pro Bowl" in the UI
     if (normalized?.toLowerCase().includes('pro bowl')) return `WEEK ${weekNumber}`
-    return normalized ? normalized.toUpperCase() : `POSTSEASON ${weekNumber}`
+    if (!normalized) return `POSTSEASON ${weekNumber}`
+    if (verbose) {
+      if (normalized === 'wild card') return 'WILD CARDS'
+      if (normalized === 'divisional') return 'DIVISIONALS'
+      if (normalized === 'conference') return 'CONF CHAMPIONSHIPS'
+    }
+    return normalized.toUpperCase()
   }
-  
+
   // Regular season
   return `WEEK ${weekNumber}`
 }

@@ -718,9 +718,11 @@ function WeeklyMatchesPage() {
     ? getRoundDisplayName(
         selectedWeekInfo.label,
         selectedWeekInfo.weekType!,
-        selectedWeekInfo.weekNumber!
+        selectedWeekInfo.weekNumber!,
+        { verbose: true }
       )
     : 'Loading...'
+  const hasPastWeeks = availableWeeks.length > 1
 
   return (
     <div className="min-h-dvh flex flex-col font-chakra select-none">
@@ -753,39 +755,41 @@ function WeeklyMatchesPage() {
                     <tr className="bg-neutral-100">
                       {/* Sticky week selector header cell */}
                       <th className="sticky top-0 left-0 z-[60] bg-neutral-100 shadow-[1px_0_0_#000000] w-48 min-w-fit h-16 align-middle p-0" style={{ willChange: 'transform' }}>
-                        <div className="week-selector h-16 flex items-center justify-center px-4 relative cursor-pointer">
-                          <div
-                            className="w-full flex items-center justify-between gap-1 p-2 pl-4 whitespace-nowrap font-bold uppercase xl:text-base text-sm shadow-[inset_0_0_0_1px_#000000]"
-                            onClick={() => setIsWeekDropdownOpen(!isWeekDropdownOpen)}
-                          >
-                            {/* label */}
-                            {weekTitle}
-                            <span className={`material-symbols-sharp transition-transform`}>
-                              arrow_drop_down
-                            </span>
-                          </div>
-                          {/* Dropdown overlay */}
-                          {isWeekDropdownOpen && (
-                            <div className="absolute top-full left-1/2 right-0 -translate-x-1/2 -translate-y-2 w-[calc(100%-20px)] xl:text-base text-sm bg-white shadow-[inset_0_0_0_1px_#000000] z-[70] shadow-2xl max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-black scrollbar-track-black">
-                              {[...availableWeeks].reverse().map((weekItem) => (
-                                <div
-                                  key={weekItem.index}
-                                  className={`px-3 py-2 cursor-pointer hover:bg-black hover:text-white font-bold text-center uppercase ${weekItem.index === weekOffset ? 'bg-black/10' : ''}`}
-                                  onClick={() => {
-                                    setWeekOffset(weekItem.index)
-                                    setIsWeekDropdownOpen(false)
-                                  }}
-                                >
-                                  {getRoundDisplayName(
-                                    weekItem.label,
-                                    weekItem.weekType!,
-                                    weekItem.weekNumber!
-                                  )}
-                                </div>
-                              ))}
+                        {hasPastWeeks && (
+                          <div className="week-selector h-16 flex items-center justify-center px-4 relative cursor-pointer">
+                            <div
+                              className="w-fit flex items-center justify-between gap-1 p-2 pl-4 whitespace-nowrap font-bold uppercase xl:text-base text-sm shadow-[inset_0_0_0_1px_#000000]"
+                              onClick={() => setIsWeekDropdownOpen(!isWeekDropdownOpen)}
+                            >
+                              {/* label */}
+                              Weeks
+                              <span className={`material-symbols-sharp transition-transform`}>
+                                arrow_drop_down
+                              </span>
                             </div>
-                          )}
-                        </div>
+                            {/* Dropdown overlay */}
+                            {isWeekDropdownOpen && (
+                              <div className="absolute top-full left-1/2 right-0 -translate-x-1/2 -translate-y-2 w-[calc(100%-20px)] xl:text-base text-sm bg-white shadow-[inset_0_0_0_1px_#000000] z-[70] shadow-2xl max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-black scrollbar-track-black">
+                                {[...availableWeeks].reverse().map((weekItem) => (
+                                  <div
+                                    key={weekItem.index}
+                                    className={`px-3 py-2 cursor-pointer hover:bg-black hover:text-white font-bold text-center uppercase ${weekItem.index === weekOffset ? 'bg-black/30' : ''}`}
+                                    onClick={() => {
+                                      setWeekOffset(weekItem.index)
+                                      setIsWeekDropdownOpen(false)
+                                    }}
+                                  >
+                                    {getRoundDisplayName(
+                                      weekItem.label,
+                                      weekItem.weekType!,
+                                      weekItem.weekNumber!
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </th>
                       {/* User name headers */}
                       {userDisplayNames.map((name, userIndex) => (

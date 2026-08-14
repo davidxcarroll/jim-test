@@ -4,6 +4,10 @@ import { espnApi } from '@/lib/espn-api'
 import { getCurrentNFLWeekFromAPI, getWeekKey } from '@/utils/date-helpers'
 import { assertCronAuthorized } from '@/lib/api-auth'
 
+export async function GET(request: NextRequest) {
+  return POST(request)
+}
+
 export async function POST(request: NextRequest) {
   const authError = assertCronAuthorized(request)
   if (authError) return authError

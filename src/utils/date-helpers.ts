@@ -115,6 +115,21 @@ export const dateHelpers = {
   isInCurrentWeek(date: Date, currentDate: Date = new Date()): boolean {
     const { start, end } = this.getWednesdayWeekRange(currentDate)
     return date >= start && date <= end
+  },
+
+  // Compare calendar dates in NFL display timezone (Pacific)
+  isSameCalendarDayInTimeZone(
+    a: Date,
+    b: Date,
+    timeZone: string = NFL_TIMEZONE
+  ): boolean {
+    const fmt = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    })
+    return fmt.format(a) === fmt.format(b)
   }
 } 
 

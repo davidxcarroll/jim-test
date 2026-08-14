@@ -515,8 +515,8 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
         </div>
         <p className="mt-1 text-xs text-black/50 uppercase font-bold text-center">
           {settings.emailNotifications
-            ? 'You will receive an email every Wednesday'
-            : 'You will not receive a reminder email every Wednesday'}
+            ? 'You will receive an email when a new week starts'
+            : 'You will not receive a reminder email when a new week starts'}
         </p>
       </label>
 

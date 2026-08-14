@@ -7,8 +7,12 @@ import { assertCronAuthorized } from '@/lib/api-auth'
 
 /**
  * Manual / legacy weekly reminder endpoint.
- * Production schedule uses /api/cron/daily-tasks on Wednesdays.
+ * Production schedule uses /api/cron/daily-tasks on the week start day.
  */
+export async function GET(request: NextRequest) {
+  return POST(request)
+}
+
 export async function POST(request: NextRequest) {
   const authError = assertCronAuthorized(request)
   if (authError) return authError

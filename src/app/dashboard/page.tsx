@@ -225,7 +225,7 @@ function WeeklyMatchesPage() {
     weekKey?: string
     startDate?: Date
   }
-  
+
   // Fetch weeks for the current ESPN season only (off-season: no week list — wrap-up view)
   useEffect(() => {
     const fetchAllWeeks = async () => {
@@ -362,7 +362,7 @@ function WeeklyMatchesPage() {
     currentWeekData.end,
     !currentWeekData.isSeasonSummary
   )
-  
+
 
   const [users, setUsers] = useState<any[]>([])
   const [userPicksByUser, setUserPicksByUser] = useState<Record<string, any>>({})
@@ -489,7 +489,7 @@ function WeeklyMatchesPage() {
             const weekKey = `${currentWeekData.season}_${currentWeekData.week}`
             const picksDocRef = doc(db, 'users', user.id, 'picks', weekKey)
             const picksDoc = await getDoc(picksDocRef)
-            
+
             // If this is Phil and picks don't exist, generate them on-demand
             if (isPhil(user.id) && !picksDoc.exists() && games && games.length > 0) {
               console.log(`🏈 Phil's picks missing for ${weekKey}, generating on-demand...`)
@@ -511,7 +511,7 @@ function WeeklyMatchesPage() {
                 }
               }
             }
-            
+
             return {
               userId: user.id,
               picks: picksDoc.exists() ? picksDoc.data() : {}
@@ -653,9 +653,11 @@ function WeeklyMatchesPage() {
   const hasSetInitialWeek = React.useRef(false)
   useEffect(() => {
     hasSetInitialWeek.current = false
-  }, [weekInfo?.season, weekInfo?.weekType])
+  }, [weekInfo?.season, weekInfo?.weekType, weekInfo?.week])
   useEffect(() => {
     if (hasSetInitialWeek.current || !weekInfo || availableWeeks.length === 0) return
+    // Wait for the ESPN calendar list so we don't lock onto the 1-item fallback at index 0
+    if (allAvailableWeeks.length === 0) return
     const currentWeekItem = availableWeeks.find(
       (w) => w.weekNumber === weekInfo.week && w.weekType === weekInfo.weekType
     )
@@ -666,7 +668,7 @@ function WeeklyMatchesPage() {
       setWeekOffset(availableWeeks.length - 1)
       hasSetInitialWeek.current = true
     }
-  }, [availableWeeks, weekInfo])
+  }, [availableWeeks, weekInfo, allAvailableWeeks.length])
 
   const isSeasonSummaryView = !weekInfo
   const stillLoadingForSeasonView = weekLoading
@@ -711,6 +713,15 @@ function WeeklyMatchesPage() {
     )
   }
 
+  const selectedWeekInfo = availableWeeks.find(w => w.index === weekOffset)
+  const weekTitle = selectedWeekInfo
+    ? getRoundDisplayName(
+        selectedWeekInfo.label,
+        selectedWeekInfo.weekType!,
+        selectedWeekInfo.weekNumber!
+      )
+    : 'Loading...'
+
   return (
     <div className="min-h-dvh flex flex-col font-chakra select-none">
 
@@ -721,354 +732,349 @@ function WeeklyMatchesPage() {
       )}
 
       <div className="flex flex-col lg:px-8 md:px-4 sm:px-2">
-        <div className="flex flex-col pt-10 bg-neutral-100">
+        <div className="flex flex-col bg-neutral-100">
           {/* Off-season wrap-up (winner + stats) */}
           {isSeasonSummaryView ? (
             <OffSeasonContent />
           ) : (
-          <>
-          {/* Main scrollable container */}
-          <div className="md:pb-8 pb-4">
-            <table className="min-w-full bg-neutral-100 border-separate" style={{ borderSpacing: 0 }}>
-              <thead>
-                <tr className="bg-neutral-100">
-                  {/* Sticky week selector header cell */}
-                  <th className="sticky top-0 left-0 z-[60] bg-neutral-100 shadow-[1px_0_0_#000000] w-48 min-w-fit h-16 align-middle p-0" style={{ willChange: 'transform' }}>
-                    <div className="week-selector h-16 flex items-center justify-center px-4 relative cursor-pointer">
-                      <div
-                        className="w-full flex items-center justify-between gap-1 p-2 pl-4 whitespace-nowrap font-bold uppercase xl:text-base text-sm shadow-[inset_0_0_0_1px_#000000]"
-                        onClick={() => setIsWeekDropdownOpen(!isWeekDropdownOpen)}
-                      >
-                        {/* label */}
-                        {(() => {
-                          const currentWeekInfo = availableWeeks.find(w => w.index === weekOffset)
-                          if (currentWeekInfo) {
-                            return getRoundDisplayName(
-                              currentWeekInfo.label,
-                              currentWeekInfo.weekType!,
-                              currentWeekInfo.weekNumber!
-                            )
-                          }
-                          return 'Loading...'
-                        })()}
-                        <span className={`material-symbols-sharp transition-transform`}>
-                          arrow_drop_down
-                        </span>
-                      </div>
-                      {/* Dropdown overlay */}
-                      {isWeekDropdownOpen && (
-                        <div className="absolute top-full left-1/2 right-0 -translate-x-1/2 -translate-y-2 w-[calc(100%-20px)] xl:text-base text-sm bg-white shadow-[inset_0_0_0_1px_#000000] z-[70] shadow-2xl max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-black scrollbar-track-black">
-                      {[...availableWeeks].reverse().map((weekItem) => (
-                            <div
-                              key={weekItem.index}
-                              className={`px-3 py-2 cursor-pointer hover:bg-black hover:text-white font-bold text-center uppercase ${weekItem.index === weekOffset ? 'bg-black/10' : ''}`}
-                              onClick={() => {
-                                setWeekOffset(weekItem.index)
-                                setIsWeekDropdownOpen(false)
-                              }}
-                            >
-                              {getRoundDisplayName(
-                                weekItem.label,
-                                weekItem.weekType!,
-                                weekItem.weekNumber!
-                              )}
+            <>
+
+              <p className="p-4 pt-8 font-chakra font-bold lg:text-9xl text-7xl uppercase leading-none 2xl:text-center text-left">
+                {weekTitle}
+              </p>
+
+              {/* Main scrollable container */}
+              <div className="md:pb-8 pb-4">
+                <table className="min-w-full bg-neutral-100 border-separate" style={{ borderSpacing: 0 }}>
+                  <thead>
+                    <tr className="bg-neutral-100">
+                      {/* Sticky week selector header cell */}
+                      <th className="sticky top-0 left-0 z-[60] bg-neutral-100 shadow-[1px_0_0_#000000] w-48 min-w-fit h-16 align-middle p-0" style={{ willChange: 'transform' }}>
+                        <div className="week-selector h-16 flex items-center justify-center px-4 relative cursor-pointer">
+                          <div
+                            className="w-full flex items-center justify-between gap-1 p-2 pl-4 whitespace-nowrap font-bold uppercase xl:text-base text-sm shadow-[inset_0_0_0_1px_#000000]"
+                            onClick={() => setIsWeekDropdownOpen(!isWeekDropdownOpen)}
+                          >
+                            {/* label */}
+                            {weekTitle}
+                            <span className={`material-symbols-sharp transition-transform`}>
+                              arrow_drop_down
+                            </span>
+                          </div>
+                          {/* Dropdown overlay */}
+                          {isWeekDropdownOpen && (
+                            <div className="absolute top-full left-1/2 right-0 -translate-x-1/2 -translate-y-2 w-[calc(100%-20px)] xl:text-base text-sm bg-white shadow-[inset_0_0_0_1px_#000000] z-[70] shadow-2xl max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-black scrollbar-track-black">
+                              {[...availableWeeks].reverse().map((weekItem) => (
+                                <div
+                                  key={weekItem.index}
+                                  className={`px-3 py-2 cursor-pointer hover:bg-black hover:text-white font-bold text-center uppercase ${weekItem.index === weekOffset ? 'bg-black/10' : ''}`}
+                                  onClick={() => {
+                                    setWeekOffset(weekItem.index)
+                                    setIsWeekDropdownOpen(false)
+                                  }}
+                                >
+                                  {getRoundDisplayName(
+                                    weekItem.label,
+                                    weekItem.weekType!,
+                                    weekItem.weekNumber!
+                                  )}
+                                </div>
+                              ))}
                             </div>
-                          ))}
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </th>
-                  {/* User name headers */}
-                  {userDisplayNames.map((name, userIndex) => (
-                    <th
-                      key={userIndex}
-                      className="sticky top-0 z-50 bg-neutral-100 shadow-[-1px_0_0_#000000] h-16 align-middle px-1"
-                      style={{ willChange: 'transform' }}
-                    >
-                      <div
-                        className="w-full h-16 flex lg:items-center items-end justify-center font-jim xl:text-4xl text-3xl cursor-pointer"
-                        onClick={() => {
-                          setSelectedUser({ id: visibleUsers[userIndex].id, name })
-                        }}
-                      >
-                        <span className="max-lg:max-w-8 flex lg:justify-center justify-start font-light max-lg:-rotate-90">{name}</span>
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-
-
-                {/* weekly recap here */}
-
-                {(() => {
-                  // Only show recap if all games are finished
-                  const allGames = games || [];
-                  const allGamesFinished = allGames.length > 0 && allGames.every(g => g.status === 'final' || g.status === 'post');
-                  if (!allGamesFinished) return null;
-
-                  // Compute recap stats for visible users (for display in this row)
-                  const playedGames = allGames.filter(g => g.status === 'final' || g.status === 'post');
-                  const recapStats = visibleUsers.map(user => {
-                    let correct = 0;
-                    playedGames.forEach(game => {
-                      const pick = userPicksByUser[user.id]?.[game.id]?.pickedTeam;
-                      const homeScore = Number(game.homeScore) ?? 0;
-                      const awayScore = Number(game.awayScore) ?? 0;
-                      const homeWon = homeScore > awayScore;
-                      const pickCorrect = (pick === 'home' && homeWon) || (pick === 'away' && !homeWon);
-                      if (pick && pickCorrect) correct++;
-                    });
-                    const total = playedGames.length;
-                    const percentage = total > 0 ? Math.round((correct / total) * 100) : 0;
-                    return { userId: user.id, correct, total, percentage };
-                  });
-
-                  // Find the max correct picks (among visible users, for display)
-                  const maxCorrect = Math.max(...recapStats.map(s => s.correct));
-                  const winnerIds = recapStats.filter(s => s.correct === maxCorrect && maxCorrect > 0).map(s => s.userId);
-
-                  // Save week recap to Firestore with ALL users so overall leaderboard is complete.
-                  // We must not overwrite with only visibleUsers (clipboard subset) or users like Jon/Carter disappear from stats.
-                  const saveWeekRecap = async () => {
-                    if (!db || users.length === 0) return
-                    try {
-                      const weekId = `${currentWeekData.season}_${currentWeekData.week}`
-                      const picksByUser: Record<string, Record<string, { pickedTeam?: string }>> = {}
-                      await Promise.all(users.map(async (user) => {
-                        const snap = await getDoc(doc(db, 'users', user.id, 'picks', weekId))
-                        picksByUser[user.id] = snap.exists() ? (snap.data() as Record<string, { pickedTeam?: string }>) : {}
-                      }))
-                      const allUserStats = users.map(user => {
-                        let correct = 0
-                        playedGames.forEach(game => {
-                          const pick = picksByUser[user.id]?.[String(game.id)]?.pickedTeam
-                          const homeScore = Number(game.homeScore) ?? 0
-                          const awayScore = Number(game.awayScore) ?? 0
-                          const homeWon = homeScore > awayScore
-                          const pickCorrect = (pick === 'home' && homeWon) || (pick === 'away' && !homeWon)
-                          if (pick && pickCorrect) correct++
-                        })
-                        const total = playedGames.length
-                        const percentage = total > 0 ? Math.round((correct / total) * 100) : 0
-                        return { userId: user.id, correct, total, percentage }
-                      })
-                      const globalMaxCorrect = Math.max(...allUserStats.map(s => s.correct))
-                      const globalWinnerIds = allUserStats.filter(s => s.correct === globalMaxCorrect && globalMaxCorrect > 0).map(s => s.userId)
-                      const weekRecapData = {
-                        weekId,
-                        season: currentWeekData.season,
-                        week: currentWeekData.week,
-                        calculatedAt: serverTimestamp(),
-                        userStats: allUserStats.map(stat => ({
-                          userId: stat.userId,
-                          correct: stat.correct,
-                          total: stat.total,
-                          percentage: stat.percentage,
-                          isTopScore: globalWinnerIds.includes(stat.userId)
-                        }))
-                      }
-                      await setDoc(doc(db, 'weekRecaps', weekId), weekRecapData)
-                      console.log('💾 Saved week recap for', allUserStats.length, 'users')
-                    } catch (error) {
-                      console.error('❌ Error saving week recap data:', error)
-                    }
-                  }
-
-                  saveWeekRecap()
-
-                  return (
-                    <tr className="font-bold uppercase text-center xl:text-base text-sm bg-yellow-200">
-                      <td className="sticky left-0 z-20 bg-yellow-200 text-center px-2 xl:h-16 h-12 align-middle font-bold xl:text-base text-sm shadow-[1px_0_0_#000000]">
-                        RECAP
-                      </td>
-                      {recapStats.map((stat, idx) => (
-                        <td key={stat.userId} className="text-center align-middle font-bold xl:text-base text-sm shadow-[-1px_0_0_#000000]">
-                          <span className="inline-flex items-center justify-center">
-                            {stat.percentage}%
-                            {winnerIds.includes(stat.userId) && (
-                              <span title="Top Score" className="ml-0.5 text-orange-600" role="img">🔥</span>
-                            )}
-                          </span>
-                          <br />
-                          {stat.correct}/{stat.total}
-                        </td>
+                      </th>
+                      {/* User name headers */}
+                      {userDisplayNames.map((name, userIndex) => (
+                        <th
+                          key={userIndex}
+                          className="sticky top-0 z-50 bg-neutral-100 shadow-[-1px_0_0_#000000] h-16 align-middle px-1"
+                          style={{ willChange: 'transform' }}
+                        >
+                          <div
+                            className="w-full h-16 flex lg:items-center items-end justify-center font-jim xl:text-4xl text-3xl cursor-pointer"
+                            onClick={() => {
+                              setSelectedUser({ id: visibleUsers[userIndex].id, name })
+                            }}
+                          >
+                            <span className="max-lg:max-w-8 flex lg:justify-center justify-start font-light max-lg:-rotate-90">{name}</span>
+                          </div>
+                        </th>
                       ))}
                     </tr>
-                  );
-                })()}
+                  </thead>
+                  <tbody>
 
 
-                <tr className="h-8"></tr>
-                {Object.entries(gamesByDay).flatMap(([day, dayGames], dayIdx) => [
-                  // Day header row
-                  <tr key={day + '-header'}>
-                    <td
-                      className="sticky top-[66px] left-0 z-30 xl:text-base text-sm bg-neutral-100 shadow-[inset_0_1px_0_#000000,inset_0_-1px_0_#000000] font-bold uppercase py-2 px-8 whitespace-nowrap"
-                    >
-                      {day}
-                    </td>
-                    {visibleUsers.map((user, userIndex) => (
-                      <td
-                        key={userIndex}
-                        className="sticky top-[66px] z-20 xl:text-base text-sm bg-neutral-100 shadow-[inset_0_1px_0_#000000,inset_0_-1px_0_#000000] font-bold uppercase py-2 px-4"
-                      >
-                      </td>
-                    ))}
-                  </tr>,
-                  // Blank row below day header
-                  <tr key={day + '-spacer-below'}>
-                    <td colSpan={1 + userDisplayNames.length} className="h-8"></td>
-                  </tr>,
-                  // All game rows for this day, flattened
-                  ...(getUniqueGamesById(dayGames ?? [])).flatMap((game, gameIdx) => {
-                    return [
-                      <tr key={game.id + '-' + game.date + '-away'}>
-                        {/* Sticky left: Away team info */}
-                        <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_1px_0_#000000,1px_0_0_#000000] px-2 xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl">
-                          <div className="relative flex whitespace-nowrap items-center justify-center h-full">
-                            {(() => {
-                              const isFinal = game.status === 'final' || game.status === 'post'
-                              const awayWon = isFinal && (game.awayScore ?? 0) > (game.homeScore ?? 0)
-                              if (awayWon) {
-                                const CircleTeam = getDeterministicCircleTeamComponent(getTeamCircleSize(game.awayTeam), `${game.id}_away`)
-                                return <CircleTeam className="w-full h-[0.9em]" />
-                              }
-                              return null
-                            })()}
-                            <span className="text-black">
-                              {getTeamDisplayNameWithFavorite(game.awayTeam, game, false)}
-                            </span>
-                          </div>
-                        </td>
-                        {/* User picks for away team */}
-                        {visibleUsers.map((user, userIndex) => {
-                          const pick = userPicksByUser[user.id]?.[game.id]?.pickedTeam
-                          const awayCorrect = pick === 'away' && (game.awayScore ?? 0) > (game.homeScore ?? 0)
-                          const isCurrentUser = user.id === currentUser?.uid
-                          const isGameFinished = game.status === 'final' || game.status === 'post'
-                          const AwayCheck = getDeterministicCheckComponent(`${game.id}_${user.id}_away`)
-                          const AwayCircleCheck = getDeterministicCircleCheckComponent(`${game.id}_${user.id}_away`)
-                          return (
-                            <td
-                              key={userIndex}
-                              className={`shadow-[inset_1px_0_0_#000000,inset_0_-1px_0_#000000] px-0 xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl min-w-14 ${isCurrentUser && game.status === 'scheduled' && !saving
-                                ? 'cursor-pointer hover:bg-white'
-                                : isCurrentUser && game.status !== 'scheduled'
-                                  ? 'cursor-not-allowed'
-                                  : ''
-                                }`}
-                              onClick={isCurrentUser ? () => handlePick(game.id, 'away') : undefined}
-                            >
-                              {pick === 'away' && (
-                                <div className="relative flex items-center justify-center h-full">
-                                  <AwayCheck className="xl:w-9 xl:h-9 w-7 h-7 transform translate-x-1 -translate-y-1" />
-                                  {awayCorrect && isGameFinished && <AwayCircleCheck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-12 xl:w-20 xl:h-15" />}
-                                </div>
-                              )}
-                            </td>
-                          )
-                        })}
-                      </tr>,
-                      <tr key={game.id + '-' + game.date + '-home'}>
-                        {/* Sticky left: Home team info */}
-                        <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_-1px_0_#000000,1px_0_0_#000000] px-2 xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl">
-                          <div className="relative flex items-center justify-center h-full whitespace-nowrap">
-                            {/* Show warning icon if needed, else live icon if live */}
-                            {((statusWarningMap[game.status?.toLowerCase?.()] || isLikelyPostponed(game)) ? (
-                              <div className="absolute right-[-18.5px] top-[-1.5px] -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-yellow-400 rounded-full">
-                                <Tooltip content={
-                                  isLikelyPostponed(game)
-                                    ? 'Likely postponed (no result reported)'
-                                    : statusWarningMap[game.status.toLowerCase()]
-                                } position="right">
-                                  <span className="material-symbols-sharp !text-sm mb-[1px]">warning</span>
-                                </Tooltip>
-                              </div>
-                            ) : game.status === "live" && (
-                              <div 
-                                className="absolute right-[-18.5px] top-[-1.5px] -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-green-400 shadow-[0_0_0_1px_#000000] rounded-full cursor-pointer hover:bg-green-500 transition-colors z-20"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setVisibleLiveGames(prev => {
-                                    const newSet = new Set(prev)
-                                    if (newSet.has(game.id)) {
-                                      newSet.delete(game.id)
-                                    } else {
-                                      newSet.add(game.id)
-                                    }
-                                    return newSet
-                                  })
-                                }}
-                              >
-                                <Tooltip content="Game in Progress - Tap to show live data" position="right">
-                                  <span className="material-symbols-sharp !text-sm mb-[1px] animate-ping">sports_football</span>
-                                </Tooltip>
-                              </div>
-                            ))}
-                            {(() => {
-                              const isFinal = game.status === 'final' || game.status === 'post'
-                              const homeWon = isFinal && (game.homeScore ?? 0) > (game.awayScore ?? 0)
-                              if (homeWon) {
-                                const CircleTeam = getDeterministicCircleTeamComponent(getTeamCircleSize(game.homeTeam), `${game.id}_home`)
-                                return <CircleTeam className="w-full h-[0.9em]" />
-                              }
-                              return null
-                            })()}
-                            <span className="text-black">
-                              {getTeamDisplayNameWithFavorite(game.homeTeam, game, true)}
-                            </span>
-                          </div>
-                        </td>
-                        {/* User picks for home team */}
-                        {visibleUsers.map((user, userIndex) => {
-                          const pick = userPicksByUser[user.id]?.[game.id]?.pickedTeam
-                          const homeCorrect = pick === 'home' && (game.homeScore ?? 0) > (game.awayScore ?? 0)
-                          const isCurrentUser = user.id === currentUser?.uid
-                          const isGameFinished = game.status === 'final' || game.status === 'post'
-                          const HomeCheck = getDeterministicCheckComponent(`${game.id}_${user.id}_home`)
-                          const HomeCircleCheck = getDeterministicCircleCheckComponent(`${game.id}_${user.id}_home`)
-                          return (
-                            <td
-                              key={userIndex}
-                              className={`shadow-[inset_1px_0_0_#000000] px-0 xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl min-w-14 ${isCurrentUser && game.status === 'scheduled' && !saving
-                                ? 'cursor-pointer hover:bg-white'
-                                : isCurrentUser && game.status !== 'scheduled'
-                                  ? 'cursor-not-allowed'
-                                  : ''
-                                }`}
-                              onClick={isCurrentUser ? () => handlePick(game.id, 'home') : undefined}
-                            >
-                              {pick === 'home' && (
-                                <div className="relative flex items-center justify-center h-full">
-                                  <HomeCheck className="xl:w-9 xl:h-9 w-7 h-7 transform translate-x-1" />
-                                  {homeCorrect && isGameFinished && <HomeCircleCheck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-12 xl:w-20 xl:h-15" />}
-                                </div>
-                              )}
-                            </td>
-                          )
-                        })}
-                      </tr>,
-                      // New: LiveGameDisplay row (only for live games that are toggled visible)
-                      ...(game.status === 'live' && visibleLiveGames.has(game.id) ? [
-                        <tr key={game.id + '-' + game.date + '-livegame'}>
-                          <td colSpan={1 + userDisplayNames.length} className="p-0 align-middle shadow-lg">
-                            <LiveGameDisplay gameId={game.id} />
+                    {/* weekly recap here */}
+
+                    {(() => {
+                      // Only show recap if all games are finished
+                      const allGames = games || [];
+                      const allGamesFinished = allGames.length > 0 && allGames.every(g => g.status === 'final' || g.status === 'post');
+                      if (!allGamesFinished) return null;
+
+                      // Compute recap stats for visible users (for display in this row)
+                      const playedGames = allGames.filter(g => g.status === 'final' || g.status === 'post');
+                      const recapStats = visibleUsers.map(user => {
+                        let correct = 0;
+                        playedGames.forEach(game => {
+                          const pick = userPicksByUser[user.id]?.[game.id]?.pickedTeam;
+                          const homeScore = Number(game.homeScore) ?? 0;
+                          const awayScore = Number(game.awayScore) ?? 0;
+                          const homeWon = homeScore > awayScore;
+                          const pickCorrect = (pick === 'home' && homeWon) || (pick === 'away' && !homeWon);
+                          if (pick && pickCorrect) correct++;
+                        });
+                        const total = playedGames.length;
+                        const percentage = total > 0 ? Math.round((correct / total) * 100) : 0;
+                        return { userId: user.id, correct, total, percentage };
+                      });
+
+                      // Find the max correct picks (among visible users, for display)
+                      const maxCorrect = Math.max(...recapStats.map(s => s.correct));
+                      const winnerIds = recapStats.filter(s => s.correct === maxCorrect && maxCorrect > 0).map(s => s.userId);
+
+                      // Save week recap to Firestore with ALL users so overall leaderboard is complete.
+                      // We must not overwrite with only visibleUsers (clipboard subset) or users like Jon/Carter disappear from stats.
+                      const saveWeekRecap = async () => {
+                        if (!db || users.length === 0) return
+                        try {
+                          const weekId = `${currentWeekData.season}_${currentWeekData.week}`
+                          const picksByUser: Record<string, Record<string, { pickedTeam?: string }>> = {}
+                          await Promise.all(users.map(async (user) => {
+                            const snap = await getDoc(doc(db, 'users', user.id, 'picks', weekId))
+                            picksByUser[user.id] = snap.exists() ? (snap.data() as Record<string, { pickedTeam?: string }>) : {}
+                          }))
+                          const allUserStats = users.map(user => {
+                            let correct = 0
+                            playedGames.forEach(game => {
+                              const pick = picksByUser[user.id]?.[String(game.id)]?.pickedTeam
+                              const homeScore = Number(game.homeScore) ?? 0
+                              const awayScore = Number(game.awayScore) ?? 0
+                              const homeWon = homeScore > awayScore
+                              const pickCorrect = (pick === 'home' && homeWon) || (pick === 'away' && !homeWon)
+                              if (pick && pickCorrect) correct++
+                            })
+                            const total = playedGames.length
+                            const percentage = total > 0 ? Math.round((correct / total) * 100) : 0
+                            return { userId: user.id, correct, total, percentage }
+                          })
+                          const globalMaxCorrect = Math.max(...allUserStats.map(s => s.correct))
+                          const globalWinnerIds = allUserStats.filter(s => s.correct === globalMaxCorrect && globalMaxCorrect > 0).map(s => s.userId)
+                          const weekRecapData = {
+                            weekId,
+                            season: currentWeekData.season,
+                            week: currentWeekData.week,
+                            calculatedAt: serverTimestamp(),
+                            userStats: allUserStats.map(stat => ({
+                              userId: stat.userId,
+                              correct: stat.correct,
+                              total: stat.total,
+                              percentage: stat.percentage,
+                              isTopScore: globalWinnerIds.includes(stat.userId)
+                            }))
+                          }
+                          await setDoc(doc(db, 'weekRecaps', weekId), weekRecapData)
+                          console.log('💾 Saved week recap for', allUserStats.length, 'users')
+                        } catch (error) {
+                          console.error('❌ Error saving week recap data:', error)
+                        }
+                      }
+
+                      saveWeekRecap()
+
+                      return (
+                        <tr className="font-bold uppercase text-center xl:text-base text-sm bg-yellow-200">
+                          <td className="sticky left-0 z-20 bg-yellow-200 text-center px-2 xl:h-16 h-12 align-middle font-bold xl:text-base text-sm shadow-[1px_0_0_#000000]">
+                            RECAP
                           </td>
+                          {recapStats.map((stat, idx) => (
+                            <td key={stat.userId} className="text-center align-middle font-bold xl:text-base text-sm shadow-[-1px_0_0_#000000]">
+                              <span className="inline-flex items-center justify-center">
+                                {stat.percentage}%
+                                {winnerIds.includes(stat.userId) && (
+                                  <span title="Top Score" className="ml-0.5 text-orange-600" role="img">🔥</span>
+                                )}
+                              </span>
+                              <br />
+                              {stat.correct}/{stat.total}
+                            </td>
+                          ))}
                         </tr>
-                      ] : []),
-                      // Blank row between matchups
-                      <tr key={game.id + '-' + game.date + '-spacer'}>
+                      );
+                    })()}
+
+
+                    <tr className="h-8"></tr>
+                    {Object.entries(gamesByDay).flatMap(([day, dayGames], dayIdx) => [
+                      // Day header row
+                      <tr key={day + '-header'}>
+                        <td
+                          className="sticky top-[66px] left-0 z-30 xl:text-base text-sm bg-neutral-100 shadow-[inset_0_1px_0_#000000,inset_0_-1px_0_#000000] font-bold uppercase py-2 px-8 whitespace-nowrap"
+                        >
+                          {day}
+                        </td>
+                        {visibleUsers.map((user, userIndex) => (
+                          <td
+                            key={userIndex}
+                            className="sticky top-[66px] z-20 xl:text-base text-sm bg-neutral-100 shadow-[inset_0_1px_0_#000000,inset_0_-1px_0_#000000] font-bold uppercase py-2 px-4"
+                          >
+                          </td>
+                        ))}
+                      </tr>,
+                      // Blank row below day header
+                      <tr key={day + '-spacer-below'}>
                         <td colSpan={1 + userDisplayNames.length} className="h-8"></td>
-                      </tr>
-                    ]
-                  })
-                ])}
-              </tbody>
-            </table>
-          </div>
-          </>
+                      </tr>,
+                      // All game rows for this day, flattened
+                      ...(getUniqueGamesById(dayGames ?? [])).flatMap((game, gameIdx) => {
+                        return [
+                          <tr key={game.id + '-' + game.date + '-away'}>
+                            {/* Sticky left: Away team info */}
+                            <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_1px_0_#000000,1px_0_0_#000000] px-2 xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl">
+                              <div className="relative flex whitespace-nowrap items-center justify-center h-full">
+                                {(() => {
+                                  const isFinal = game.status === 'final' || game.status === 'post'
+                                  const awayWon = isFinal && (game.awayScore ?? 0) > (game.homeScore ?? 0)
+                                  if (awayWon) {
+                                    const CircleTeam = getDeterministicCircleTeamComponent(getTeamCircleSize(game.awayTeam), `${game.id}_away`)
+                                    return <CircleTeam className="w-full h-[0.9em]" />
+                                  }
+                                  return null
+                                })()}
+                                <span className="text-black">
+                                  {getTeamDisplayNameWithFavorite(game.awayTeam, game, false)}
+                                </span>
+                              </div>
+                            </td>
+                            {/* User picks for away team */}
+                            {visibleUsers.map((user, userIndex) => {
+                              const pick = userPicksByUser[user.id]?.[game.id]?.pickedTeam
+                              const awayCorrect = pick === 'away' && (game.awayScore ?? 0) > (game.homeScore ?? 0)
+                              const isCurrentUser = user.id === currentUser?.uid
+                              const isGameFinished = game.status === 'final' || game.status === 'post'
+                              const AwayCheck = getDeterministicCheckComponent(`${game.id}_${user.id}_away`)
+                              const AwayCircleCheck = getDeterministicCircleCheckComponent(`${game.id}_${user.id}_away`)
+                              return (
+                                <td
+                                  key={userIndex}
+                                  className={`shadow-[inset_1px_0_0_#000000,inset_0_-1px_0_#000000] px-0 xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl min-w-14 ${isCurrentUser && game.status === 'scheduled' && !saving
+                                    ? 'cursor-pointer hover:bg-white'
+                                    : isCurrentUser && game.status !== 'scheduled'
+                                      ? 'cursor-not-allowed'
+                                      : ''
+                                    }`}
+                                  onClick={isCurrentUser ? () => handlePick(game.id, 'away') : undefined}
+                                >
+                                  {pick === 'away' && (
+                                    <div className="relative flex items-center justify-center h-full">
+                                      <AwayCheck className="xl:w-9 xl:h-9 w-7 h-7 transform translate-x-1 -translate-y-1" />
+                                      {awayCorrect && isGameFinished && <AwayCircleCheck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-12 xl:w-20 xl:h-15" />}
+                                    </div>
+                                  )}
+                                </td>
+                              )
+                            })}
+                          </tr>,
+                          <tr key={game.id + '-' + game.date + '-home'}>
+                            {/* Sticky left: Home team info */}
+                            <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_-1px_0_#000000,1px_0_0_#000000] px-2 xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl">
+                              <div className="relative flex items-center justify-center h-full whitespace-nowrap">
+                                {/* Show warning icon if needed, else live icon if live */}
+                                {((statusWarningMap[game.status?.toLowerCase?.()] || isLikelyPostponed(game)) ? (
+                                  <div className="absolute right-[-18.5px] top-[-1.5px] -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-yellow-400 rounded-full">
+                                    <Tooltip content={
+                                      isLikelyPostponed(game)
+                                        ? 'Likely postponed (no result reported)'
+                                        : statusWarningMap[game.status.toLowerCase()]
+                                    } position="right">
+                                      <span className="material-symbols-sharp !text-sm mb-[1px]">warning</span>
+                                    </Tooltip>
+                                  </div>
+                                ) : game.status === "live" && (
+                                  <div
+                                    className="absolute right-[-18.5px] top-[-1.5px] -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-green-400 shadow-[0_0_0_1px_#000000] rounded-full cursor-pointer hover:bg-green-500 transition-colors z-20"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setVisibleLiveGames(prev => {
+                                        const newSet = new Set(prev)
+                                        if (newSet.has(game.id)) {
+                                          newSet.delete(game.id)
+                                        } else {
+                                          newSet.add(game.id)
+                                        }
+                                        return newSet
+                                      })
+                                    }}
+                                  >
+                                    <Tooltip content="Game in Progress - Tap to show live data" position="right">
+                                      <span className="material-symbols-sharp !text-sm mb-[1px] animate-ping">sports_football</span>
+                                    </Tooltip>
+                                  </div>
+                                ))}
+                                {(() => {
+                                  const isFinal = game.status === 'final' || game.status === 'post'
+                                  const homeWon = isFinal && (game.homeScore ?? 0) > (game.awayScore ?? 0)
+                                  if (homeWon) {
+                                    const CircleTeam = getDeterministicCircleTeamComponent(getTeamCircleSize(game.homeTeam), `${game.id}_home`)
+                                    return <CircleTeam className="w-full h-[0.9em]" />
+                                  }
+                                  return null
+                                })()}
+                                <span className="text-black">
+                                  {getTeamDisplayNameWithFavorite(game.homeTeam, game, true)}
+                                </span>
+                              </div>
+                            </td>
+                            {/* User picks for home team */}
+                            {visibleUsers.map((user, userIndex) => {
+                              const pick = userPicksByUser[user.id]?.[game.id]?.pickedTeam
+                              const homeCorrect = pick === 'home' && (game.homeScore ?? 0) > (game.awayScore ?? 0)
+                              const isCurrentUser = user.id === currentUser?.uid
+                              const isGameFinished = game.status === 'final' || game.status === 'post'
+                              const HomeCheck = getDeterministicCheckComponent(`${game.id}_${user.id}_home`)
+                              const HomeCircleCheck = getDeterministicCircleCheckComponent(`${game.id}_${user.id}_home`)
+                              return (
+                                <td
+                                  key={userIndex}
+                                  className={`shadow-[inset_1px_0_0_#000000] px-0 xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl min-w-14 ${isCurrentUser && game.status === 'scheduled' && !saving
+                                    ? 'cursor-pointer hover:bg-white'
+                                    : isCurrentUser && game.status !== 'scheduled'
+                                      ? 'cursor-not-allowed'
+                                      : ''
+                                    }`}
+                                  onClick={isCurrentUser ? () => handlePick(game.id, 'home') : undefined}
+                                >
+                                  {pick === 'home' && (
+                                    <div className="relative flex items-center justify-center h-full">
+                                      <HomeCheck className="xl:w-9 xl:h-9 w-7 h-7 transform translate-x-1" />
+                                      {homeCorrect && isGameFinished && <HomeCircleCheck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-12 xl:w-20 xl:h-15" />}
+                                    </div>
+                                  )}
+                                </td>
+                              )
+                            })}
+                          </tr>,
+                          // New: LiveGameDisplay row (only for live games that are toggled visible)
+                          ...(game.status === 'live' && visibleLiveGames.has(game.id) ? [
+                            <tr key={game.id + '-' + game.date + '-livegame'}>
+                              <td colSpan={1 + userDisplayNames.length} className="p-0 align-middle shadow-lg">
+                                <LiveGameDisplay gameId={game.id} />
+                              </td>
+                            </tr>
+                          ] : []),
+                          // Blank row between matchups
+                          <tr key={game.id + '-' + game.date + '-spacer'}>
+                            <td colSpan={1 + userDisplayNames.length} className="h-8"></td>
+                          </tr>
+                        ]
+                      })
+                    ])}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </div>

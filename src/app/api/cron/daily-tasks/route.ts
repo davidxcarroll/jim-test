@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { emailService } from '@/lib/emails'
 import { collection, query, where, getDocs, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { getRoundDisplayName, getWeekKey } from '@/utils/date-helpers'
+import { dateHelpers, getRoundDisplayName, getWeekKey } from '@/utils/date-helpers'
 import { espnApi } from '@/lib/espn-api'
 import { assertCronAuthorized } from '@/lib/api-auth'
 import { resolveRecapSeasonContext } from '@/utils/recap-season'
+
+export async function GET(request: NextRequest) {
+  return POST(request)
+}
 
 export async function POST(request: NextRequest) {
   const authError = assertCronAuthorized(request)
@@ -27,57 +31,64 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // TASK 1: Weekly Reminders (Wednesdays — when the NFL week turns over)
-    if (dayOfWeek === 3) {
-      try {
-        console.log('📧 Running weekly reminders task...')
-        const seasonCtx = await resolveRecapSeasonContext()
-        if (!seasonCtx || seasonCtx.offSeason || !seasonCtx.currentWeek) {
-          console.log('📧 Skipping weekly reminders — off-season or no current week')
-          results.weeklyReminders = { success: true, sentTo: 0 }
-        } else {
-          const currentWeek = seasonCtx.currentWeek
-          const weekLabel = getRoundDisplayName(
-            currentWeek.label,
-            currentWeek.weekType,
-            currentWeek.week
-          )
+    // TASK 1: Weekly reminders on the day the current ESPN week starts (PT)
+    let sentWeeklyReminders = false
+    try {
+      console.log('📧 Checking weekly reminders task...')
+      const seasonCtx = await resolveRecapSeasonContext()
+      const currentWeek = seasonCtx?.currentWeek
+      const isWeekStartDay = !!(
+        currentWeek &&
+        dateHelpers.isSameCalendarDayInTimeZone(currentWeek.startDate, today)
+      )
+      if (!seasonCtx || seasonCtx.offSeason || !currentWeek) {
+        console.log('📧 Skipping weekly reminders — off-season or no current week')
+        results.weeklyReminders = { success: true, sentTo: 0 }
+      } else if (!isWeekStartDay) {
+        console.log('📧 Skipping weekly reminders — not the current week start day')
+        results.weeklyReminders = { success: true, sentTo: 0 }
+      } else {
+        sentWeeklyReminders = true
+        const weekLabel = getRoundDisplayName(
+          currentWeek.label,
+          currentWeek.weekType,
+          currentWeek.week
+        )
 
-          const usersRef = collection(db, 'users')
-          const q = query(usersRef, where('emailNotifications', '==', true))
-          const querySnapshot = await getDocs(q)
+        const usersRef = collection(db, 'users')
+        const q = query(usersRef, where('emailNotifications', '==', true))
+        const querySnapshot = await getDocs(q)
 
-          const recipients = []
-          for (const userDoc of querySnapshot.docs) {
-            const userData = userDoc.data()
-            if (!userData.email) {
-              console.warn('Skipping user without email:', userDoc.id)
-              continue
-            }
-            recipients.push({
-              email: userData.email as string,
-              displayName: userData.displayName as string | undefined,
-            })
+        const recipients = []
+        for (const userDoc of querySnapshot.docs) {
+          const userData = userDoc.data()
+          if (!userData.email) {
+            console.warn('Skipping user without email:', userDoc.id)
+            continue
           }
-
-          const { sent, failed } = await emailService.sendWeeklyRemindersBatch(
-            recipients,
-            weekLabel
-          )
-
-          results.weeklyReminders = {
-            success: true,
-            sentTo: sent,
-            failed,
-          }
-          console.log(`✅ Weekly reminders sent to ${sent} users (${weekLabel}), ${failed} failed`)
+          recipients.push({
+            email: userData.email as string,
+            displayName: userData.displayName as string | undefined,
+          })
         }
-      } catch (error) {
-        console.error('❌ Error sending weekly reminder emails:', error)
+
+        const { sent, failed } = await emailService.sendWeeklyRemindersBatch(
+          recipients,
+          weekLabel
+        )
+
         results.weeklyReminders = {
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          success: true,
+          sentTo: sent,
+          failed,
         }
+        console.log(`✅ Weekly reminders sent to ${sent} users (${weekLabel}), ${failed} failed`)
+      }
+    } catch (error) {
+      console.error('❌ Error sending weekly reminder emails:', error)
+      results.weeklyReminders = {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
       }
     }
 
@@ -240,7 +251,7 @@ export async function POST(request: NextRequest) {
       message: 'Daily tasks completed',
       dayOfWeek,
       tasksRun: {
-        weeklyReminders: dayOfWeek === 3,
+        weeklyReminders: sentWeeklyReminders,
         weekRecaps: true
       },
       results,

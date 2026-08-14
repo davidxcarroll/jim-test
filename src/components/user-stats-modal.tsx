@@ -266,6 +266,8 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
 
         // Get week dates for fetching games to check if week is complete
         const [season, weekStr] = weekId.split('_')
+        if (parseInt(season) !== weekInfo?.season) continue
+        if (weekStr.startsWith('preseason-')) continue
         let weekNumber: number
         let weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl' = 'regular'
         let weekLabel: string | undefined = undefined

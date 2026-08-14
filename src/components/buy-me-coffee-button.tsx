@@ -14,10 +14,10 @@ export function BuyMeCoffeeButton() {
         className="bmc-btn inline-flex items-center box-border no-underline hover:no-underline focus:no-underline active:no-underline cursor-pointer font-bold xl:text-base text-sm shadow-[inset_0_0_0_1px_#000000]"
         style={{
           height: 40,
-          borderRadius: 0,
           padding: '0 16px',
           fontFamily: 'var(--font-chakra-petch), sans-serif',
           fontWeight: 'bold',
+          border: '1px solid white',
         }}
       >
         <span className="inline-flex items-center gap-1 text-[32px] leading-none select-none" aria-hidden>
@@ -39,7 +39,7 @@ export function BuyMeCoffeeButton() {
             fontFamily: 'var(--font-chakra-petch), sans-serif',
           }}
         >
-          Buy me a coffee!
+          Buy me a coffee
         </span>
       </a>
     </div>

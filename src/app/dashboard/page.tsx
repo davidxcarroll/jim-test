@@ -124,13 +124,83 @@ function isLikelyPostponed(game: any) {
   )
 }
 
+function GamesSkeletonRows({ userCount }: { userCount: number }) {
+  const columns = Math.max(userCount, 1)
+  const colSpan = 1 + columns
+  return (
+    <>
+      <tr className="h-8"></tr>
+      {/* Day header skeleton */}
+      <tr>
+        <td
+          colSpan={colSpan}
+          className="sticky top-[66px] z-30 xl:text-base text-sm bg-neutral-100 shadow-[inset_0_1px_0_#cccccc,inset_0_-1px_0_#cccccc] font-bold uppercase p-0"
+        >
+          <div className="sticky left-0 w-[98dvw] py-2 text-center whitespace-nowrap">
+            <div className="w-48 h-5 bg-black/10 animate-pulse mx-auto"></div>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td colSpan={colSpan} className="h-8"></td>
+      </tr>
+      {/* Generate 4 matchup rows (8 team rows + spacers) */}
+      {Array.from({ length: 4 }, (_, matchupIndex) => [
+        // Home team row
+        <tr key={`skeleton-home-${matchupIndex}`}>
+          <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_1px_0_#cccccc,1px_0_0_#cccccc] px-2 xl:h-12 h-6 align-middle">
+            <div className="flex items-center justify-center h-full">
+              <div className="w-32 h-6 bg-black/10 animate-pulse"></div>
+            </div>
+          </td>
+          {Array.from({ length: columns }, (_, userIndex) => (
+            <td
+              key={userIndex}
+              className="shadow-[inset_1px_0_0_#cccccc,inset_0_-1px_0_#cccccc] px-0 xl:h-12 h-6 align-middle"
+            >
+              <div className="w-8 h-8 bg-black/10 animate-pulse mx-auto"></div>
+            </td>
+          ))}
+        </tr>,
+        // Away team row
+        <tr key={`skeleton-away-${matchupIndex}`}>
+          <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_-1px_0_#cccccc,1px_0_0_#cccccc] px-2 xl:h-12 h-6 align-middle">
+            <div className="flex items-center justify-center h-full">
+              <div className="w-32 h-6 bg-black/10 animate-pulse"></div>
+            </div>
+          </td>
+          {Array.from({ length: columns }, (_, userIndex) => (
+            <td
+              key={userIndex}
+              className="shadow-[inset_1px_0_0_#cccccc] px-0 xl:h-12 h-6 align-middle"
+            >
+              <div className="w-8 h-8 bg-black/10 animate-pulse mx-auto"></div>
+            </td>
+          ))}
+        </tr>,
+        // Spacer row
+        <tr key={`skeleton-spacer-${matchupIndex}`}>
+          <td colSpan={colSpan} className="h-8"></td>
+        </tr>
+      ]).flat()}
+    </>
+  )
+}
+
 // Skeleton loading component
 function DashboardSkeleton() {
   return (
     <div className="min-w-fit font-chakra text-2xl pb-16 select-none">
       <Navigation />
 
-      <div className="flex flex-col pt-10 pr-10 lg:mx-8 md:mx-4 sm:mx-2 bg-neutral-100">
+      <div className="flex flex-col pr-10 lg:mx-8 md:mx-4 sm:mx-2 bg-neutral-100">
+        {/* Week title skeleton */}
+        <div className="sm:-mx-2 md:-mx-4 lg:-mx-8">
+          <p className="sticky left-0 self-start shrink-0 w-[98dvw] p-6 pt-12 font-chakra font-bold text-[clamp(2rem,min(5dvw,7dvh),5rem)] text-center text-balance uppercase leading-none">
+            <span className="inline-block align-middle w-[10ch] h-[0.85em] bg-black/10 animate-pulse" aria-hidden />
+          </p>
+        </div>
+
         <div className="md:pb-8 pb-4">
           <table className="min-w-full bg-neutral-100 border-separate" style={{ borderSpacing: 0 }}>
             <thead>
@@ -157,46 +227,7 @@ function DashboardSkeleton() {
               </tr>
             </thead>
             <tbody>
-              <tr className="h-8"></tr>
-              {/* Generate 10 matchup rows (20 team rows + spacers) */}
-              {Array.from({ length: 10 }, (_, matchupIndex) => [
-                // Home team row
-                <tr key={`skeleton-home-${matchupIndex}`}>
-                  <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_1px_0_#cccccc,1px_0_0_#cccccc] px-2 xl:h-12 h-6 align-middle">
-                    <div className="flex items-center justify-center h-full">
-                      <div className="w-32 h-6 bg-black/10 animate-pulse"></div>
-                    </div>
-                  </td>
-                  {Array.from({ length: 5 }, (_, userIndex) => (
-                    <td
-                      key={userIndex}
-                      className="shadow-[inset_1px_0_0_#cccccc,inset_0_-1px_0_#cccccc] px-0 xl:h-12 h-6 align-middle"
-                    >
-                      <div className="w-8 h-8 bg-black/10 animate-pulse mx-auto"></div>
-                    </td>
-                  ))}
-                </tr>,
-                // Away team row
-                <tr key={`skeleton-away-${matchupIndex}`}>
-                  <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_-1px_0_#cccccc,1px_0_0_#cccccc] px-2 xl:h-12 h-6 align-middle">
-                    <div className="flex items-center justify-center h-full">
-                      <div className="w-32 h-6 bg-black/10 animate-pulse"></div>
-                    </div>
-                  </td>
-                  {Array.from({ length: 5 }, (_, userIndex) => (
-                    <td
-                      key={userIndex}
-                      className="shadow-[inset_1px_0_0_#cccccc] px-0 xl:h-12 h-6 align-middle"
-                    >
-                      <div className="w-8 h-8 bg-black/10 animate-pulse mx-auto"></div>
-                    </td>
-                  ))}
-                </tr>,
-                // Spacer row
-                <tr key={`skeleton-spacer-${matchupIndex}`}>
-                  <td colSpan={6} className="h-8"></td>
-                </tr>
-              ]).flat()}
+              <GamesSkeletonRows userCount={5} />
             </tbody>
           </table>
         </div>
@@ -215,7 +246,7 @@ function WeeklyMatchesPage() {
   const [weekOffset, setWeekOffset] = useState(0)
   const [isWeekDropdownOpen, setIsWeekDropdownOpen] = useState(false)
   const [allAvailableWeeks, setAllAvailableWeeks] = useState<Array<{ week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'; startDate: Date; endDate: Date; label?: string }>>([])
-  const [loadingWeeks, setLoadingWeeks] = useState(true)
+  const [, setLoadingWeeks] = useState(true)
 
   type WeekSelectorItem = {
     index: number
@@ -357,7 +388,7 @@ function WeeklyMatchesPage() {
   }
 
   const currentWeekData = getWeekData(weekOffset)
-  const { data: games, isLoading } = useGamesForWeek(
+  const { data: games, isLoading, isError: gamesError } = useGamesForWeek(
     currentWeekData.start,
     currentWeekData.end,
     !currentWeekData.isSeasonSummary
@@ -367,22 +398,27 @@ function WeeklyMatchesPage() {
   const [users, setUsers] = useState<any[]>([])
   const [userPicksByUser, setUserPicksByUser] = useState<Record<string, any>>({})
   const [loadingUsers, setLoadingUsers] = useState(true)
-  const [loadingPicks, setLoadingPicks] = useState(true)
+  const [, setLoadingPicks] = useState(false)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [selectedUser, setSelectedUser] = useState<{ id: string; name: string } | null>(null)
   const [visibleLiveGames, setVisibleLiveGames] = useState<Set<string>>(new Set())
 
-  const [loadTimeout, setLoadTimeout] = useState(false)
+  const clipboardSettingsPending =
+    clipboardLoading ||
+    (clipboardSettings.lastUpdated === null && clipboardSettings.userOrder.length === 0)
 
-  // Filter and sort users based on clipboard visibility settings and user order
+  // Filter and sort users based on clipboard visibility settings and user order.
+  // Until settings load, show everyone so columns don't flash in one-at-a-time.
   const visibleUsers = React.useMemo(() => {
-    const filteredUsers = users.filter(user => {
-      // Always show current user
-      if (user.id === currentUser?.uid) return true
-      // Show other users only if they're in the visible users set
-      return clipboardSettings.visibleUsers.has(user.id)
-    })
+    const filteredUsers = clipboardSettingsPending
+      ? users
+      : users.filter(user => {
+          // Always show current user
+          if (user.id === currentUser?.uid) return true
+          // Show other users only if they're in the visible users set
+          return clipboardSettings.visibleUsers.has(user.id)
+        })
 
     // Sort users based on the user order from settings
     if (clipboardSettings.userOrder.length) {
@@ -397,15 +433,8 @@ function WeeklyMatchesPage() {
     }
 
     return filteredUsers
-  }, [users, currentUser?.uid, clipboardSettings.visibleUsers, clipboardSettings.userOrder])
-  useEffect(() => {
-    // Reset timeout when loading states change
-    setLoadTimeout(false)
-    const timer = setTimeout(() => {
-      setLoadTimeout(true)
-    }, 10000) // 10 seconds
-    return () => clearTimeout(timer)
-  }, [isLoading, loadingUsers, loadingPicks, clipboardLoading, weekLoading, loadingWeeks])
+  }, [users, currentUser?.uid, clipboardSettings.visibleUsers, clipboardSettings.userOrder, clipboardSettingsPending])
+  const visibleUserIdsKey = visibleUsers.map(u => u.id).join(',')
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -427,13 +456,13 @@ function WeeklyMatchesPage() {
 
   // Load clipboard visibility settings when current user changes
   useEffect(() => {
-    if (currentUser?.uid) {
-      // Pass all user IDs to ensure all users are visible by default
-      const allUserIds = users.map(user => user.id)
-      loadSettings(currentUser.uid, allUserIds)
-      const unsubscribe = subscribeToChanges(currentUser.uid)
-      return unsubscribe
+    if (!currentUser?.uid) return
+    // Wait for the user list so we don't persist empty visibleUsers on first run
+    if (users.length > 0) {
+      loadSettings(currentUser.uid, users.map(user => user.id))
     }
+    const unsubscribe = subscribeToChanges(currentUser.uid)
+    return unsubscribe
   }, [currentUser?.uid, loadSettings, subscribeToChanges, users])
 
   // Fetch all users
@@ -470,8 +499,14 @@ function WeeklyMatchesPage() {
 
   // Fetch all user picks for this week (skip when "2025 Season" bookend is selected)
   useEffect(() => {
-    if ('isSeasonSummary' in currentWeekData && currentWeekData.isSeasonSummary) return
-    if (visibleUsers.length === 0 || clipboardLoading || !games || games.length === 0) return
+    if ('isSeasonSummary' in currentWeekData && currentWeekData.isSeasonSummary) {
+      setLoadingPicks(false)
+      return
+    }
+    if (visibleUsers.length === 0 || !games || games.length === 0) {
+      setLoadingPicks(false)
+      return
+    }
 
     // Add a small delay to prevent rapid re-fetching when settings change
     const timeoutId = setTimeout(() => {
@@ -535,12 +570,12 @@ function WeeklyMatchesPage() {
     }, 100) // 100ms delay
 
     return () => clearTimeout(timeoutId)
-  }, [visibleUsers.map(u => u.id).join(','), currentWeekData.season, currentWeekData.week, games])
+  }, [visibleUserIdsKey, currentWeekData.season, currentWeekData.week, games])
 
   // Group games by day
   const gamesByDay: Record<string, typeof games> = {}
   games?.forEach((game) => {
-    const day = format(parseISO(game.date), "EEE, MMM d")
+    const day = format(parseISO(game.date), "EEEE, MMMM d")
     if (!gamesByDay[day]) gamesByDay[day] = []
     gamesByDay[day].push(game)
   })
@@ -672,11 +707,7 @@ function WeeklyMatchesPage() {
 
   const isSeasonSummaryView = !weekInfo
   const stillLoadingForSeasonView = weekLoading
-  const stillLoadingForWeekView = isLoading || loadingUsers || loadingPicks || clipboardLoading || weekLoading || loadingWeeks
-
-  if ((isSeasonSummaryView ? stillLoadingForSeasonView : stillLoadingForWeekView) && !loadTimeout) {
-    return <DashboardSkeleton />
-  }
+  const stillLoadingForWeekView = weekLoading || loadingUsers
 
   // Show error if week loading fails (but only if it's a real error, not off-season)
   if (weekError) {
@@ -694,23 +725,8 @@ function WeeklyMatchesPage() {
     )
   }
 
-  // Show error if timeout occurs (never when season summary view — we have enough to show the bookend)
-  if (
-    loadTimeout &&
-    !isSeasonSummaryView &&
-    (isLoading || loadingUsers || loadingPicks || clipboardLoading || weekLoading)
-  ) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen font-chakra text-2xl bg-neutral-100">
-        <div className="mb-4 text-red-600 font-bold">Something went wrong loading the dashboard.</div>
-        <button
-          className="px-6 py-3 bg-black text-white rounded-lg font-bold hover:bg-neutral-800 transition"
-          onClick={() => window.location.reload()}
-        >
-          Retry
-        </button>
-      </div>
-    )
+  if (isSeasonSummaryView ? stillLoadingForSeasonView : stillLoadingForWeekView) {
+    return <DashboardSkeleton />
   }
 
   const selectedWeekInfo = availableWeeks.find(w => w.index === weekOffset)
@@ -743,7 +759,7 @@ function WeeklyMatchesPage() {
 
               {/* Week title */}
               <div className="sm:-mx-2 md:-mx-4 lg:-mx-8">
-                <p className="sticky left-0 self-start shrink-0 w-[98dvw] p-6 pt-12 font-chakra font-bold text-[clamp(2rem,min(5dvw,7dvh),5rem)] text-center uppercase leading-none">
+                <p className="sticky left-0 self-start shrink-0 w-[98dvw] p-6 pt-12 font-chakra font-bold text-[clamp(2rem,min(5dvw,7dvh),5rem)] text-center text-balance uppercase leading-none">
                   {weekTitle}
                 </p>
               </div>
@@ -811,8 +827,22 @@ function WeeklyMatchesPage() {
                     </tr>
                   </thead>
                   <tbody>
-
-
+                    {gamesError ? (
+                      <tr>
+                        <td colSpan={1 + userDisplayNames.length} className="px-2 py-12 text-center">
+                          <div className="mb-4 text-red-600 font-bold">Unable to load games.</div>
+                          <button
+                            className="px-6 py-3 bg-black text-white rounded-lg font-bold hover:bg-neutral-800 transition"
+                            onClick={() => window.location.reload()}
+                          >
+                            Retry
+                          </button>
+                        </td>
+                      </tr>
+                    ) : isLoading ? (
+                      <GamesSkeletonRows userCount={userDisplayNames.length} />
+                    ) : (
+                      <>
                     {/* weekly recap here */}
 
                     {(() => {
@@ -918,17 +948,13 @@ function WeeklyMatchesPage() {
                       // Day header row
                       <tr key={day + '-header'}>
                         <td
-                          className="sticky top-[66px] left-0 z-30 xl:text-base text-sm bg-neutral-100 shadow-[inset_0_1px_0_#000000,inset_0_-1px_0_#000000] font-bold uppercase py-2 px-8 whitespace-nowrap"
+                          colSpan={1 + userDisplayNames.length}
+                          className="sticky top-[66px] z-30 xl:text-base text-sm bg-neutral-100 shadow-[inset_0_1px_0_#000000,inset_0_-1px_0_#000000] font-bold uppercase p-0"
                         >
-                          {day}
+                          <div className="sticky left-0 sm:left-2 md:left-4 lg:left-8 w-[98dvw] sm:w-[calc(98dvw-1rem)] md:w-[calc(98dvw-2rem)] lg:w-[calc(98dvw-4rem)] py-2 text-center whitespace-nowrap">
+                            {day}
+                          </div>
                         </td>
-                        {visibleUsers.map((user, userIndex) => (
-                          <td
-                            key={userIndex}
-                            className="sticky top-[66px] z-20 xl:text-base text-sm bg-neutral-100 shadow-[inset_0_1px_0_#000000,inset_0_-1px_0_#000000] font-bold uppercase py-2 px-4"
-                          >
-                          </td>
-                        ))}
                       </tr>,
                       // Blank row below day header
                       <tr key={day + '-spacer-below'}>
@@ -1078,6 +1104,8 @@ function WeeklyMatchesPage() {
                         ]
                       })
                     ])}
+                      </>
+                    )}
                   </tbody>
                 </table>
               </div>

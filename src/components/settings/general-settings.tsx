@@ -509,11 +509,11 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
             onChange={(e) => handleEmailNotificationsChange(e.target.checked)}
             className="w-5 h-5 accent-black cursor-pointer"
           />
-          <span className="font-bold text-black uppercase">
+          <span className="font-bold text-black uppercase leading-none text-balance">
             Get weekly email reminders
           </span>
         </div>
-        <p className="mt-1 text-xs text-black/50 uppercase font-bold text-center">
+        <p className="mt-1 text-xs text-black/50 uppercase font-bold text-center text-balance">
           {settings.emailNotifications
             ? 'You will receive an email when a new week starts'
             : 'You will not receive a reminder email when a new week starts'}

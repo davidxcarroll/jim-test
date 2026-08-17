@@ -13,16 +13,16 @@ function SettingsPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   return (
-    <div className="w-full font-chakra text-2xl pb-16 select-none">
+    <div className="w-full max-w-full min-w-0 font-chakra text-2xl pb-16 select-none">
       <Navigation />
       {toast && (
         <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
       )}
 
-      <div className="flex flex-col lg:px-8 md:px-4 sm:px-2">
-        <div className="relative flex flex-col pt-10 pb-16 bg-neutral-100">
+      <div className="flex flex-col min-w-0 lg:px-8 md:px-4 sm:px-2">
+        <div className="relative flex flex-col min-w-0 pt-10 pb-16 bg-neutral-100">
 
-          <div className="w-full flex flex-col items-center justify-center">
+          <div className="w-full min-w-0 flex flex-col items-center justify-center">
 
             <h1 className="font-jim xl:text-7xl lg:text-6xl text-5xl text-center">Settings</h1>
 

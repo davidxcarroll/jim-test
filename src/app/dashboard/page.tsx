@@ -137,7 +137,7 @@ function GamesSkeletonRows({ userCount }: { userCount: number }) {
           className="sticky top-[66px] z-30 xl:text-base text-sm bg-neutral-100 shadow-[inset_0_1px_0_#cccccc,inset_0_-1px_0_#cccccc] font-bold uppercase p-0"
         >
           <div className="sticky left-0 w-[98dvw] py-2 text-center whitespace-nowrap">
-            <div className="w-48 h-5 bg-black/10 animate-pulse mx-auto"></div>
+            <div className="w-[clamp(10rem,50dvw,13rem)] h-5 bg-black/10 animate-pulse mx-auto"></div>
           </div>
         </td>
       </tr>
@@ -148,7 +148,7 @@ function GamesSkeletonRows({ userCount }: { userCount: number }) {
       {Array.from({ length: 4 }, (_, matchupIndex) => [
         // Home team row
         <tr key={`skeleton-home-${matchupIndex}`}>
-          <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_1px_0_#cccccc,1px_0_0_#cccccc] px-2 xl:h-12 h-6 align-middle">
+          <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_1px_0_#cccccc,1px_0_0_#cccccc] xl:h-12 h-6 align-middle">
             <div className="flex items-center justify-center h-full">
               <div className="w-32 h-6 bg-black/10 animate-pulse"></div>
             </div>
@@ -164,7 +164,7 @@ function GamesSkeletonRows({ userCount }: { userCount: number }) {
         </tr>,
         // Away team row
         <tr key={`skeleton-away-${matchupIndex}`}>
-          <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_-1px_0_#cccccc,1px_0_0_#cccccc] px-2 xl:h-12 h-6 align-middle">
+          <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_-1px_0_#cccccc,1px_0_0_#cccccc] xl:h-12 h-6 align-middle">
             <div className="flex items-center justify-center h-full">
               <div className="w-32 h-6 bg-black/10 animate-pulse"></div>
             </div>
@@ -190,13 +190,13 @@ function GamesSkeletonRows({ userCount }: { userCount: number }) {
 // Skeleton loading component
 function DashboardSkeleton() {
   return (
-    <div className="min-w-fit font-chakra text-2xl pb-16 select-none">
+    <div className="clipboard-wide min-w-fit font-chakra text-2xl pb-16 select-none">
       <Navigation />
 
       <div className="flex flex-col pr-10 lg:mx-8 md:mx-4 sm:mx-2 bg-neutral-100">
         {/* Week title skeleton */}
         <div className="sm:-mx-2 md:-mx-4 lg:-mx-8">
-          <p className="sticky left-0 self-start shrink-0 w-[98dvw] p-6 pt-12 font-chakra font-bold text-[clamp(2rem,min(5dvw,7dvh),5rem)] text-center text-balance uppercase leading-none">
+          <p className="sticky left-0 self-start shrink-0 w-[98dvw] p-6 sm:pt-12 pt-8 font-chakra font-bold text-[clamp(2rem,min(5dvw,7dvh),5rem)] text-center text-balance uppercase leading-none">
             <span className="inline-block align-middle w-[10ch] h-[0.85em] bg-black/10 animate-pulse" aria-hidden />
           </p>
         </div>
@@ -206,7 +206,7 @@ function DashboardSkeleton() {
             <thead>
               <tr className="bg-neutral-100">
                 {/* Week selector skeleton */}
-                <th className="sticky top-0 left-0 z-50 bg-neutral-100 shadow-[1px_0_0_#cccccc] w-48 min-w-fit h-16 align-middle p-0">
+                <th className="sticky top-0 left-0 z-50 bg-neutral-100 shadow-[1px_0_0_#cccccc] w-[clamp(10rem,50dvw,13rem)] min-w-fit h-16 align-middle p-0">
                   <div className="week-selector h-16 flex items-center justify-center relative">
                     <div className="w-full flex justify-center items-center gap-1 px-8 whitespace-nowrap font-bold uppercase xl:text-base text-sm">
                       <div className="w-24 h-6 bg-black/10 animate-pulse"></div>
@@ -741,7 +741,7 @@ function WeeklyMatchesPage() {
   const hasPastWeeks = availableWeeks.length > 1
 
   return (
-    <div className="min-h-dvh flex flex-col font-chakra select-none">
+    <div className="clipboard-wide min-h-dvh flex flex-col font-chakra select-none">
 
       <Navigation />
 
@@ -759,7 +759,7 @@ function WeeklyMatchesPage() {
 
               {/* Week title */}
               <div className="sm:-mx-2 md:-mx-4 lg:-mx-8">
-                <p className="sticky left-0 self-start shrink-0 w-[98dvw] p-6 pt-12 font-chakra font-bold text-[clamp(2rem,min(5dvw,7dvh),5rem)] text-center text-balance uppercase leading-none">
+                <p className="sticky left-0 self-start shrink-0 w-[98dvw] p-6 sm:pt-12 pt-8 font-chakra font-bold text-[clamp(2rem,min(5dvw,7dvh),5rem)] text-center text-balance uppercase leading-none">
                   {weekTitle}
                 </p>
               </div>
@@ -770,7 +770,7 @@ function WeeklyMatchesPage() {
                   <thead>
                     <tr className="bg-neutral-100">
                       {/* Sticky week selector header cell */}
-                      <th className="sticky top-0 left-0 z-[60] bg-neutral-100 shadow-[1px_0_0_#000000] w-48 min-w-fit h-16 align-middle p-0" style={{ willChange: 'transform' }}>
+                      <th className="sticky top-0 left-0 z-[60] bg-neutral-100 shadow-[1px_0_0_#000000] w-[clamp(10rem,50dvw,13rem)] min-w-fit h-16 align-middle p-0" style={{ willChange: 'transform' }}>
                         {hasPastWeeks && (
                           <div className="week-selector h-16 flex items-center justify-center px-4 relative cursor-pointer">
                             <div
@@ -965,7 +965,7 @@ function WeeklyMatchesPage() {
                         return [
                           <tr key={game.id + '-' + game.date + '-away'}>
                             {/* Sticky left: Away team info */}
-                            <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_1px_0_#000000,1px_0_0_#000000] px-2 xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl">
+                            <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_1px_0_#000000,1px_0_0_#000000] sm:xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl">
                               <div className="relative flex whitespace-nowrap items-center justify-center h-full">
                                 {(() => {
                                   const isFinal = game.status === 'final' || game.status === 'post'
@@ -1012,7 +1012,7 @@ function WeeklyMatchesPage() {
                           </tr>,
                           <tr key={game.id + '-' + game.date + '-home'}>
                             {/* Sticky left: Home team info */}
-                            <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_-1px_0_#000000,1px_0_0_#000000] px-2 xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl">
+                            <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_-1px_0_#000000,1px_0_0_#000000] xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl">
                               <div className="relative flex items-center justify-center h-full whitespace-nowrap">
                                 {/* Show warning icon if needed, else live icon if live */}
                                 {((statusWarningMap[game.status?.toLowerCase?.()] || isLikelyPostponed(game)) ? (

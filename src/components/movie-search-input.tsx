@@ -166,7 +166,7 @@ export function MovieSearchInput({ value, onChange, placeholder, className = '',
   }
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full min-w-0">
       <input
         ref={inputRef}
         type="text"
@@ -178,7 +178,7 @@ export function MovieSearchInput({ value, onChange, placeholder, className = '',
             setShowDropdown(true)
           }
         }}
-        className={`w-full h-[90px] p-2 ${onClear ? 'pr-8' : 'pr-0'} bg-neutral-100 uppercase font-bold max-xl:text-base placeholder:text-black/30 shadow-[0_0_0_1px_#000000] focus:outline-none focus:bg-white flex items-center ${className}`}
+        className={`w-full min-w-0 h-[90px] p-2 ${onClear ? 'pr-8' : 'pr-0'} bg-neutral-100 uppercase font-bold max-xl:text-base placeholder:text-black/30 shadow-[0_0_0_1px_#000000] focus:outline-none focus:bg-white flex items-center ${className}`}
         placeholder={placeholder}
       />
       

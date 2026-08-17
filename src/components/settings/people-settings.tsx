@@ -283,7 +283,7 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
 
   if (loading) {
     return (
-      <div className="w-full max-w-[1000px] mx-auto bg-neutral-100 space-y-6 text-center">
+      <div className="w-full max-w-[1000px] min-w-0 mx-auto bg-neutral-100 space-y-6 text-center">
         <div className="flex items-center justify-center py-8">
           <div className="text-center uppercase font-bold max-xl:text-base">
             Loading users...
@@ -294,7 +294,7 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
   }
 
   return (
-    <div className="w-full max-w-[1000px] mx-auto bg-neutral-100 space-y-4 text-center">
+    <div className="w-full max-w-[1000px] min-w-0 mx-auto bg-neutral-100 space-y-4 text-center">
 
       {/* <div className="font-bold uppercase mt-4 text-sm leading-none">
         Manage whose picks you see
@@ -364,10 +364,10 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
 
 
             return (
-              <div key={user.uid} className="w-full flex flex-row items-center justify-center">
+              <div key={user.uid} className="w-full min-w-0 flex flex-row items-center justify-center">
                 {/* Main person button */}
                 <div
-                  className={`w-full flex flex-row items-center justify-start gap-4 p-4 cursor-pointer max-xl:ml-8 ${selectedUsers.has(user.uid) ? 'shadow-[0_0_0_1px_#000000]' : 'text-black/50 bg-black/5'
+                  className={`min-w-0 flex-1 flex flex-row items-center justify-start gap-4 p-4 cursor-pointer max-xl:ml-8 ${selectedUsers.has(user.uid) ? 'shadow-[0_0_0_1px_#000000]' : 'text-black/50 bg-black/5'
                     }`}
                   onClick={() => {
                     if (user.uid !== currentUser?.uid) {
@@ -388,7 +388,7 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
                     />
                   </div>
 
-                  <div className="flex flex-row items-center justify-start gap-4">
+                  <div className="min-w-0 flex flex-row items-center justify-start gap-4">
                     {/* Superbowl Pick */}
                     <div className="flex flex-col items-center">
                       {team && teamStyle ? (
@@ -412,8 +412,8 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
                     </div>
 
                     {/* User Info */}
-                    <div className="flex flex-col items-start text-left">
-                      <div className="font-bold uppercase max-xl:text-base">
+                    <div className="min-w-0 flex flex-col items-start text-left">
+                      <div className="min-w-0 font-bold uppercase max-xl:text-base">
                         {user.displayName}
                         {user.uid === currentUser?.uid && (
                           <span className="text-black/50 text-sm ml-1">(you)</span>
@@ -427,7 +427,7 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
                 </div>
 
                 {/* Up/Down arrows - positioned outside the main button */}
-                <div className="w-12 flex flex-row items-center justify-center">
+                <div className="w-12 shrink-0 flex flex-row items-center justify-center">
                   <div className="flex flex-col gap-4">
                     <button
                       onClick={() => handleMoveUserUp(user.uid)}

@@ -59,13 +59,13 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
       try {
         console.log('Fetching teams from ESPN API...')
         const apiTeams = await espnApi.getTeams()
-        
+
         if (apiTeams.length === 0) {
           console.warn('No teams returned from ESPN API - this may indicate a network issue')
           setTeams([])
           return
         }
-        
+
         // Remove duplicates by abbreviation (shouldn't be any, but just in case)
         const uniqueTeams = Array.from(
           new Map(apiTeams.map(team => [team.abbreviation, team])).values()
@@ -80,9 +80,9 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
         console.error('Error fetching teams:', error)
         setTeams([])
         // Show user-friendly error message
-        onToast({ 
-          message: 'Unable to load team data. Please check your internet connection and try again.', 
-          type: 'error' 
+        onToast({
+          message: 'Unable to load team data. Please check your internet connection and try again.',
+          type: 'error'
         })
       }
     }
@@ -126,15 +126,15 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
   // Load team data when Super Bowl pick changes
   useEffect(() => {
     const loadTeamDataAndStyle = async () => {
-          if (settings.superBowlPick) {
-      await loadTeamData(settings.superBowlPick)
+      if (settings.superBowlPick) {
+        await loadTeamData(settings.superBowlPick)
       } else {
         setSelectedTeam(null)
         setSelectedTeamStyle({ background: '#F5F5F5', logoType: 'dark' })
       }
     }
     loadTeamDataAndStyle()
-      }, [settings.superBowlPick])
+  }, [settings.superBowlPick])
 
   // Subscribe to mapping changes and update team style if needed
   useEffect(() => {
@@ -145,7 +145,7 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
         // Use mapping to determine background and logoType
         let background = '#1a1a1a' // Default dark background
         let logoType: 'default' | 'dark' | 'scoreboard' | 'darkScoreboard' = 'dark'
-        
+
         if (mapping) {
           // Use mapping configuration
           if (mapping.backgroundColorChoice === 'custom' && mapping.customColor) {
@@ -162,7 +162,7 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
             background = selectedTeam.color.startsWith('#') ? selectedTeam.color : `#${selectedTeam.color}`
           }
         }
-        
+
         console.log('🎨 Team style updated from mapping change:', { team: selectedTeam.abbreviation, background, logoType, mapping: !!mapping })
         setSelectedTeamStyle({ background, logoType })
       }
@@ -175,12 +175,12 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
     const updateNetworkStatus = () => {
       const isConnected = isOnline()
       setNetworkStatus(isConnected ? '' : 'Offline - Some features may not work')
-      
+
       // Show offline warning if needed
       if (!isConnected) {
-        onToast({ 
-          message: 'You are currently offline. Some features may not work properly.', 
-          type: 'error' 
+        onToast({
+          message: 'You are currently offline. Some features may not work properly.',
+          type: 'error'
         })
       }
     }
@@ -228,18 +228,18 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
       }
     } catch (error: any) {
       console.error('Error loading user settings:', error)
-      
+
       // Handle specific Firebase offline errors
       if (error.code === 'unavailable' || error.message?.includes('offline')) {
         console.warn('Firebase is offline - settings will be loaded when connection is restored')
-        onToast({ 
-          message: 'Settings are currently offline. Changes will sync when connection is restored.', 
-          type: 'error' 
+        onToast({
+          message: 'Settings are currently offline. Changes will sync when connection is restored.',
+          type: 'error'
         })
       } else {
-        onToast({ 
-          message: 'Failed to load user settings. Please try again.', 
-          type: 'error' 
+        onToast({
+          message: 'Failed to load user settings. Please try again.',
+          type: 'error'
         })
       }
     }
@@ -254,7 +254,7 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
         // Use mapping to determine background and logoType
         let background = '#1a1a1a' // Default dark background
         let logoType: 'default' | 'dark' | 'scoreboard' | 'darkScoreboard' = 'dark'
-        
+
         if (mapping) {
           // Use mapping configuration
           if (mapping.backgroundColorChoice === 'custom' && mapping.customColor) {
@@ -271,7 +271,7 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
             background = team.color.startsWith('#') ? team.color : `#${team.color}`
           }
         }
-        
+
         console.log('🎨 Team style calculated:', { team: team.abbreviation, background, logoType, mapping: !!mapping })
         setSelectedTeamStyle({ background, logoType })
       }
@@ -322,7 +322,7 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
       )
       setSuperBowlPicksMap(nextMap)
       if (typeof window !== 'undefined' && (window as any).refreshUserData) {
-        ;(window as any).refreshUserData()
+        ; (window as any).refreshUserData()
       }
       const teamName =
         teamDisplayNames[teamAbbreviation] ||
@@ -372,7 +372,7 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
   const handleSuperBowlPickChange = (teamAbbreviation: string) => {
     // Don't allow changes if season has started
     if (isSeasonStarted) return
-    
+
     setSettings(prev => ({ ...prev, superBowlPick: teamAbbreviation }))
     if (teamAbbreviation) {
       saveSuperBowlPick(teamAbbreviation)
@@ -402,7 +402,7 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
   }
 
   return (
-    <div className="w-full max-w-[1000px] mx-auto bg-neutral-100 space-y-6 px-4 text-center">
+    <div className="w-full max-w-[1000px] min-w-0 mx-auto bg-neutral-100 space-y-6 px-4 text-center">
       {/* Network Status Indicator - only show when offline */}
       {networkStatus && (
         <div className="p-3 text-center text-sm font-bold uppercase bg-red-100 text-red-800">
@@ -410,10 +410,10 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
         </div>
       )}
 
-      <div className="w-full flex lg:flex-row flex-col items-center justify-center gap-x-6 gap-y-6 mt-4">
-        
-        <div className="w-full">
-          
+      <div className="w-full min-w-0 flex lg:flex-row flex-col items-center justify-center gap-x-6 gap-y-6 mt-4">
+
+        <div className="w-full min-w-0">
+
           <div className="flex items-center justify-center gap-2 text-center text-sm font-bold text-black uppercase mb-1">
             <label htmlFor="email">Email</label>
             <button
@@ -429,12 +429,12 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
             type="email"
             value={user?.email || ''}
             disabled
-            className="w-full px-3 py-2 text-black/50 uppercase font-bold max-xl:text-base text-center shadow-[0_0_0_1px_#aaa] cursor-not-allowed"
+            className="w-full min-w-0 px-3 py-2 text-black/50 uppercase font-bold max-xl:text-base text-center shadow-[0_0_0_1px_#aaa] cursor-not-allowed"
           />
 
         </div>
 
-        <div className={`w-full ${!settings.displayName ? 'bg-yellow-400 p-4' : ''}`}>
+        <div className={`w-full min-w-0 ${!settings.displayName ? 'bg-yellow-400 p-4' : ''}`}>
           <label htmlFor="displayName" className="block text-center text-sm font-bold text-black uppercase mb-1">
             {!settings.displayName ? 'Add your name to get started' : 'Name *'}
           </label>
@@ -444,14 +444,14 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
             value={settings.displayName}
             onChange={(e) => handleDisplayNameChange(e.target.value)}
             onBlur={handleDisplayNameBlur}
-            className="w-full px-3 py-2 bg-neutral-100 uppercase font-bold max-xl:text-base text-center placeholder:text-black/30 shadow-[0_0_0_1px_#000000] focus:outline-none focus:bg-white"
+            className="w-full min-w-0 px-3 py-2 bg-neutral-100 uppercase font-bold max-xl:text-base text-center placeholder:text-black/30 shadow-[0_0_0_1px_#000000] focus:outline-none focus:bg-white"
             placeholder="Shorter the better"
           />
         </div>
       </div>
 
       {showSuperBowlPick && (
-        <div className="relative">
+        <div className="relative min-w-0">
           <label htmlFor="superBowlPick" className="block text-center text-sm font-bold text-black uppercase mb-1">
             <span className="flex items-center justify-center gap-1">
               {isSeasonStarted && <span className="material-symbols-sharp !text-sm">lock</span>}
@@ -474,25 +474,25 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
             ))}
           </select>
           <div
-            className={`relative w-full h-20 flex items-center justify-center shadow-[0_0_0_1px_#000000] ${isSeasonStarted ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+            className={`relative w-full min-w-0 h-20 flex items-center justify-center shadow-[0_0_0_1px_#000000] ${isSeasonStarted ? 'cursor-not-allowed' : 'cursor-pointer'}`}
             style={{
               background: selectedTeamStyle.background
             }}
           >
             {selectedTeam?.logo ? (
-              <div className="w-full flex flex-row items-center justify-center gap-2 z-10 text-white">
+              <div className="w-full min-w-0 flex flex-row items-center justify-center gap-2 z-10 text-white">
                 <img
                   src={getTeamLogo(selectedTeam, selectedTeamStyle.logoType)}
                   alt={`${selectedTeam.name} logo`}
-                  className="w-16 h-16 object-contain"
+                  className="w-16 h-16 object-contain shrink-0"
                 />
-                <div className="text-center uppercase font-bold max-xl:text-base">
+                <div className="min-w-0 text-center uppercase font-bold max-xl:text-base">
                   {teamDisplayNames[selectedTeam.abbreviation] || selectedTeam.name}
                 </div>
                 {!isSeasonStarted && <span className="material-symbols-sharp ml-1">arrow_drop_down</span>}
               </div>
             ) : (
-              <div className="flex flex-row items-center justify-center text-center text-black/50 uppercase font-bold z-10">
+              <div className="min-w-0 flex flex-row items-center justify-center text-center text-black/50 uppercase font-bold z-10">
                 {isSeasonStarted ? 'Locked - Season Started' : 'Select a Team'}
                 {!isSeasonStarted && <span className="material-symbols-sharp ml-1">arrow_drop_down</span>}
               </div>
@@ -501,18 +501,16 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
         </div>
       )}
 
-      <label className="w-full p-4 border border-black cursor-pointer select-none block">
-        <div className="flex items-center justify-center gap-3">
-          <input
-            type="checkbox"
-            checked={settings.emailNotifications}
-            onChange={(e) => handleEmailNotificationsChange(e.target.checked)}
-            className="w-5 h-5 accent-black cursor-pointer"
-          />
-          <span className="font-bold text-black uppercase leading-none text-balance">
-            Get weekly email reminders
-          </span>
-        </div>
+      <label className="relative w-full min-w-0 px-12 py-4 border border-black cursor-pointer select-none block">
+        <input
+          type="checkbox"
+          checked={settings.emailNotifications}
+          onChange={(e) => handleEmailNotificationsChange(e.target.checked)}
+          className="absolute top-1/2 -translate-y-1/2 left-4 w-5 h-5 accent-black cursor-pointer"
+        />
+        <p className="max-xl:text-base font-bold text-black uppercase leading-none text-balance">
+          Get weekly email reminders
+        </p>
         <p className="mt-1 text-xs text-black/50 uppercase font-bold text-center text-balance">
           {settings.emailNotifications
             ? 'You will receive an email when a new week starts'

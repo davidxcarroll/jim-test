@@ -140,14 +140,14 @@ export function MoviesSettings({ onToast }: MoviesSettingsProps) {
     }
 
     return (
-        <div className="w-full max-w-[1000px] mx-auto bg-neutral-100 space-y-6 text-center">
+        <div className="w-full max-w-[1000px] min-w-0 mx-auto bg-neutral-100 space-y-6 text-center">
 
-            <div className="w-full flex flex-col items-center justify-center py-4 gap-2">
+            <div className="w-full min-w-0 flex flex-col items-center justify-center py-4 gap-2">
 
                 <h1 className="uppercase font-bold xl:text-4xl text-2xl text-center">Your Top 10</h1>
 
                 {settings.moviePicks.map((movie, index) => (
-                    <div key={index} className="w-full flex flex-row items-center justify-center">
+                    <div key={index} className="w-full min-w-0 flex flex-row items-center justify-center">
 
                         <label htmlFor={`movie-${index + 1}`} className="block xl:w-12 w-8 flex-shrink-0 font-bold text-black uppercase mb-1 text-center max-xl:text-base">
                             #{index + 1}
@@ -185,7 +185,7 @@ export function MoviesSettings({ onToast }: MoviesSettingsProps) {
                             onClear={() => handleRemoveMovie(index)}
                             placeholder={`#${index + 1} Movie`}
                         />
-                        <div className="w-12 flex flex-row items-center justify-center">
+                        <div className="w-12 shrink-0 flex flex-row items-center justify-center">
                             {/* Up/Down arrows stacked vertically */}
                             <div className="flex flex-col gap-4">
                                 <button

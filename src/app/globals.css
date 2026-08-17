@@ -13,22 +13,22 @@
 
 html {
   background-color: #000;
-  min-width: fit-content;
+  min-width: 0;
   font-variant-emoji: text;
 }
 
 body {
   min-height: 100dvh;
-  min-width: fit-content;
+  min-width: 0;
   font-variant-emoji: text;
 }
 
 .clipboard-shell {
   display: grid;
-  grid-template-columns: minmax(min-content, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   min-height: 100dvh;
-  min-width: 100%;
-  width: max-content;
+  min-width: 0;
+  width: 100%;
 }
 
 .clipboard-board {
@@ -52,6 +52,21 @@ body {
   grid-area: 1 / 1;
   position: relative;
   z-index: 1;
+  min-width: 0;
+}
+
+html:has(.clipboard-wide),
+body:has(.clipboard-wide) {
+  min-width: fit-content;
+}
+
+.clipboard-shell:has(.clipboard-wide) {
+  width: max-content;
+  min-width: 100%;
+  grid-template-columns: minmax(min-content, 1fr);
+}
+
+.clipboard-shell:has(.clipboard-wide) .clipboard-content {
   min-width: fit-content;
 }
 

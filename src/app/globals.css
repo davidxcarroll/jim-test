@@ -20,11 +20,39 @@ html {
 body {
   min-height: 100dvh;
   min-width: fit-content;
+  font-variant-emoji: text;
+}
+
+.clipboard-shell {
+  display: grid;
+  grid-template-columns: minmax(min-content, 1fr);
+  min-height: 100dvh;
+  min-width: 100%;
+  width: max-content;
+}
+
+.clipboard-board {
+  grid-area: 1 / 1;
+  justify-self: start;
+  align-self: start;
+  position: sticky;
+  left: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
+  pointer-events: none;
   background-image: url('/images/board-100.gif');
   background-repeat: repeat;
   background-size: 2000px;
   border-radius: 3rem;
-  font-variant-emoji: text;
+}
+
+.clipboard-content {
+  grid-area: 1 / 1;
+  position: relative;
+  z-index: 1;
+  min-width: fit-content;
 }
 
 /* One-color Noto Emoji (Light 300) for all emoji */

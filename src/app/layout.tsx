@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter, Chakra_Petch } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/providers'
+import { ClipboardBoard } from '@/components/clipboard-board'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 const chakraPetch = Chakra_Petch({ 
@@ -54,9 +55,14 @@ export default function RootLayout({
         className={`${inter.variable} ${chakraPetch.variable}`}
         style={{ fontFamily: 'var(--font-inter), "Noto Emoji", sans-serif' }}
       >
-        <Providers>
-          {children}
-        </Providers>
+        <div className="clipboard-shell">
+          <ClipboardBoard />
+          <div className="clipboard-content">
+            <Providers>
+              {children}
+            </Providers>
+          </div>
+        </div>
       </body>
     </html>
   )

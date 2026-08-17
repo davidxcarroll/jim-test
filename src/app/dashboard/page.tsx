@@ -137,7 +137,7 @@ function GamesSkeletonRows({ userCount }: { userCount: number }) {
           className="sticky top-[66px] z-30 xl:text-base text-sm bg-neutral-100 shadow-[inset_0_1px_0_#cccccc,inset_0_-1px_0_#cccccc] font-bold uppercase p-0"
         >
           <div className="sticky left-0 w-[98dvw] py-2 text-center whitespace-nowrap">
-            <div className="w-[clamp(10rem,50dvw,13rem)] h-5 bg-black/10 animate-pulse mx-auto"></div>
+            <div className="sm:w-48 w-40 h-5 bg-black/10 animate-pulse mx-auto"></div>
           </div>
         </td>
       </tr>
@@ -206,7 +206,7 @@ function DashboardSkeleton() {
             <thead>
               <tr className="bg-neutral-100">
                 {/* Week selector skeleton */}
-                <th className="sticky top-0 left-0 z-50 bg-neutral-100 shadow-[1px_0_0_#cccccc] w-[clamp(10rem,50dvw,13rem)] min-w-fit h-16 align-middle p-0">
+                <th className="sticky top-0 left-0 z-50 bg-neutral-100 shadow-[1px_0_0_#cccccc] sm:w-48 w-40 min-w-fit h-16 align-middle p-0">
                   <div className="week-selector h-16 flex items-center justify-center relative">
                     <div className="w-full flex justify-center items-center gap-1 px-8 whitespace-nowrap font-bold uppercase xl:text-base text-sm">
                       <div className="w-24 h-6 bg-black/10 animate-pulse"></div>
@@ -770,7 +770,7 @@ function WeeklyMatchesPage() {
                   <thead>
                     <tr className="bg-neutral-100">
                       {/* Sticky week selector header cell */}
-                      <th className="sticky top-0 left-0 z-[60] bg-neutral-100 shadow-[1px_0_0_#000000] w-[clamp(10rem,50dvw,13rem)] min-w-fit h-16 align-middle p-0" style={{ willChange: 'transform' }}>
+                      <th className="sticky top-0 left-0 z-[60] bg-neutral-100 shadow-[1px_0_0_#000000] sm:w-48 w-40 min-w-fit h-16 align-middle p-0" style={{ willChange: 'transform' }}>
                         {hasPastWeeks && (
                           <div className="week-selector h-16 flex items-center justify-center px-4 relative cursor-pointer">
                             <div

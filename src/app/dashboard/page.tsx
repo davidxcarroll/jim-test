@@ -774,7 +774,7 @@ function WeeklyMatchesPage() {
                         {hasPastWeeks && (
                           <div className="week-selector h-16 flex items-center justify-center px-4 relative cursor-pointer">
                             <div
-                              className="w-fit flex items-center justify-between gap-1 p-2 pl-4 whitespace-nowrap font-bold uppercase xl:text-base text-sm shadow-[inset_0_0_0_1px_#000000]"
+                              className="w-fit flex items-center justify-between gap-1 p-2 pl-4 bg-neutral-100 whitespace-nowrap font-bold uppercase xl:text-base text-sm shadow-[inset_0_0_0_1px_#000000]"
                               onClick={() => setIsWeekDropdownOpen(!isWeekDropdownOpen)}
                             >
                               {/* label */}
@@ -1013,10 +1013,10 @@ function WeeklyMatchesPage() {
                           <tr key={game.id + '-' + game.date + '-home'}>
                             {/* Sticky left: Home team info */}
                             <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_-1px_0_#000000,1px_0_0_#000000] xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl">
-                              <div className="relative flex items-center justify-center h-full whitespace-nowrap">
+                              <div className="relative flex w-full items-center justify-center h-full whitespace-nowrap">
                                 {/* Show warning icon if needed, else live icon if live */}
                                 {((statusWarningMap[game.status?.toLowerCase?.()] || isLikelyPostponed(game)) ? (
-                                  <div className="absolute right-[-18.5px] top-[-1.5px] -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-yellow-400 rounded-full">
+                                  <div className="absolute right-0 top-[-1.5px] translate-x-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-yellow-400 rounded-full">
                                     <Tooltip content={
                                       isLikelyPostponed(game)
                                         ? 'Likely postponed (no result reported)'
@@ -1027,7 +1027,7 @@ function WeeklyMatchesPage() {
                                   </div>
                                 ) : game.status === "live" && (
                                   <div
-                                    className="absolute right-[-18.5px] top-[-1.5px] -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-green-400 shadow-[0_0_0_1px_#000000] rounded-full cursor-pointer hover:bg-green-500 transition-colors z-20"
+                                    className="absolute right-0 top-[-1.5px] translate-x-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-green-400 shadow-[0_0_0_1px_#000000] rounded-full cursor-pointer hover:bg-green-500 transition-colors z-20"
                                     onClick={(e) => {
                                       e.stopPropagation()
                                       setVisibleLiveGames(prev => {

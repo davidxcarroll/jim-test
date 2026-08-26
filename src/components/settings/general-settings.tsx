@@ -225,6 +225,14 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
           ),
           emailNotifications: data.emailNotifications || false
         })
+
+        if (user.email && data.email !== user.email) {
+          await setDoc(
+            doc(db, 'users', user.uid),
+            { email: user.email, updatedAt: new Date() },
+            { merge: true }
+          )
+        }
       }
     } catch (error: any) {
       console.error('Error loading user settings:', error)
@@ -350,11 +358,27 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
   }
 
   const saveEmailNotifications = async (enabled: boolean) => {
-    const success = await saveField('emailNotifications', enabled)
-    if (success) {
+    if (!user || !db) return
+
+    try {
+      await setDoc(
+        doc(db, 'users', user.uid),
+        {
+          emailNotifications: enabled,
+          ...(user.email ? { email: user.email } : {}),
+          updatedAt: new Date()
+        },
+        { merge: true }
+      )
+
+      if (typeof window !== 'undefined' && (window as any).refreshUserData) {
+        (window as any).refreshUserData()
+      }
+
       const message = enabled ? 'Weekly reminders enabled!' : 'Weekly reminders disabled!'
       onToast({ message, type: 'success' })
-    } else {
+    } catch (error) {
+      console.error('Error saving emailNotifications:', error)
       onToast({ message: 'Error saving notification settings. Please try again.', type: 'error' })
     }
   }

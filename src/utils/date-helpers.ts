@@ -4,6 +4,107 @@ import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz'
 // NFL timezone (Pacific Time as default per user preference)
 const NFL_TIMEZONE = 'America/Los_Angeles'
 
+export type NflWeekType = 'preseason' | 'regular' | 'postseason' | 'pro-bowl'
+
+export type NflCalendarWeek = {
+  week: number
+  season: number
+  weekType: NflWeekType
+  startDate: Date
+  endDate: Date
+  label?: string
+}
+
+export function calendarWeeksEqual(a: NflCalendarWeek, b: NflCalendarWeek): boolean {
+  return a.week === b.week && a.weekType === b.weekType && a.season === b.season
+}
+
+function getPacificWeekday(date: Date): number {
+  return utcToZonedTime(date, NFL_TIMEZONE).getDay()
+}
+
+/** Midnight Pacific of the next Wednesday (never today, even if today is Wednesday). */
+export function startOfNextWednesdayPacific(now: Date = new Date()): Date {
+  const zoned = utcToZonedTime(now, NFL_TIMEZONE)
+  const daysUntilNextWed = ((3 - zoned.getDay() + 7) % 7) || 7
+  const nextWed = addDays(zoned, daysUntilNextWed)
+  nextWed.setHours(0, 0, 0, 0)
+  return zonedTimeToUtc(nextWed, NFL_TIMEZONE)
+}
+
+export function getFirstWednesdayOnOrAfterPacific(date: Date): Date {
+  const zoned = utcToZonedTime(date, NFL_TIMEZONE)
+  const daysUntilWed = (3 - zoned.getDay() + 7) % 7
+  const wed = addDays(zoned, daysUntilWed)
+  wed.setHours(0, 0, 0, 0)
+  return zonedTimeToUtc(wed, NFL_TIMEZONE)
+}
+
+export function formatPacificLongDate(date: Date): string {
+  return format(utcToZonedTime(date, NFL_TIMEZONE), 'EEEE, MMMM d')
+}
+
+export function getFirstRegularSeasonWeek(
+  allWeeks: NflCalendarWeek[]
+): NflCalendarWeek | undefined {
+  return [...allWeeks]
+    .filter((w) => w.weekType === 'regular')
+    .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())[0]
+}
+
+export function isFirstRegularSeasonWeek(
+  week: NflCalendarWeek,
+  allWeeks: NflCalendarWeek[]
+): boolean {
+  const first = getFirstRegularSeasonWeek(allWeeks)
+  return !!first && calendarWeeksEqual(week, first)
+}
+
+/**
+ * Week users should pick this Wednesday: ESPN current, or the next calendar week
+ * if it starts before the following Wednesday (preseason Thursday starts, etc.).
+ */
+export function getPickableWeek(
+  now: Date,
+  currentWeek: NflCalendarWeek,
+  allWeeks: NflCalendarWeek[]
+): NflCalendarWeek {
+  const sorted = [...allWeeks].sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+  const currentIndex = sorted.findIndex((w) => calendarWeeksEqual(w, currentWeek))
+  if (currentIndex < 0) return currentWeek
+
+  if (getPacificWeekday(now) === 3 && currentIndex + 1 < sorted.length) {
+    const nextWeek = sorted[currentIndex + 1]
+    if (nextWeek.startDate.getTime() < startOfNextWednesdayPacific(now).getTime()) {
+      return nextWeek
+    }
+  }
+  return currentWeek
+}
+
+/** Weeks shown in the picks selector (past + current/pickable + always Week 1). */
+export function getSelectableWeeks(
+  allWeeks: NflCalendarWeek[],
+  currentWeek: NflCalendarWeek,
+  now: Date = new Date()
+): NflCalendarWeek[] {
+  const currentIndex = allWeeks.findIndex((w) => calendarWeeksEqual(w, currentWeek))
+  const pickable = getPickableWeek(now, currentWeek, allWeeks)
+  const isWednesday = getPacificWeekday(now) === 3
+
+  return allWeeks.filter((week, i) => {
+    if (week.weekType === 'pro-bowl' || week.label?.toLowerCase().includes('pro bowl')) {
+      return false
+    }
+    const weekHasStarted = week.startDate <= now
+    const isCurrent = i === currentIndex && (isWednesday || weekHasStarted)
+    const isPast = currentIndex >= 0 && i < currentIndex && weekHasStarted
+    const isPickable = calendarWeeksEqual(week, pickable)
+    const isWeek1 = isFirstRegularSeasonWeek(week, allWeeks)
+    return isCurrent || isPast || isPickable || isWeek1
+  })
+}
+
 export const dateHelpers = {
   // Format game date for display
   formatGameDate(dateString: string): string {
@@ -93,9 +194,9 @@ export const dateHelpers = {
     return { start, end }
   },
 
-  // Check if today is Wednesday (new week start day)
+  // Check if today is Wednesday in Pacific Time (new week start day)
   isNewWeekDay(date: Date = new Date()): boolean {
-    return date.getDay() === 3 // Wednesday is day 3 (0 = Sunday, 1 = Monday, 2 = Tuesday, 3 = Wednesday)
+    return getPacificWeekday(date) === 3
   },
 
   // Get the next Wednesday (next week start day)
@@ -135,7 +236,7 @@ export const dateHelpers = {
 
 // Result can be week data, off-season sentinel (so UI redirects instead of showing error), or null (API/network failure)
 export type CurrentNFLWeekResult =
-  | { week: number; season: number; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'; startDate: Date; endDate: Date; label?: string }
+  | NflCalendarWeek
   | { offSeason: true }
   | null
 

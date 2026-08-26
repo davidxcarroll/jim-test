@@ -2,7 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { emailService } from '@/lib/emails'
 import { collection, query, where, getDocs, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { dateHelpers, getRoundDisplayName, getWeekKey } from '@/utils/date-helpers'
+import { addDays } from 'date-fns'
+import {
+  dateHelpers,
+  formatPacificLongDate,
+  getFirstRegularSeasonWeek,
+  getFirstWednesdayOnOrAfterPacific,
+  getPickableWeek,
+  getRoundDisplayName,
+  getWeekKey,
+} from '@/utils/date-helpers'
 import { espnApi } from '@/lib/espn-api'
 import { assertCronAuthorized } from '@/lib/api-auth'
 import { resolveRecapSeasonContext } from '@/utils/recap-season'
@@ -16,7 +25,15 @@ export async function POST(request: NextRequest) {
   if (authError) return authError
 
   const results: {
-    weeklyReminders?: { success: boolean; sentTo?: number; failed?: number; error?: string }
+    weeklyReminders?: {
+      success: boolean
+      sentTo?: number
+      failed?: number
+      skippedNoEmail?: number
+      template?: string
+      weekLabel?: string
+      error?: string
+    }
     weekRecaps?: { success: boolean; processed?: number; succeeded?: number; failed?: number; error?: string }
   } = {}
 
@@ -31,58 +48,89 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // TASK 1: Weekly reminders on the day the current ESPN week starts (PT)
+    // TASK 1: Weekly emails on Wednesday Pacific (preseason ready vs make-your-picks)
     let sentWeeklyReminders = false
     try {
       console.log('📧 Checking weekly reminders task...')
       const seasonCtx = await resolveRecapSeasonContext()
       const currentWeek = seasonCtx?.currentWeek
-      const isWeekStartDay = !!(
-        currentWeek &&
-        dateHelpers.isSameCalendarDayInTimeZone(currentWeek.startDate, today)
-      )
+      const isWednesdayPacific = dateHelpers.isNewWeekDay(today)
+
       if (!seasonCtx || seasonCtx.offSeason || !currentWeek) {
         console.log('📧 Skipping weekly reminders — off-season or no current week')
         results.weeklyReminders = { success: true, sentTo: 0 }
-      } else if (!isWeekStartDay) {
-        console.log('📧 Skipping weekly reminders — not the current week start day')
+      } else if (!isWednesdayPacific) {
+        console.log('📧 Skipping weekly reminders — not Wednesday in Pacific')
         results.weeklyReminders = { success: true, sentTo: 0 }
       } else {
-        sentWeeklyReminders = true
+        const allWeeks = await espnApi.getAllAvailableWeeks(currentWeek.season)
+        const pickableWeek = getPickableWeek(today, currentWeek, allWeeks)
         const weekLabel = getRoundDisplayName(
-          currentWeek.label,
-          currentWeek.weekType,
-          currentWeek.week
+          pickableWeek.label,
+          pickableWeek.weekType,
+          pickableWeek.week
+        )
+        const template = pickableWeek.weekType === 'preseason' ? 'preseason-ready' : 'weekly-reminder'
+        console.log(
+          `📧 Wednesday send: template=${template} pickable=${weekLabel} (${pickableWeek.weekType} ${pickableWeek.week})`
         )
 
         const usersRef = collection(db, 'users')
         const q = query(usersRef, where('emailNotifications', '==', true))
         const querySnapshot = await getDocs(q)
 
-        const recipients = []
+        const recipients: Array<{ email: string; displayName?: string }> = []
+        const skippedNoEmail: string[] = []
         for (const userDoc of querySnapshot.docs) {
           const userData = userDoc.data()
-          if (!userData.email) {
+          if (typeof userData.email !== 'string' || !userData.email) {
+            skippedNoEmail.push(userDoc.id)
             console.warn('Skipping user without email:', userDoc.id)
             continue
           }
           recipients.push({
-            email: userData.email as string,
-            displayName: userData.displayName as string | undefined,
+            email: userData.email,
+            displayName:
+              typeof userData.displayName === 'string' ? userData.displayName : undefined,
           })
         }
 
-        const { sent, failed } = await emailService.sendWeeklyRemindersBatch(
-          recipients,
-          weekLabel
+        console.log(
+          `📧 Opted-in=${querySnapshot.size} recipients=${recipients.length} skipped-no-email=${skippedNoEmail.length}`,
+          skippedNoEmail.length ? skippedNoEmail : ''
         )
+
+        sentWeeklyReminders = true
+        let sent = 0
+        let failed = 0
+        if (template === 'preseason-ready') {
+          const firstRegular = getFirstRegularSeasonWeek(allWeeks)
+          const kickoff = firstRegular
+            ? getFirstWednesdayOnOrAfterPacific(firstRegular.startDate)
+            : undefined
+          const reminderStart = kickoff ? addDays(kickoff, -7) : undefined
+          const dates = {
+            kickoffDate: kickoff ? formatPacificLongDate(kickoff) : 'Wednesday, September 9',
+            reminderDate: reminderStart
+              ? formatPacificLongDate(reminderStart)
+              : 'Wednesday, September 2',
+          }
+          ;({ sent, failed } = await emailService.sendPreseasonReadyBatch(recipients, dates))
+        } else {
+          ;({ sent, failed } = await emailService.sendWeeklyRemindersBatch(recipients, weekLabel))
+        }
 
         results.weeklyReminders = {
           success: true,
           sentTo: sent,
           failed,
+          skippedNoEmail: skippedNoEmail.length,
+          template,
+          weekLabel,
         }
-        console.log(`✅ Weekly reminders sent to ${sent} users (${weekLabel}), ${failed} failed`)
+        console.log(
+          `✅ Weekly emails sent to ${sent} users (${template}, ${weekLabel}), ${failed} failed, ${skippedNoEmail.length} skipped-no-email`
+        )
       }
     } catch (error) {
       console.error('❌ Error sending weekly reminder emails:', error)

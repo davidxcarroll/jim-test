@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useAuthStore } from '@/store/auth-store'
 import { db } from '@/lib/firebase'
 import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore'
-import { getSeasonAndWeek, dateHelpers, getRoundDisplayName, getWeekKey } from '@/utils/date-helpers'
+import { getRoundDisplayName, getWeekKey, getSelectableWeeks } from '@/utils/date-helpers'
 import { espnApi } from '@/lib/espn-api'
 import { useCurrentWeek } from '@/hooks/use-current-week'
 import { useGamesForWeek } from '@/hooks/use-nfl-data'
@@ -82,40 +82,22 @@ export default function AdminPicksPage() {
   // Get available weeks: in-season = weeks up to/including current; off-season = all started weeks for selected season
   const availableWeeks = React.useMemo(() => {
     const today = new Date()
-    const isWednesday = dateHelpers.isNewWeekDay(today)
 
     if (allAvailableWeeks.length === 0) return []
 
-    // In-season: show weeks up to and including current week (same as dashboard)
+    // In-season: past + current/pickable + Week 1 exception (same as dashboard)
     if (weekInfo) {
-      const weeks: Array<{ index: number; weekNumber: number; weekType: 'preseason' | 'regular' | 'postseason' | 'pro-bowl'; weekKey: string; label?: string; startDate: Date }> = []
-      const currentWeekIndex = allAvailableWeeks.findIndex(w =>
-        w.week === weekInfo.week &&
-        w.weekType === weekInfo.weekType &&
-        w.season === weekInfo.season
-      )
-
-      for (let i = 0; i <= currentWeekIndex; i++) {
-        const week = allAvailableWeeks[i]
-        const weekHasStarted = week.startDate <= today
-        const isCurrentWeek = i === currentWeekIndex
-        const shouldShowCurrentWeek = isCurrentWeek && (isWednesday || weekHasStarted)
-        const isProBowl = week.weekType === 'pro-bowl' || week.label?.toLowerCase().includes('pro bowl')
-        if (isProBowl) continue
-
-        if (shouldShowCurrentWeek || (i < currentWeekIndex && weekHasStarted)) {
-          const weekKey = getWeekKey(week.weekType, week.week, week.label)
-          weeks.push({
-            index: i,
-            weekNumber: week.week,
-            weekType: week.weekType,
-            weekKey: `${week.season}_${weekKey}`,
-            label: week.label,
-            startDate: week.startDate
-          })
+      return getSelectableWeeks(allAvailableWeeks, weekInfo).map((week, i) => {
+        const weekKey = getWeekKey(week.weekType, week.week, week.label)
+        return {
+          index: i,
+          weekNumber: week.week,
+          weekType: week.weekType,
+          weekKey: `${week.season}_${weekKey}`,
+          label: week.label,
+          startDate: week.startDate
         }
-      }
-      return weeks
+      })
     }
 
     // Off-season: show all weeks that have started for the fetched season (so admin can view/manage any week)

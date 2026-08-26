@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useGamesForWeek } from "@/hooks/use-nfl-data"
-import { dateHelpers } from "@/utils/date-helpers"
 import { getTeamDisplayNameFromTeam } from "@/utils/team-names"
 import { getTeamCircleSize, getTeamDisplayNameWithFavorite } from "@/utils/team-utils"
 import { format, parseISO, isBefore } from "date-fns"
@@ -24,7 +23,7 @@ import React from 'react'
 import { LiveGameDisplay } from '@/components/live-game-display'
 import { OffSeasonContent } from '@/components/off-season-content'
 import { ClipboardFooter } from '@/components/clipboard-footer'
-import { isWeekComplete, shouldWaitUntilNextMorning, getWeekKey, getRoundDisplayName } from '@/utils/date-helpers'
+import { isWeekComplete, shouldWaitUntilNextMorning, getWeekKey, getRoundDisplayName, getSelectableWeeks, getPickableWeek, getFirstRegularSeasonWeek, calendarWeeksEqual } from '@/utils/date-helpers'
 import { useCurrentWeek } from '@/hooks/use-current-week'
 
 const NUM_WEEKS = 5
@@ -272,10 +271,16 @@ function WeeklyMatchesPage() {
         const weeksWithoutProBowl = weeks.filter(
           (w) => w.weekType !== 'pro-bowl' && !w.label?.toLowerCase().includes('pro bowl')
         )
-        // Preseason dress rehearsal: only preseason weeks. Regular/postseason: exclude preseason.
+        const firstRegular = getFirstRegularSeasonWeek(weeksWithoutProBowl)
+        // Preseason dress rehearsal plus Week 1 (kickoff is Wednesday night).
+        // Regular/postseason: exclude preseason.
         const filtered =
           weekInfo.weekType === 'preseason'
-            ? weeksWithoutProBowl.filter((w) => w.weekType === 'preseason')
+            ? weeksWithoutProBowl.filter(
+                (w) =>
+                  w.weekType === 'preseason' ||
+                  (!!firstRegular && calendarWeeksEqual(w, firstRegular))
+              )
             : weeksWithoutProBowl.filter((w) => w.weekType !== 'preseason')
         setAllAvailableWeeks(filtered)
       } catch (error) {
@@ -292,34 +297,18 @@ function WeeklyMatchesPage() {
   const availableWeeks = React.useMemo((): WeekSelectorItem[] => {
     if (!weekInfo) return []
 
-    const weeks: WeekSelectorItem[] = []
-    const today = new Date()
-    const isWednesday = dateHelpers.isNewWeekDay(today)
-    const currentWeekIndexInApi = allAvailableWeeks.findIndex(
-      (w) =>
-        w.week === weekInfo.week &&
-        w.weekType === weekInfo.weekType &&
-        w.season === weekInfo.season
-    )
-
-    for (let i = 0; i < allAvailableWeeks.length; i++) {
-      const week = allAvailableWeeks[i]
-      const weekHasStarted = week.startDate <= today
-      const isCurrentWeek = i === currentWeekIndexInApi
-      const shouldShowCurrentWeek = isCurrentWeek && (isWednesday || weekHasStarted)
-
-      if (shouldShowCurrentWeek || (currentWeekIndexInApi >= 0 && i < currentWeekIndexInApi && weekHasStarted)) {
-        const weekKey = getWeekKey(week.weekType, week.week, week.label)
-        weeks.push({
-          index: weeks.length,
-          weekNumber: week.week,
-          weekType: week.weekType,
-          weekKey: `${week.season}_${weekKey}`,
-          label: week.label,
-          startDate: week.startDate
-        })
+    const selectable = getSelectableWeeks(allAvailableWeeks, weekInfo)
+    const weeks: WeekSelectorItem[] = selectable.map((week, index) => {
+      const weekKey = getWeekKey(week.weekType, week.week, week.label)
+      return {
+        index,
+        weekNumber: week.week,
+        weekType: week.weekType,
+        weekKey: `${week.season}_${weekKey}`,
+        label: week.label,
+        startDate: week.startDate
       }
-    }
+    })
 
     // Always expose the current week if the calendar list is empty or match failed
     if (weeks.length === 0) {
@@ -693,17 +682,25 @@ function WeeklyMatchesPage() {
     if (hasSetInitialWeek.current || !weekInfo || availableWeeks.length === 0) return
     // Wait for the ESPN calendar list so we don't lock onto the 1-item fallback at index 0
     if (allAvailableWeeks.length === 0) return
-    const currentWeekItem = availableWeeks.find(
-      (w) => w.weekNumber === weekInfo.week && w.weekType === weekInfo.weekType
+    const pickable = getPickableWeek(new Date(), weekInfo, allAvailableWeeks)
+    const firstRegular = getFirstRegularSeasonWeek(allAvailableWeeks)
+    const defaultWeek =
+      weekInfo.weekType === 'preseason' &&
+      firstRegular &&
+      calendarWeeksEqual(pickable, firstRegular)
+        ? weekInfo
+        : pickable
+    const defaultItem = availableWeeks.find(
+      (w) => w.weekNumber === defaultWeek.week && w.weekType === defaultWeek.weekType
     )
-    if (currentWeekItem !== undefined) {
-      setWeekOffset(currentWeekItem.index)
+    if (defaultItem !== undefined) {
+      setWeekOffset(defaultItem.index)
       hasSetInitialWeek.current = true
     } else {
       setWeekOffset(availableWeeks.length - 1)
       hasSetInitialWeek.current = true
     }
-  }, [availableWeeks, weekInfo, allAvailableWeeks.length])
+  }, [availableWeeks, weekInfo, allAvailableWeeks])
 
   const isSeasonSummaryView = !weekInfo
   const stillLoadingForSeasonView = weekLoading

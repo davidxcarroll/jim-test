@@ -151,5 +151,76 @@ export const emailService = {
       }
     }
     return { sent, failed }
+  },
+
+  async sendPreseasonReadyEmail(
+    email: string,
+    displayName: string | undefined,
+    dates: { kickoffDate: string; reminderDate: string }
+  ) {
+    const safeName = escapeHtml(displayName || 'there')
+    const kickoffDate = escapeHtml(dates.kickoffDate)
+    const reminderDate = escapeHtml(dates.reminderDate)
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://jimsclipboard.com'
+    const settingsUrl = `${appUrl}/settings`
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Jim's Clipboard is ready</title>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; background: #eee; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .content { padding: 20px; background: #fff; }
+            .button { display: inline-block; background: #000; color: white; padding: 12px 24px; font-style: italic; text-transform: uppercase; margin: 10px 5px; text-decoration: none; }
+            .footer { text-align: center; padding: 20px; color: #666; font-size: 14px; }
+            .magic-link { background: #FABD05; color: #000000; border: 1px solid #000000; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="content" style="text-align: center;">
+              <h2>Hey ${safeName}!</h2>
+              <p>This is a test email — preseason doesn't count, so don't sweat the dress rehearsal.</p>
+              <p>Jim's Clipboard is ready for the upcoming season. Week 1 is already up if you want to get your picks in early.</p>
+              <p>Before regular season starts, hop into settings and lock in your Super Bowl pick.</p>
+              <p>Regular season kicks off <strong>${kickoffDate}</strong>. Real weekly pick reminders start <strong>${reminderDate}</strong> — last call before kickoff.</p>
+              <p><a href="${appUrl}/signin" class="button magic-link">TO THE CLIPBOARD!</a></p>
+              <p><a href="${settingsUrl}" class="button">SETTINGS / SUPER BOWL PICK</a></p>
+            </div>
+            <div class="footer">
+              <p style="font-style: italic;">Preseason is just a warmup. See you Week 1.</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `
+
+    return resend.emails.send({
+      from: 'Jim\'s Clipboard <noreply@jimsclipboard.com>',
+      to: email,
+      subject: '📋🏈✅ Jim\'s Clipboard is ready — Week 1 is up!',
+      html
+    })
+  },
+
+  async sendPreseasonReadyBatch(
+    recipients: Array<{ email: string; displayName?: string }>,
+    dates: { kickoffDate: string; reminderDate: string }
+  ): Promise<{ sent: number; failed: number }> {
+    let sent = 0
+    let failed = 0
+    for (const recipient of recipients) {
+      try {
+        await this.sendPreseasonReadyEmail(recipient.email, recipient.displayName, dates)
+        sent++
+      } catch (error) {
+        failed++
+        console.error('Failed to send preseason ready email to a recipient:', error)
+      }
+    }
+    return { sent, failed }
   }
 }

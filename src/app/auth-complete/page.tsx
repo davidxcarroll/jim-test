@@ -55,14 +55,19 @@ function AuthCompletePage() {
         const userDocRef = doc(db, 'users', result.user.uid)
         const userDoc = await getDoc(userDocRef)
         
+        try {
+          await setDoc(userDocRef, {
+            email: email,
+            ...(userDoc.exists() ? {} : { createdAt: new Date() }),
+            updatedAt: new Date()
+          }, { merge: true })
+        } catch (firestoreError) {
+          console.error('Failed to save user email to Firestore:', firestoreError)
+        }
+
         if (!userDoc.exists()) {
-          // This is a new user, create their document
+          // This is a new user
           try {
-            await setDoc(userDocRef, {
-              email: email,
-              createdAt: new Date()
-            }, { merge: true })
-            
             // Update all existing users' visibility settings to include the new user
             try {
               await fetch('/api/clipboard-visibility/add-new-user', {
@@ -92,9 +97,8 @@ function AuthCompletePage() {
               console.error('Failed to send welcome email:', emailError)
               // Don't fail the signup if email fails
             }
-          } catch (firestoreError) {
-            console.error('Failed to save user data to Firestore:', firestoreError)
-            // Don't fail the signup if Firestore save fails
+          } catch (newUserError) {
+            console.error('Failed to finish new user setup:', newUserError)
           }
         }
         

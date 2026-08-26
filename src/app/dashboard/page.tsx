@@ -23,7 +23,7 @@ import React from 'react'
 import { LiveGameDisplay } from '@/components/live-game-display'
 import { OffSeasonContent } from '@/components/off-season-content'
 import { ClipboardFooter } from '@/components/clipboard-footer'
-import { isWeekComplete, shouldWaitUntilNextMorning, getWeekKey, getRoundDisplayName, getSelectableWeeks, getPickableWeek, getFirstRegularSeasonWeek, calendarWeeksEqual } from '@/utils/date-helpers'
+import { isWeekComplete, shouldWaitUntilNextMorning, getWeekKey, getRoundDisplayName, getSelectableWeeks, getPickableWeek, getFirstRegularSeasonWeek } from '@/utils/date-helpers'
 import { useCurrentWeek } from '@/hooks/use-current-week'
 
 const NUM_WEEKS = 5
@@ -272,15 +272,12 @@ function WeeklyMatchesPage() {
           (w) => w.weekType !== 'pro-bowl' && !w.label?.toLowerCase().includes('pro bowl')
         )
         const firstRegular = getFirstRegularSeasonWeek(weeksWithoutProBowl)
-        // Preseason dress rehearsal plus Week 1 (kickoff is Wednesday night).
-        // Regular/postseason: exclude preseason.
+        // Preseason does not count: only Week 1. Regular/postseason: exclude preseason.
         const filtered =
           weekInfo.weekType === 'preseason'
-            ? weeksWithoutProBowl.filter(
-                (w) =>
-                  w.weekType === 'preseason' ||
-                  (!!firstRegular && calendarWeeksEqual(w, firstRegular))
-              )
+            ? firstRegular
+              ? [firstRegular]
+              : []
             : weeksWithoutProBowl.filter((w) => w.weekType !== 'preseason')
         setAllAvailableWeeks(filtered)
       } catch (error) {
@@ -311,7 +308,8 @@ function WeeklyMatchesPage() {
     })
 
     // Always expose the current week if the calendar list is empty or match failed
-    if (weeks.length === 0) {
+    // (not during preseason — we only show Week 1 there)
+    if (weeks.length === 0 && weekInfo.weekType !== 'preseason') {
       const weekKey = getWeekKey(weekInfo.weekType, weekInfo.week, weekInfo.label)
       weeks.push({
         index: 0,
@@ -682,14 +680,10 @@ function WeeklyMatchesPage() {
     if (hasSetInitialWeek.current || !weekInfo || availableWeeks.length === 0) return
     // Wait for the ESPN calendar list so we don't lock onto the 1-item fallback at index 0
     if (allAvailableWeeks.length === 0) return
-    const pickable = getPickableWeek(new Date(), weekInfo, allAvailableWeeks)
     const firstRegular = getFirstRegularSeasonWeek(allAvailableWeeks)
+    const pickable = getPickableWeek(new Date(), weekInfo, allAvailableWeeks)
     const defaultWeek =
-      weekInfo.weekType === 'preseason' &&
-      firstRegular &&
-      calendarWeeksEqual(pickable, firstRegular)
-        ? weekInfo
-        : pickable
+      weekInfo.weekType === 'preseason' && firstRegular ? firstRegular : pickable
     const defaultItem = availableWeeks.find(
       (w) => w.weekNumber === defaultWeek.week && w.weekType === defaultWeek.weekType
     )

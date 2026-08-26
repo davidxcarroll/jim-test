@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useAuthStore } from '@/store/auth-store'
 import { db } from '@/lib/firebase'
 import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore'
-import { getRoundDisplayName, getWeekKey, getSelectableWeeks } from '@/utils/date-helpers'
+import { getRoundDisplayName, getWeekKey, getSelectableWeeks, getFirstRegularSeasonWeek } from '@/utils/date-helpers'
 import { espnApi } from '@/lib/espn-api'
 import { useCurrentWeek } from '@/hooks/use-current-week'
 import { useGamesForWeek } from '@/hooks/use-nfl-data'
@@ -85,9 +85,16 @@ export default function AdminPicksPage() {
 
     if (allAvailableWeeks.length === 0) return []
 
-    // In-season: past + current/pickable + Week 1 exception (same as dashboard)
+    // In-season: during preseason only Week 1; otherwise past + current/pickable
     if (weekInfo) {
-      return getSelectableWeeks(allAvailableWeeks, weekInfo).map((week, i) => {
+      const firstRegular = getFirstRegularSeasonWeek(allAvailableWeeks)
+      const selectable =
+        weekInfo.weekType === 'preseason'
+          ? firstRegular
+            ? [firstRegular]
+            : []
+          : getSelectableWeeks(allAvailableWeeks, weekInfo)
+      return selectable.map((week, i) => {
         const weekKey = getWeekKey(week.weekType, week.week, week.label)
         return {
           index: i,
@@ -192,6 +199,13 @@ export default function AdminPicksPage() {
   useEffect(() => {
     if (availableWeeks.length === 0) return
     if (weekInfo) {
+      if (weekInfo.weekType === 'preseason') {
+        const week1Index = availableWeeks.findIndex((w) => w.weekType === 'regular')
+        if (week1Index >= 0) {
+          setWeekOffset(week1Index)
+        }
+        return
+      }
       const currentWeekIndex = availableWeeks.findIndex(w =>
         w.weekNumber === weekInfo.week &&
         w.weekType === weekInfo.weekType

@@ -1,19 +1,42 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuthStore } from '@/store/auth-store'
 import { useRouter } from 'next/navigation'
 import { MovieSearchInput } from '@/components/movie-search-input'
 import { tmdbApi } from '@/lib/tmdb-api'
+import { useReorderAnimation } from '@/hooks/use-reorder-animation'
+
+interface MoviePick {
+    title: string
+    tmdbId?: number
+    posterPath?: string
+    clientId: string
+}
 
 interface UserSettings {
-    moviePicks: Array<{
-        title: string
-        tmdbId?: number
-        posterPath?: string
-    }>
+    moviePicks: MoviePick[]
+}
+
+function createClientId() {
+    return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `movie-${Math.random().toString(36).slice(2)}`
+}
+
+function createEmptyMoviePick(): MoviePick {
+    return { title: '', tmdbId: undefined, posterPath: undefined, clientId: createClientId() }
+}
+
+function createEmptyMoviePicks() {
+    return Array.from({ length: 10 }, (_, i) => ({
+        title: '',
+        tmdbId: undefined,
+        posterPath: undefined,
+        clientId: `movie-init-${i}`
+    }))
 }
 
 interface MoviesSettingsProps {
@@ -24,9 +47,14 @@ export function MoviesSettings({ onToast }: MoviesSettingsProps) {
     const { user } = useAuthStore()
     const router = useRouter()
     const [settings, setSettings] = useState<UserSettings>({
-        moviePicks: Array(10).fill({ title: '', tmdbId: undefined, posterPath: undefined })
+        moviePicks: createEmptyMoviePicks()
     })
     const [saving, setSaving] = useState(false)
+    const movieIds = useMemo(
+        () => settings.moviePicks.map(movie => movie.clientId),
+        [settings.moviePicks]
+    )
+    const setItemRef = useReorderAnimation(movieIds)
 
     // Load user settings on component mount
     useEffect(() => {
@@ -54,13 +82,13 @@ export function MoviesSettings({ onToast }: MoviesSettingsProps) {
                 const processedMoviePicks = moviePicks.map((movie: any) => {
                     if (typeof movie === 'string') {
                         // Old format - convert to new format
-                        return { title: movie, tmdbId: undefined, posterPath: undefined }
+                        return { title: movie, tmdbId: undefined, posterPath: undefined, clientId: createClientId() }
                     } else if (movie && typeof movie === 'object') {
-                        // New format - use as is
-                        return movie
+                        // New format - use as is, keep a stable in-memory key
+                        return { ...movie, clientId: createClientId() }
                     } else {
                         // Invalid format - use empty object
-                        return { title: '', tmdbId: undefined, posterPath: undefined }
+                        return createEmptyMoviePick()
                     }
                 })
 
@@ -104,7 +132,7 @@ export function MoviesSettings({ onToast }: MoviesSettingsProps) {
 
     const handleMoviePickChange = (index: number, movieData: { title: string; tmdbId?: number; posterPath?: string }) => {
         const newMoviePicks = [...settings.moviePicks]
-        newMoviePicks[index] = movieData
+        newMoviePicks[index] = { ...movieData, clientId: newMoviePicks[index].clientId }
         setSettings(prev => ({ ...prev, moviePicks: newMoviePicks }))
 
         // Show toast when a movie is selected from dropdown (has tmdbId)
@@ -135,7 +163,7 @@ export function MoviesSettings({ onToast }: MoviesSettingsProps) {
 
     const handleRemoveMovie = (index: number) => {
         const newMoviePicks = [...settings.moviePicks]
-        newMoviePicks[index] = { title: '', tmdbId: undefined, posterPath: undefined }
+        newMoviePicks[index] = { ...createEmptyMoviePick(), clientId: newMoviePicks[index].clientId }
         setSettings(prev => ({ ...prev, moviePicks: newMoviePicks }))
     }
 
@@ -147,7 +175,7 @@ export function MoviesSettings({ onToast }: MoviesSettingsProps) {
                 <h1 className="uppercase font-bold xl:text-4xl text-2xl text-center">Your Top 10</h1>
 
                 {settings.moviePicks.map((movie, index) => (
-                    <div key={index} className="w-full min-w-0 flex flex-row items-center justify-center">
+                    <div key={movie.clientId} ref={setItemRef(movie.clientId)} className="w-full min-w-0 flex flex-row items-center justify-center">
 
                         <label htmlFor={`movie-${index + 1}`} className="block xl:w-12 w-8 flex-shrink-0 font-bold text-black uppercase mb-1 text-center max-xl:text-base">
                             #{index + 1}

@@ -135,7 +135,7 @@ function GamesSkeletonRows({ userCount }: { userCount: number }) {
           colSpan={colSpan}
           className="sticky top-[66px] z-30 xl:text-base text-sm bg-neutral-100 shadow-[inset_0_1px_0_#cccccc,inset_0_-1px_0_#cccccc] font-bold uppercase p-0"
         >
-          <div className="sticky left-0 w-[98dvw] py-2 text-center whitespace-nowrap">
+          <div className="sticky left-0 sm:left-2 md:left-4 lg:left-8 w-[98dvw] sm:w-[calc(98dvw-1rem)] md:w-[calc(98dvw-2rem)] lg:w-[calc(98dvw-4rem)] py-2 text-center whitespace-nowrap">
             <div className="sm:w-48 w-40 h-5 bg-black/10 animate-pulse mx-auto"></div>
           </div>
         </td>
@@ -189,46 +189,48 @@ function GamesSkeletonRows({ userCount }: { userCount: number }) {
 // Skeleton loading component
 function DashboardSkeleton() {
   return (
-    <div className="clipboard-wide min-w-fit font-chakra text-2xl pb-16 select-none">
+    <div className="clipboard-wide min-h-dvh flex flex-col font-chakra select-none">
       <Navigation />
 
-      <div className="flex flex-col pr-10 lg:mx-8 md:mx-4 sm:mx-2 bg-neutral-100">
-        {/* Week title skeleton */}
-        <div className="sm:-mx-2 md:-mx-4 lg:-mx-8">
-          <p className="sticky left-0 self-start shrink-0 w-[98dvw] p-6 sm:pt-12 pt-8 font-chakra font-bold text-[clamp(2rem,min(5dvw,7dvh),5rem)] text-center text-balance uppercase leading-none">
-            <span className="inline-block align-middle w-[10ch] h-[0.85em] bg-black/10 animate-pulse" aria-hidden />
-          </p>
-        </div>
+      <div className="flex flex-col lg:px-8 md:px-4 sm:px-2">
+        <div className="flex flex-col bg-neutral-100">
+          {/* Week title skeleton */}
+          <div className="sm:-mx-2 md:-mx-4 lg:-mx-8">
+            <p className="sticky left-0 self-start shrink-0 w-[98dvw] p-6 sm:pt-12 pt-8 font-chakra font-bold text-[clamp(2rem,min(5dvw,7dvh),5rem)] text-center text-balance uppercase leading-none">
+              <span className="inline-block align-middle w-[10ch] h-[0.85em] bg-black/10 animate-pulse" aria-hidden />
+            </p>
+          </div>
 
-        <div className="md:pb-8 pb-4">
-          <table className="min-w-full bg-neutral-100 border-separate" style={{ borderSpacing: 0 }}>
-            <thead>
-              <tr className="bg-neutral-100">
-                {/* Week selector skeleton */}
-                <th className="sticky top-0 left-0 z-50 bg-neutral-100 shadow-[1px_0_0_#cccccc] sm:w-48 w-40 min-w-fit h-16 align-middle p-0">
-                  <div className="week-selector h-16 flex items-center justify-center relative">
-                    <div className="w-full flex justify-center items-center gap-1 px-8 whitespace-nowrap font-bold uppercase xl:text-base text-sm">
-                      <div className="w-24 h-6 bg-black/10 animate-pulse"></div>
-                    </div>
-                  </div>
-                </th>
-                {/* User name headers skeleton */}
-                {Array.from({ length: 5 }, (_, i) => (
-                  <th
-                    key={i}
-                    className="sticky top-0 z-50 bg-neutral-100 shadow-[inset_1px_0_0_#cccccc] w-32 h-16 align-middle p-0"
-                  >
-                    <div className="w-full h-16 flex items-center justify-center">
-                      <div className="w-16 h-8 bg-black/10 animate-pulse"></div>
+          <div className="md:pb-8 pb-4">
+            <table className="min-w-full bg-neutral-100 border-separate" style={{ borderSpacing: 0 }}>
+              <thead>
+                <tr className="bg-neutral-100">
+                  {/* Week selector skeleton */}
+                  <th className="sticky top-0 left-0 z-50 bg-neutral-100 shadow-[1px_0_0_#cccccc] sm:w-48 w-40 min-w-fit h-16 align-middle p-0">
+                    <div className="week-selector h-16 flex items-center justify-center relative">
+                      <div className="w-full flex justify-center items-center gap-1 px-8 whitespace-nowrap font-bold uppercase xl:text-base text-sm">
+                        <div className="w-24 h-6 bg-black/10 animate-pulse"></div>
+                      </div>
                     </div>
                   </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              <GamesSkeletonRows userCount={5} />
-            </tbody>
-          </table>
+                  {/* User name headers skeleton */}
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <th
+                      key={i}
+                      className="sticky top-0 z-50 bg-neutral-100 shadow-[inset_1px_0_0_#cccccc] w-32 h-16 align-middle p-0"
+                    >
+                      <div className="w-full h-16 flex items-center justify-center">
+                        <div className="w-16 h-8 bg-black/10 animate-pulse"></div>
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <GamesSkeletonRows userCount={5} />
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 

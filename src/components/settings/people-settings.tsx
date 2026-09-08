@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { collection, getDocs, query, orderBy } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { teamDisplayNames } from '@/utils/team-names'
@@ -14,6 +14,7 @@ import {
   getSuperBowlPickForSeason
 } from '@/utils/super-bowl-picks'
 import React from 'react'
+import { useReorderAnimation } from '@/hooks/use-reorder-animation'
 
 interface User {
   uid: string
@@ -148,7 +149,7 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
     }
 
     try {
-      await moveUserInOrder(currentUser.uid, userId, 'up')
+      await moveUserInOrder(currentUser.uid, userId, 'up', users.map(u => u.uid))
       onToast({
         message: 'User order updated',
         type: 'success'
@@ -164,7 +165,7 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
     }
 
     try {
-      await moveUserInOrder(currentUser.uid, userId, 'down')
+      await moveUserInOrder(currentUser.uid, userId, 'down', users.map(u => u.uid))
       onToast({
         message: 'User order updated',
         type: 'success'
@@ -281,6 +282,9 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
     })
   }, [users, settings.userOrder])
 
+  const sortedUserIds = useMemo(() => sortedUsers.map(user => user.uid), [sortedUsers])
+  const setItemRef = useReorderAnimation(sortedUserIds)
+
   if (loading) {
     return (
       <div className="w-full max-w-[1000px] min-w-0 mx-auto bg-neutral-100 space-y-6 text-center">
@@ -297,7 +301,7 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
     <div className="w-full max-w-[1000px] min-w-0 mx-auto bg-neutral-100 space-y-4 text-center">
 
       {/* <div className="font-bold uppercase mt-4 text-sm leading-none">
-        Manage whose picks you see
+        Manage whose picks you see and in what order
       </div> */}
 
       {/* New User Visibility Setting */}
@@ -331,10 +335,10 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
       ) : (
         <div className="space-y-2">
 
-          <div className="w-full flex flex-row flex-wrap items-center justify-center my-6 gap-4">
+          <div className="w-full flex flex-row flex-wrap items-center justify-center my-6 gap-2">
 
-            <div className="font-bold uppercase text-sm leading-none">
-              Manage whose picks you see
+            <div className="px-4 font-bold uppercase text-sm leading-none text-balance">
+              Manage whose picks you see and in what order
             </div>
 
             <div className="flex flex-row gap-8 items-center justify-center px-4 text-black/50 uppercase font-bold text-sm">
@@ -364,10 +368,10 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
 
 
             return (
-              <div key={user.uid} className="w-full min-w-0 flex flex-row items-center justify-center">
+              <div key={user.uid} ref={setItemRef(user.uid)} className="w-full min-w-0 flex flex-row items-center justify-center">
                 {/* Main person button */}
                 <div
-                  className={`min-w-0 flex-1 flex flex-row items-center justify-start gap-4 p-4 cursor-pointer max-xl:ml-8 ${selectedUsers.has(user.uid) ? 'shadow-[0_0_0_1px_#000000]' : 'text-black/50 bg-black/5'
+                  className={`min-w-0 flex-1 flex flex-row items-center justify-start gap-4 p-4 bg-natural-100 cursor-pointer max-xl:ml-8 ${selectedUsers.has(user.uid) ? 'shadow-[0_0_0_1px_#000000]' : 'text-black/50 bg-black/5'
                     }`}
                   onClick={() => {
                     if (user.uid !== currentUser?.uid) {

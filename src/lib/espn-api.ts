@@ -834,5 +834,28 @@ export const espnApi = {
       seen.add(id)
       return true
     })
+  },
+
+  /** Earliest Regular Season Week 1 kickoff for a season (one scoreboard call). */
+  async getFirstRegularSeasonKickoff(season: number): Promise<Date | null> {
+    try {
+      const response = await fetch(`${ESPN_BASE_URL}/scoreboard?year=${season}&seasontype=2&week=1`)
+      const data = await response.json()
+      const timestamps = (data.events || [])
+        .map((event: { date?: string }) => event.date)
+        .filter((date): date is string => Boolean(date))
+        .map((date) => new Date(date).getTime())
+        .filter((time) => !Number.isNaN(time))
+      if (timestamps.length === 0) {
+        console.warn(`📅 ESPN API: No Week 1 games found for season ${season}`)
+        return null
+      }
+      const kickoff = new Date(Math.min(...timestamps))
+      console.log(`📅 ESPN API: First regular season kickoff for ${season} is ${kickoff.toISOString()}`)
+      return kickoff
+    } catch (error) {
+      console.error(`Error fetching first regular season kickoff for ${season}:`, error)
+      return null
+    }
   }
 } 

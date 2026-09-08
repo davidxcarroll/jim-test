@@ -18,11 +18,35 @@ interface ClipboardVisibilityStore {
   loadSettings: (userId: string, allUserIds?: string[]) => Promise<void>
   updateVisibleUsers: (userId: string, visibleUsers: Set<string>) => Promise<void>
   updateUserOrder: (userId: string, userOrder: string[]) => Promise<void>
-  moveUserInOrder: (userId: string, userToMove: string, direction: 'up' | 'down') => Promise<void>
+  moveUserInOrder: (userId: string, userToMove: string, direction: 'up' | 'down', knownUserIds?: string[]) => Promise<void>
 
   addNewUserToAllUsers: (newUserId: string) => Promise<void>
   subscribeToChanges: (userId: string) => () => void
   reset: () => void
+}
+
+function reconcileUserOrder(
+  currentUserId: string,
+  existingOrder: string[],
+  knownUserIds: string[]
+): string[] {
+  const knownSet = new Set(knownUserIds)
+  const seen = new Set<string>([currentUserId])
+  const reconciled: string[] = [currentUserId]
+
+  for (const id of existingOrder) {
+    if (seen.has(id) || !knownSet.has(id)) continue
+    reconciled.push(id)
+    seen.add(id)
+  }
+
+  for (const id of knownUserIds) {
+    if (seen.has(id)) continue
+    reconciled.push(id)
+    seen.add(id)
+  }
+
+  return reconciled
 }
 
 export const useClipboardVisibilityStore = create<ClipboardVisibilityStore>((set, get) => ({
@@ -154,45 +178,75 @@ export const useClipboardVisibilityStore = create<ClipboardVisibilityStore>((set
     }
   },
 
-  moveUserInOrder: async (userId: string, userToMove: string, direction: 'up' | 'down') => {
-    let currentOrder = [...get().settings.userOrder]
-    
-    // If user order is empty, initialize it with all visible users
-    if (currentOrder.length === 0) {
-      const visibleUsers = Array.from(get().settings.visibleUsers)
-      currentOrder = [userId, ...visibleUsers.filter(id => id !== userId)]
-    }
-    
-    const currentIndex = currentOrder.indexOf(userToMove)
-    
-    if (currentIndex === -1) {
-      currentOrder.push(userToMove)
-      await get().updateUserOrder(userId, currentOrder)
-      return
-    }
-    
+  moveUserInOrder: async (userId: string, userToMove: string, direction: 'up' | 'down', knownUserIds?: string[]) => {
+    const knownIds = knownUserIds?.length
+      ? knownUserIds
+      : Array.from(get().settings.visibleUsers)
+
+    const currentOrder = reconcileUserOrder(userId, get().settings.userOrder, knownIds)
+
     // Prevent moving the current user (they should always be first)
     if (userToMove === userId) {
       return
     }
-    
-    let newIndex: number
-    if (direction === 'up') {
-      newIndex = Math.max(1, currentIndex - 1) // Don't go below index 1 (current user is at 0)
-    } else {
-      newIndex = Math.min(currentOrder.length - 1, currentIndex + 1)
+
+    const currentIndex = currentOrder.indexOf(userToMove)
+
+    if (currentIndex === -1) {
+      return
     }
-    
+
+    const newIndex = direction === 'up'
+      ? Math.max(1, currentIndex - 1)
+      : Math.min(currentOrder.length - 1, currentIndex + 1)
+
     if (newIndex === currentIndex) {
       return
     }
-    
-    // Swap the users
-    const temp = currentOrder[currentIndex]
-    currentOrder[currentIndex] = currentOrder[newIndex]
-    currentOrder[newIndex] = temp
-    
-    await get().updateUserOrder(userId, currentOrder)
+
+    const swapped = [...currentOrder]
+    const temp = swapped[currentIndex]
+    swapped[currentIndex] = swapped[newIndex]
+    swapped[newIndex] = temp
+
+    const previousOrder = get().settings.userOrder
+    set({
+      settings: {
+        ...get().settings,
+        userOrder: swapped,
+        lastUpdated: new Date()
+      },
+      error: null
+    })
+
+    if (!db) {
+      set({
+        settings: {
+          ...get().settings,
+          userOrder: previousOrder
+        },
+        error: 'Firebase not initialized'
+      })
+      return
+    }
+
+    try {
+      const docRef = doc(db, 'users', userId, 'settings', 'clipboard-visibility')
+      await setDoc(docRef, {
+        userOrder: swapped,
+        lastUpdated: new Date()
+      }, { merge: true })
+    } catch (error) {
+      console.error('Error updating user order:', error)
+      set({
+        settings: {
+          ...get().settings,
+          userOrder: previousOrder
+        },
+        error: 'Failed to update user order'
+      })
+      throw error
+    }
   },
 
   addNewUserToAllUsers: async (newUserId: string) => {

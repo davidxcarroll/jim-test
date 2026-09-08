@@ -22,6 +22,22 @@ export function getSuperBowlPickForSeason(
   return ''
 }
 
+/** Locked at first regular-season kickoff; fail-open if Week 1 kickoff is unknown. */
+export function isSuperBowlPickLocked(
+  week: { weekType: string; week: number },
+  firstKickoff: Date | null,
+  now: Date = new Date()
+): boolean {
+  if (week.weekType === 'preseason') return false
+  if (week.weekType === 'postseason' || week.weekType === 'pro-bowl') return true
+  if (week.weekType === 'regular') {
+    if (week.week > 1) return true
+    if (!firstKickoff) return false
+    return now.getTime() >= firstKickoff.getTime()
+  }
+  return false
+}
+
 /** Build updated map + optional legacy migration for 2025. */
 export function buildSuperBowlPicksUpdate(
   existing: SuperBowlPicksMap | undefined,

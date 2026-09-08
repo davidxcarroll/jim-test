@@ -18,6 +18,7 @@ import {
   getActiveSuperBowlSeasonYear,
   getSuperBowlPickForSeason,
   buildSuperBowlPicksUpdate,
+  isSuperBowlPickLocked,
   SuperBowlPicksMap
 } from '@/utils/super-bowl-picks'
 
@@ -45,7 +46,7 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
   const [selectedTeamStyle, setSelectedTeamStyle] = useState<{ background: string; logoType: 'default' | 'dark' | 'scoreboard' | 'darkScoreboard' }>({ background: '#F5F5F5', logoType: 'dark' })
   const [teams, setTeams] = useState<Team[]>([])
   const [networkStatus, setNetworkStatus] = useState<string>('')
-  /** Super Bowl pick locked once regular/postseason begins */
+  /** Super Bowl pick locked at first regular-season kickoff */
   const [isSeasonStarted, setIsSeasonStarted] = useState<boolean>(false)
   /** Show Super Bowl picker only once preseason (or later) has started */
   const [showSuperBowlPick, setShowSuperBowlPick] = useState<boolean>(false)
@@ -91,7 +92,7 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
     loadTeamColorMappings(true)
   }, [])
 
-  // Super Bowl pick: hidden in off-season; editable in preseason; locked in regular/postseason
+  // Super Bowl pick: hidden in off-season; editable until first regular-season kickoff
   useEffect(() => {
     async function checkSeasonStatus() {
       try {
@@ -100,7 +101,11 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
           const nflWeek = result
           setSuperBowlSeasonYear(getActiveSuperBowlSeasonYear(nflWeek.season))
           setShowSuperBowlPick(true)
-          setIsSeasonStarted(nflWeek.weekType === 'regular' || nflWeek.weekType === 'postseason')
+          let firstKickoff: Date | null = null
+          if (nflWeek.weekType === 'regular' && nflWeek.week === 1) {
+            firstKickoff = await espnApi.getFirstRegularSeasonKickoff(nflWeek.season)
+          }
+          setIsSeasonStarted(isSuperBowlPickLocked(nflWeek, firstKickoff))
         } else {
           // Off-season (or API returned offSeason): hide until preseason starts
           setSuperBowlSeasonYear(getActiveSuperBowlSeasonYear())
@@ -313,6 +318,7 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
 
   const saveSuperBowlPick = async (teamAbbreviation: string) => {
     if (!user || !db) return
+    if (isSeasonStarted) return
     const nextMap = buildSuperBowlPicksUpdate(
       superBowlPicksMap,
       superBowlSeasonYear,

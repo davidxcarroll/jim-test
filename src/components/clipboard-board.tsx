@@ -15,7 +15,14 @@ export function ClipboardBoard() {
 
     syncWidth()
     window.addEventListener('resize', syncWidth)
-    return () => window.removeEventListener('resize', syncWidth)
+    const ro = new ResizeObserver(syncWidth)
+    ro.observe(document.documentElement)
+    const content = el.parentElement?.querySelector('.clipboard-content')
+    if (content) ro.observe(content)
+    return () => {
+      window.removeEventListener('resize', syncWidth)
+      ro.disconnect()
+    }
   }, [])
 
   return <div ref={ref} className="clipboard-board" aria-hidden />

@@ -23,7 +23,7 @@ import React from 'react'
 import { LiveGameDisplay } from '@/components/live-game-display'
 import { OffSeasonContent } from '@/components/off-season-content'
 import { ClipboardFooter } from '@/components/clipboard-footer'
-import { isWeekComplete, shouldWaitUntilNextMorning, getWeekKey, getRoundDisplayName, getSelectableWeeks, getPickableWeek, getFirstRegularSeasonWeek } from '@/utils/date-helpers'
+import { isWeekComplete, shouldWaitUntilNextMorning, getWeekKey, getRoundDisplayName, getSelectableWeeks, getPickableWeek, getFirstRegularSeasonWeek, isPreseasonVisibleInApp } from '@/utils/date-helpers'
 import { useCurrentWeek } from '@/hooks/use-current-week'
 
 const NUM_WEEKS = 5
@@ -120,6 +120,46 @@ function isLikelyPostponed(game: any) {
     game.status === 'post' &&
     (!game.homeScore || Number(game.homeScore) === 0) &&
     (!game.awayScore || Number(game.awayScore) === 0)
+  )
+}
+
+function ScoreboardViewportFill({ children }: { children: React.ReactNode }) {
+  const ref = React.useRef<HTMLDivElement>(null)
+
+  React.useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const td = el.closest('td')
+    if (!td) return
+
+    let raf = 0
+    const apply = () => {
+      const paper = td.getBoundingClientRect()
+      const viewRight = document.documentElement.clientWidth
+      const left = Math.max(0, paper.left)
+      const right = Math.min(viewRight, paper.right)
+      el.style.left = `${left}px`
+      el.style.width = `${Math.max(0, right - left)}px`
+    }
+
+    apply()
+    const onScrollOrResize = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(apply)
+    }
+    window.addEventListener('scroll', onScrollOrResize, { passive: true })
+    window.addEventListener('resize', onScrollOrResize)
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener('scroll', onScrollOrResize)
+      window.removeEventListener('resize', onScrollOrResize)
+    }
+  }, [])
+
+  return (
+    <div ref={ref} className="sticky overflow-hidden">
+      {children}
+    </div>
   )
 }
 
@@ -276,7 +316,7 @@ function WeeklyMatchesPage() {
         const firstRegular = getFirstRegularSeasonWeek(weeksWithoutProBowl)
         // Preseason does not count: only Week 1. Regular/postseason: exclude preseason.
         const filtered =
-          weekInfo.weekType === 'preseason'
+          isPreseasonVisibleInApp(weekInfo.weekType)
             ? firstRegular
               ? [firstRegular]
               : []
@@ -311,7 +351,7 @@ function WeeklyMatchesPage() {
 
     // Always expose the current week if the calendar list is empty or match failed
     // (not during preseason — we only show Week 1 there)
-    if (weeks.length === 0 && weekInfo.weekType !== 'preseason') {
+    if (weeks.length === 0 && !isPreseasonVisibleInApp(weekInfo.weekType)) {
       const weekKey = getWeekKey(weekInfo.weekType, weekInfo.week, weekInfo.label)
       weeks.push({
         index: 0,
@@ -391,7 +431,7 @@ function WeeklyMatchesPage() {
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [selectedUser, setSelectedUser] = useState<{ id: string; name: string } | null>(null)
-  const [visibleLiveGames, setVisibleLiveGames] = useState<Set<string>>(new Set())
+  const [expandedGames, setExpandedGames] = useState<Set<string>>(new Set())
 
   const clipboardSettingsPending =
     clipboardLoading ||
@@ -569,22 +609,35 @@ function WeeklyMatchesPage() {
     gamesByDay[day].push(game)
   })
 
-  // Clean up visibleLiveGames set - remove games that are no longer live
+  // Drop expanded rows for games that are no longer in this week
   useEffect(() => {
     if (!games) return
-    setVisibleLiveGames(prev => {
-      const newSet = new Set(prev)
+    setExpandedGames(prev => {
+      const weekIds = new Set(games.map(g => g.id))
+      const next = new Set<string>()
       let changed = false
       prev.forEach(gameId => {
-        const game = games.find(g => g.id === gameId)
-        if (!game || game.status !== 'live') {
-          newSet.delete(gameId)
+        if (weekIds.has(gameId)) {
+          next.add(gameId)
+        } else {
           changed = true
         }
       })
-      return changed ? newSet : prev
+      return changed ? next : prev
     })
   }, [games])
+
+  const toggleExpandedGame = (gameId: string) => {
+    setExpandedGames(prev => {
+      const next = new Set(prev)
+      if (next.has(gameId)) {
+        next.delete(gameId)
+      } else {
+        next.add(gameId)
+      }
+      return next
+    })
+  }
 
   // Helper to filter unique games by id
   function getUniqueGamesById(games: any[]) {
@@ -685,7 +738,7 @@ function WeeklyMatchesPage() {
     const firstRegular = getFirstRegularSeasonWeek(allAvailableWeeks)
     const pickable = getPickableWeek(new Date(), weekInfo, allAvailableWeeks)
     const defaultWeek =
-      weekInfo.weekType === 'preseason' && firstRegular ? firstRegular : pickable
+      isPreseasonVisibleInApp(weekInfo.weekType) && firstRegular ? firstRegular : pickable
     const defaultItem = availableWeeks.find(
       (w) => w.weekNumber === defaultWeek.week && w.weekType === defaultWeek.weekType
     )
@@ -958,7 +1011,10 @@ function WeeklyMatchesPage() {
                         return [
                           <tr key={game.id + '-' + game.date + '-away'}>
                             {/* Sticky left: Away team info */}
-                            <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_1px_0_#000000,1px_0_0_#000000] sm:xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl">
+                            <td
+                              className="sticky left-0 z-10 bg-neutral-100 shadow-[0_1px_0_#000000,1px_0_0_#000000] sm:xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl cursor-pointer"
+                              onClick={() => toggleExpandedGame(game.id)}
+                            >
                               <div className="relative flex whitespace-nowrap items-center justify-center h-full">
                                 {(() => {
                                   const isFinal = game.status === 'final' || game.status === 'post'
@@ -1005,7 +1061,10 @@ function WeeklyMatchesPage() {
                           </tr>,
                           <tr key={game.id + '-' + game.date + '-home'}>
                             {/* Sticky left: Home team info */}
-                            <td className="sticky left-0 z-10 bg-neutral-100 shadow-[0_-1px_0_#000000,1px_0_0_#000000] xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl">
+                            <td
+                              className="sticky left-0 z-10 bg-neutral-100 shadow-[0_-1px_0_#000000,1px_0_0_#000000] xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl cursor-pointer"
+                              onClick={() => toggleExpandedGame(game.id)}
+                            >
                               <div className="relative flex w-full items-center justify-center h-full whitespace-nowrap">
                                 {/* Show warning icon if needed, else live icon if live */}
                                 {((statusWarningMap[game.status?.toLowerCase?.()] || isLikelyPostponed(game)) ? (
@@ -1023,18 +1082,10 @@ function WeeklyMatchesPage() {
                                     className="absolute right-0 top-[-1.5px] translate-x-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-green-400 shadow-[0_0_0_1px_#000000] rounded-full cursor-pointer hover:bg-green-500 transition-colors z-20"
                                     onClick={(e) => {
                                       e.stopPropagation()
-                                      setVisibleLiveGames(prev => {
-                                        const newSet = new Set(prev)
-                                        if (newSet.has(game.id)) {
-                                          newSet.delete(game.id)
-                                        } else {
-                                          newSet.add(game.id)
-                                        }
-                                        return newSet
-                                      })
+                                      toggleExpandedGame(game.id)
                                     }}
                                   >
-                                    <Tooltip content="Game in Progress - Tap to show live data" position="right">
+                                    <Tooltip content="Scoreboard" position="right">
                                       <span className="material-symbols-sharp !text-sm mb-[1px] animate-ping">sports_football</span>
                                     </Tooltip>
                                   </div>
@@ -1082,11 +1133,12 @@ function WeeklyMatchesPage() {
                               )
                             })}
                           </tr>,
-                          // New: LiveGameDisplay row (only for live games that are toggled visible)
-                          ...(game.status === 'live' && visibleLiveGames.has(game.id) ? [
+                          ...(expandedGames.has(game.id) ? [
                             <tr key={game.id + '-' + game.date + '-livegame'}>
                               <td colSpan={1 + userDisplayNames.length} className="p-0 align-middle shadow-lg">
-                                <LiveGameDisplay gameId={game.id} />
+                                <ScoreboardViewportFill>
+                                  <LiveGameDisplay gameId={game.id} game={game} />
+                                </ScoreboardViewportFill>
                               </td>
                             </tr>
                           ] : []),

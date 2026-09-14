@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { collection, getDocs, onSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useCurrentWeek } from '@/hooks/use-current-week'
-import { getWeekKey } from '@/utils/date-helpers'
+import { getWeekKey, isPreseasonVisibleInApp } from '@/utils/date-helpers'
 import { getSuperBowlWinnerForSeason } from '@/utils/season-winners'
 import { getSuperBowlPickForSeason } from '@/utils/super-bowl-picks'
 import { PHIL_USER } from '@/utils/phil-user'
@@ -156,7 +156,7 @@ export function StatsContent({ lockedSeason = null, embedded = false }: StatsCon
       const seasonToUse = lockedSeason != null ? lockedSeason : selectedSeason ?? defaultEffectiveSeason
       const isViewingCurrentSeason = seasonToUse === weekInfo?.season
       const includePreseason =
-        weekInfo?.weekType === 'preseason' && isViewingCurrentSeason
+        isPreseasonVisibleInApp(weekInfo?.weekType) && isViewingCurrentSeason
 
       const filtered: WeekRecap[] = weekRecapsSnapshot.docs
         .map((docSnap) => ({

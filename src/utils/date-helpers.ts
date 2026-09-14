@@ -1,5 +1,5 @@
 import { format, parseISO, isToday, isTomorrow, isYesterday, addDays, startOfWeek, endOfWeek } from 'date-fns'
-import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz'
+import { utcToZonedTime, zonedTimeToUtc, format as formatTz } from 'date-fns-tz'
 
 // NFL timezone (Pacific Time as default per user preference)
 const NFL_TIMEZONE = 'America/Los_Angeles'
@@ -60,6 +60,13 @@ export function isFirstRegularSeasonWeek(
   return !!first && calendarWeeksEqual(week, first)
 }
 
+/** Dress-rehearsal weeks: visible only while ESPN says we are still in preseason. */
+export function isPreseasonVisibleInApp(
+  currentWeekType: NflWeekType | null | undefined
+): boolean {
+  return currentWeekType === 'preseason'
+}
+
 /**
  * Week users should pick this Wednesday: ESPN current, or the next calendar week
  * if it starts before the following Wednesday (preseason Thursday starts, etc.).
@@ -94,6 +101,9 @@ export function getSelectableWeeks(
 
   return allWeeks.filter((week, i) => {
     if (week.weekType === 'pro-bowl' || week.label?.toLowerCase().includes('pro bowl')) {
+      return false
+    }
+    if (week.weekType === 'preseason' && !isPreseasonVisibleInApp(currentWeek.weekType)) {
       return false
     }
     const weekHasStarted = week.startDate <= now
@@ -176,8 +186,18 @@ export const dateHelpers = {
   // Format timezone-aware time
   formatTimeWithTimezone(dateString: string): string {
     const date = parseISO(dateString)
+    const formatted = formatTz(date, 'h:mm a zzz', { timeZone: NFL_TIMEZONE })
+    if (!/GMT|UTC/i.test(formatted)) return formatted
+
     const zonedDate = utcToZonedTime(date, NFL_TIMEZONE)
-    return format(zonedDate, 'h:mm a zzz')
+    const tzName = new Intl.DateTimeFormat('en-US', {
+      timeZone: NFL_TIMEZONE,
+      timeZoneName: 'short',
+    }).formatToParts(date).find((part) => part.type === 'timeZoneName')?.value
+    const abbr = tzName === 'PST' || tzName === 'PDT'
+      ? tzName
+      : /[-−]7/.test(tzName || formatted) ? 'PDT' : 'PST'
+    return `${format(zonedDate, 'h:mm a')} ${abbr}`
   },
 
   // Get week range starting on Sunday (legacy - keeping for backward compatibility)

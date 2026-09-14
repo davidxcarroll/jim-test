@@ -79,6 +79,18 @@ function extractLogoVariations(logos: any[]): { default?: string; dark?: string;
   return variations
 }
 
+function mergeLogoVariations(
+  primary: { default?: string; dark?: string; scoreboard?: string; darkScoreboard?: string },
+  fallback?: { default?: string; dark?: string; scoreboard?: string; darkScoreboard?: string }
+) {
+  return {
+    default: primary.default || fallback?.default,
+    dark: primary.dark || fallback?.dark,
+    scoreboard: primary.scoreboard || fallback?.scoreboard,
+    darkScoreboard: primary.darkScoreboard || fallback?.darkScoreboard,
+  }
+}
+
 // Helper function to determine favorite based on betting odds
 function getFavoriteFromOdds(odds: any[]): 'home' | 'away' | null {
   if (!odds || odds.length === 0) return null
@@ -740,10 +752,17 @@ export const espnApi = {
     const games: Game[] = [];
     let current = new Date(startDate);
     
-    // Fetch team records once to enrich game data
+    // Fetch team records and logo variants once to enrich game data
     let teamRecords: Record<string, { wins: number, losses: number, ties: number }> = {}
+    let teamsByAbbr: Record<string, Team> = {}
     try {
       const teams = await this.getTeams()
+      teamsByAbbr = teams.reduce((acc, team) => {
+        if (team.abbreviation) {
+          acc[team.abbreviation] = team
+        }
+        return acc
+      }, {} as Record<string, Team>)
       teamRecords = teams.reduce((acc, team) => {
         if (team.abbreviation && team.wins !== undefined && team.losses !== undefined) {
           acc[team.abbreviation] = {
@@ -775,6 +794,9 @@ export const espnApi = {
           const homeTeamRecord = teamRecords[homeTeam.abbreviation] || {}
           const awayTeamRecord = teamRecords[awayTeam.abbreviation] || {}
           
+          const homeCatalog = teamsByAbbr[homeTeam.abbreviation]
+          const awayCatalog = teamsByAbbr[awayTeam.abbreviation]
+
           const homeTeamData = {
             id: homeTeam.id || '',
             name: homeTeam.name || '',
@@ -782,7 +804,8 @@ export const espnApi = {
             city: homeTeam.location || '',
             division: '',
             conference: '',
-            logo: homeTeam.logos?.[0]?.href || '',
+            logo: homeTeam.logos?.[0]?.href || homeCatalog?.logo || '',
+            logos: mergeLogoVariations(extractLogoVariations(homeTeam.logos || []), homeCatalog?.logos),
             color: homeTeam.color || '',
             alternateColor: homeTeam.alternateColor || '',
             wins: homeTeamRecord.wins,
@@ -797,7 +820,8 @@ export const espnApi = {
             city: awayTeam.location || '',
             division: '',
             conference: '',
-            logo: awayTeam.logos?.[0]?.href || '',
+            logo: awayTeam.logos?.[0]?.href || awayCatalog?.logo || '',
+            logos: mergeLogoVariations(extractLogoVariations(awayTeam.logos || []), awayCatalog?.logos),
             color: awayTeam.color || '',
             alternateColor: awayTeam.alternateColor || '',
             wins: awayTeamRecord.wins,

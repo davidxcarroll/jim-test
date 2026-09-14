@@ -3,17 +3,27 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useAuthStore } from '@/store/auth-store'
 import { db } from '@/lib/firebase'
-import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore'
-import { getRoundDisplayName, getWeekKey, getSelectableWeeks, getFirstRegularSeasonWeek } from '@/utils/date-helpers'
+import { doc, getDoc, setDoc, updateDoc, collection, getDocs, deleteField } from 'firebase/firestore'
+import { getRoundDisplayName, getWeekKey, getSelectableWeeks, getFirstRegularSeasonWeek, isPreseasonVisibleInApp } from '@/utils/date-helpers'
 import { espnApi } from '@/lib/espn-api'
 import { useCurrentWeek } from '@/hooks/use-current-week'
 import { useGamesForWeek } from '@/hooks/use-nfl-data'
+import { teamDisplayNames } from '@/utils/team-names'
+import { Team } from '@/types/nfl'
+import {
+  getActiveSuperBowlSeasonYear,
+  getSuperBowlPickForSeason,
+  buildSuperBowlPicksUpdate,
+  SuperBowlPicksMap
+} from '@/utils/super-bowl-picks'
 import React from 'react'
 
 interface User {
   id: string
   displayName?: string
   email?: string
+  superBowlPick?: string
+  superBowlPicks?: SuperBowlPicksMap
 }
 
 interface Game {
@@ -55,6 +65,9 @@ export default function AdminPicksPage() {
   const [loadingWeeks, setLoadingWeeks] = useState(true)
   // When off-season (weekInfo null), which season to load weeks for (e.g. last completed season)
   const [offSeasonSelectedSeason, setOffSeasonSelectedSeason] = useState(() => new Date().getFullYear() - 1)
+  const [superBowlSeason, setSuperBowlSeason] = useState(() => getActiveSuperBowlSeasonYear())
+  const [superBowlSeasonInitialized, setSuperBowlSeasonInitialized] = useState(false)
+  const [teams, setTeams] = useState<Team[]>([])
 
   // Fetch all available weeks from API: in-season use weekInfo.season, off-season use offSeasonSelectedSeason
   const seasonToFetch = weekInfo?.season ?? offSeasonSelectedSeason
@@ -79,6 +92,44 @@ export default function AdminPicksPage() {
     fetchAllWeeks()
   }, [seasonToFetch])
 
+  const superBowlSeasonYears = useMemo(() => {
+    const year = new Date().getFullYear()
+    const years = [year, year - 1, year - 2, year - 3]
+    if (weekInfo?.season != null && !years.includes(weekInfo.season)) {
+      years.push(weekInfo.season)
+      years.sort((a, b) => b - a)
+    }
+    return years
+  }, [weekInfo?.season])
+
+  useEffect(() => {
+    if (superBowlSeasonInitialized) return
+    if (weekInfo?.season != null && !Number.isNaN(weekInfo.season)) {
+      setSuperBowlSeason(weekInfo.season)
+      setSuperBowlSeasonInitialized(true)
+    }
+  }, [weekInfo?.season, superBowlSeasonInitialized])
+
+  useEffect(() => {
+    async function fetchTeams() {
+      try {
+        const apiTeams = await espnApi.getTeams()
+        const uniqueTeams = Array.from(
+          new Map(apiTeams.map(team => [team.abbreviation, team])).values()
+        ).sort((a, b) => {
+          const nameA = teamDisplayNames[a.abbreviation] || a.name
+          const nameB = teamDisplayNames[b.abbreviation] || b.name
+          return nameA.localeCompare(nameB)
+        })
+        setTeams(uniqueTeams)
+      } catch (error) {
+        console.error('Error fetching teams for Super Bowl picks:', error)
+        setTeams([])
+      }
+    }
+    fetchTeams()
+  }, [])
+
   // Get available weeks: in-season = weeks up to/including current; off-season = all started weeks for selected season
   const availableWeeks = React.useMemo(() => {
     const today = new Date()
@@ -89,7 +140,7 @@ export default function AdminPicksPage() {
     if (weekInfo) {
       const firstRegular = getFirstRegularSeasonWeek(allAvailableWeeks)
       const selectable =
-        weekInfo.weekType === 'preseason'
+        isPreseasonVisibleInApp(weekInfo.weekType)
           ? firstRegular
             ? [firstRegular]
             : []
@@ -110,6 +161,7 @@ export default function AdminPicksPage() {
     // Off-season: show all weeks that have started for the fetched season (so admin can view/manage any week)
     const started = allAvailableWeeks
       .filter(w => w.startDate <= today)
+      .filter(w => w.weekType !== 'preseason' || isPreseasonVisibleInApp(weekInfo?.weekType))
       .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
     return started.map((week, i) => {
       const weekKey = getWeekKey(week.weekType, week.week, week.label)
@@ -199,7 +251,7 @@ export default function AdminPicksPage() {
   useEffect(() => {
     if (availableWeeks.length === 0) return
     if (weekInfo) {
-      if (weekInfo.weekType === 'preseason') {
+      if (isPreseasonVisibleInApp(weekInfo.weekType)) {
         const week1Index = availableWeeks.findIndex((w) => w.weekType === 'regular')
         if (week1Index >= 0) {
           setWeekOffset(week1Index)
@@ -328,6 +380,56 @@ export default function AdminPicksPage() {
     } catch (error) {
       setMessage({ text: 'Failed to update pick', type: 'error' })
       console.error('Error updating pick:', error)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleSuperBowlPickChange = async (userId: string, teamAbbreviation: string) => {
+    if (!user || !db) return
+
+    setSaving(true)
+    setMessage(null)
+
+    try {
+      const targetUser = users.find(u => u.id === userId)
+      const nextMap = buildSuperBowlPicksUpdate(
+        targetUser?.superBowlPicks,
+        superBowlSeason,
+        teamAbbreviation,
+        targetUser?.superBowlPick
+      )
+
+      await updateDoc(doc(db, 'users', userId), {
+        [`superBowlPicks.${superBowlSeason}`]: teamAbbreviation || deleteField(),
+        updatedAt: new Date(),
+        ...(superBowlSeason === 2025
+          ? { superBowlPick: teamAbbreviation || deleteField() }
+          : {})
+      })
+
+      setUsers(prev => prev.map(u => {
+        if (u.id !== userId) return u
+        return {
+          ...u,
+          superBowlPicks: nextMap,
+          superBowlPick: superBowlSeason === 2025
+            ? (teamAbbreviation || undefined)
+            : u.superBowlPick
+        }
+      }))
+
+      const teamLabel = teamAbbreviation
+        ? (teamDisplayNames[teamAbbreviation] || teamAbbreviation)
+        : 'cleared'
+      const userLabel = targetUser?.displayName || targetUser?.email || userId
+      setMessage({
+        text: `${superBowlSeason} Super Bowl pick ${teamAbbreviation ? 'updated' : 'cleared'} for ${userLabel}${teamAbbreviation ? `: ${teamLabel}` : ''}`,
+        type: 'success'
+      })
+    } catch (error) {
+      setMessage({ text: 'Failed to update Super Bowl pick', type: 'error' })
+      console.error('Error updating Super Bowl pick:', error)
     } finally {
       setSaving(false)
     }
@@ -537,6 +639,84 @@ export default function AdminPicksPage() {
           <div className="mt-6 text-sm text-black font-bold uppercase">
             <p>Showing {games.length} games for {users.length} users in {currentWeekData.season} {currentWeekData.week}</p>
             {saving && <p className="text-black font-bold uppercase">Saving changes...</p>}
+          </div>
+        )}
+
+        <h2 className="text-2xl font-bold text-black p-6 uppercase">Super Bowl Picks</h2>
+        <div className="bg-white shadow-[inset_0_1px_0_0_#000000,inset_0_-1px_0_0_#000000] p-6 mb-6">
+          <div className="flex gap-4 items-center flex-wrap">
+            <div>
+              <label className="block text-sm font-medium text-black mb-1 uppercase">Season</label>
+              <select
+                value={superBowlSeason}
+                onChange={(e) => setSuperBowlSeason(Number(e.target.value))}
+                className="border-[1px] border-black px-3 py-2 min-w-[100px] font-bold uppercase bg-white"
+              >
+                {superBowlSeasonYears.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {users.length === 0 && loading ? (
+          <div className="text-center py-8">
+            <div className="text-black font-bold uppercase">Loading users...</div>
+          </div>
+        ) : users.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="text-black font-bold uppercase">No users found</div>
+          </div>
+        ) : (
+          <div className="bg-white shadow-[inset_0_0_0_1px_#000000] overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-black">
+                <thead className="bg-neutral-100">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">
+                      User
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">
+                      Super Bowl Pick
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-black">
+                  {users.map(rowUser => {
+                    const currentPick = getSuperBowlPickForSeason(rowUser, superBowlSeason)
+                    const hasCurrentTeamOption = !currentPick || teams.some(team => team.abbreviation === currentPick)
+                    return (
+                    <tr key={rowUser.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-black uppercase">
+                        {rowUser.displayName || rowUser.email || rowUser.id}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <select
+                          value={currentPick}
+                          onChange={(e) => handleSuperBowlPickChange(rowUser.id, e.target.value)}
+                          disabled={saving}
+                          className="border-[1px] border-black px-2 py-1 text-sm font-bold uppercase disabled:opacity-50"
+                        >
+                          <option value="">--</option>
+                          {!hasCurrentTeamOption && (
+                            <option value={currentPick}>
+                              {teamDisplayNames[currentPick] || currentPick}
+                            </option>
+                          )}
+                          {teams.map((team) => (
+                            <option key={team.abbreviation} value={team.abbreviation}>
+                              {teamDisplayNames[team.abbreviation] || team.name}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

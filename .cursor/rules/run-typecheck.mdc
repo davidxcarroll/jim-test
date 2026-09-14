@@ -1,0 +1,27 @@
+---
+description: Run typecheck after TypeScript changes before finishing
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Run Typecheck After TS Changes
+
+After changing `.ts` or `.tsx` files, run `npm run typecheck` before considering the task done.
+
+- Do not treat `next dev` or "Compiled successfully" as type-safe. Vercel production builds run a full TypeScript check and will fail on errors the dev compiler misses.
+- If typecheck fails, fix the errors before finishing.
+- Control-flow narrowing is a common miss: after `if (value) { return }`, `value` is narrowed (often to `null`). Do not use `value?.prop` in that branch.
+
+```tsx
+// BAD — weekInfo is already null here; optional chaining types as never
+if (weekInfo) {
+  return inSeasonWeeks
+}
+weeks.filter(w => isPreseasonVisibleInApp(weekInfo?.weekType))
+
+// GOOD — off-season branch does not read weekInfo
+if (weekInfo) {
+  return inSeasonWeeks
+}
+weeks.filter(w => w.weekType !== 'preseason')
+```

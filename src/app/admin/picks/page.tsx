@@ -161,7 +161,7 @@ export default function AdminPicksPage() {
     // Off-season: show all weeks that have started for the fetched season (so admin can view/manage any week)
     const started = allAvailableWeeks
       .filter(w => w.startDate <= today)
-      .filter(w => w.weekType !== 'preseason' || isPreseasonVisibleInApp(weekInfo?.weekType))
+      .filter(w => w.weekType !== 'preseason')
       .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
     return started.map((week, i) => {
       const weekKey = getWeekKey(week.weekType, week.week, week.label)

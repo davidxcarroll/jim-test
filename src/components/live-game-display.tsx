@@ -119,7 +119,7 @@ export function LiveGameDisplay({ gameId, game: fallbackGame }: LiveGameDisplayP
       </div>
 
       {/* Date and Time Block */}
-      <div className="w-1/2 flex flex-row flex-wrap items-center justify-center lg:gap-8 gap-4 lg:px-8 px-4">
+      <div className="w-1/2 flex sm:flex-row flex-col items-center justify-center lg:gap-x-8 gap-x-4 lg:px-8 px-4 leading-none">
 
         {isScheduled && (
           <div className="uppercase xl:text-base text-sm font-bold text-center leading-none">

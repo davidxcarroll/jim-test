@@ -601,12 +601,16 @@ function WeeklyMatchesPage() {
     return () => clearTimeout(timeoutId)
   }, [visibleUserIdsKey, currentWeekData.season, currentWeekData.week, games])
 
-  // Group games by day
+  // Group games by day, then sort each day by kickoff time
   const gamesByDay: Record<string, typeof games> = {}
   games?.forEach((game) => {
     const day = format(parseISO(game.date), "EEEE, MMMM d")
     if (!gamesByDay[day]) gamesByDay[day] = []
     gamesByDay[day].push(game)
+  })
+  Object.values(gamesByDay).forEach((dayGames) => {
+    if (!dayGames) return
+    dayGames.sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime())
   })
 
   // Drop expanded rows for games that are no longer in this week
@@ -1079,7 +1083,7 @@ function WeeklyMatchesPage() {
                                   </div>
                                 ) : game.status === "live" && (
                                   <div
-                                    className="absolute right-0 top-[-1.5px] translate-x-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-green-400 shadow-[0_0_0_1px_#000000] rounded-full cursor-pointer hover:bg-green-500 transition-colors z-20"
+                                    className="absolute right-0 top-[-1.5px] translate-x-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center bg-green-400 shadow-[0_0_0_1px_#000000] rounded-full animate- z-20 cursor-pointer"
                                     onClick={(e) => {
                                       e.stopPropagation()
                                       toggleExpandedGame(game.id)

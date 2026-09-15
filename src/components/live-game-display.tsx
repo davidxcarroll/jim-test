@@ -82,6 +82,9 @@ export function LiveGameDisplay({ gameId, game: fallbackGame }: LiveGameDisplayP
 
   const isScheduled = game.status === 'scheduled'
   const isFinal = game.status === 'final' || game.status === 'post'
+  const possessionId = situation?.possession ? String(situation.possession) : undefined
+  const awayHasPossession = possessionId === String(game.awayTeam.id)
+  const homeHasPossession = possessionId === String(game.homeTeam.id)
 
   // For NFL, we don't need line score calculation
   // Just show teams and scores
@@ -133,25 +136,35 @@ export function LiveGameDisplay({ gameId, game: fallbackGame }: LiveGameDisplayP
 
         {!isScheduled && !isFinal && (
           <>
-            {/* Quarter Display */}
-            {(situation?.quarter || game?.quarter) && (
-
-              <div className="uppercase xl:text-base text-sm font-bold text-center leading-none">
-                {(() => {
-                  const quarter = situation?.quarter || game?.quarter
-                  if (quarter === 1) return '1ST'
-                  if (quarter === 2) return '2ND'
-                  if (quarter === 3) return '3RD'
-                  if (quarter === 4) return '4TH'
-                  if (quarter && quarter > 4) return 'OT'
-                  return quarter ? 'Q' + quarter : 'VS'
-                })()}
-              </div>
+            {awayHasPossession && (
+              <span className="material-symbols-sharp xl:!text-base !text-sm leading-none" aria-label="Away team has possession">sports_football</span>
             )}
 
-            {/* Time Remaining */}
-            {situation?.timeRemaining && (
-              <div className="uppercase xl:text-base text-sm font-bold text-center leading-none">{situation.timeRemaining}</div>
+            <div className="flex sm:flex-row flex-col items-center justify-center lg:gap-x-8 gap-x-4">
+              {/* Quarter Display */}
+              {(situation?.quarter || game?.quarter) && (
+
+                <div className="uppercase xl:text-base text-sm font-bold text-center leading-none">
+                  {(() => {
+                    const quarter = situation?.quarter || game?.quarter
+                    if (quarter === 1) return '1ST'
+                    if (quarter === 2) return '2ND'
+                    if (quarter === 3) return '3RD'
+                    if (quarter === 4) return '4TH'
+                    if (quarter && quarter > 4) return 'OT'
+                    return quarter ? 'Q' + quarter : 'VS'
+                  })()}
+                </div>
+              )}
+
+              {/* Time Remaining */}
+              {situation?.timeRemaining && (
+                <div className="uppercase xl:text-base text-sm font-bold text-center leading-none">{situation.timeRemaining}</div>
+              )}
+            </div>
+
+            {homeHasPossession && (
+              <span className="material-symbols-sharp xl:!text-base !text-sm leading-none" aria-label="Home team has possession">sports_football</span>
             )}
           </>
         )}

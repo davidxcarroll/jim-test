@@ -105,6 +105,60 @@ function getFavoriteFromOdds(odds: any[]): 'home' | 'away' | null {
   return null
 }
 
+function getPossessionTeamId(possession: unknown): string | undefined {
+  if (possession == null) return undefined
+  if (typeof possession === 'string' || typeof possession === 'number') {
+    const id = String(possession)
+    return id || undefined
+  }
+  if (typeof possession === 'object' && 'id' in possession) {
+    const id = (possession as { id?: unknown }).id
+    if (typeof id === 'string' || typeof id === 'number') {
+      const normalized = String(id)
+      return normalized || undefined
+    }
+  }
+  return undefined
+}
+
+function formatStatusClock(status: { clock?: unknown; displayClock?: unknown } | undefined): string {
+  if (status?.displayClock && typeof status.displayClock === 'string') return status.displayClock
+  const clock = status?.clock
+  if (typeof clock === 'number') {
+    return `${Math.floor(clock / 60)}:${Math.floor(clock % 60).toString().padStart(2, '0')}`
+  }
+  if (typeof clock === 'string') return clock
+  return ''
+}
+
+function mapSituationFromScoreboardEvent(event: any): LiveGameSituation | null {
+  if (!event) return null
+  const competition = event.competitions?.[0] || {}
+  const status = competition.status || event.status || {}
+  const sit = competition.situation
+  const timeRemaining = formatStatusClock(status)
+  if (!sit && !timeRemaining && !status.period) return null
+  return {
+    down: sit?.down || 1,
+    distance: sit?.distance || 10,
+    fieldPosition: sit?.possessionText || (sit?.yardLine != null ? String(sit.yardLine) : ''),
+    quarter: status.period || 1,
+    timeRemaining,
+    possession: getPossessionTeamId(sit?.possession),
+    lastPlay: sit?.lastPlay ? {
+      id: sit.lastPlay.id,
+      text: sit.lastPlay.text
+    } : undefined
+  }
+}
+
+async function fetchScoreboardSituation(gameId: string): Promise<LiveGameSituation | null> {
+  const response = await fetch(`${ESPN_BASE_URL}/scoreboard`)
+  const data = await response.json()
+  const event = (data.events || []).find((e: any) => String(e.id) === String(gameId))
+  return mapSituationFromScoreboardEvent(event)
+}
+
 // New interfaces for live data
 export interface LiveGameSituation {
   down: number
@@ -112,6 +166,7 @@ export interface LiveGameSituation {
   fieldPosition: string
   quarter: number
   timeRemaining: string
+  possession?: string
   lastPlay?: {
     id: string
     text?: string
@@ -428,6 +483,7 @@ export const espnApi = {
         fieldPosition: data.situation.possessionText || data.situation.yardLine || '',
         quarter: data.situation.period || status.period || 1,
         timeRemaining: data.situation.clock ? `${Math.floor(data.situation.clock / 60)}:${(data.situation.clock % 60).toString().padStart(2, '0')}` : '',
+        possession: getPossessionTeamId(data.situation.possession),
         lastPlay: data.situation.lastPlay ? {
           id: data.situation.lastPlay.id,
           text: data.situation.lastPlay.text
@@ -457,6 +513,7 @@ export const espnApi = {
           fieldPosition: lastPlay.fieldPosition || '',
           quarter: status.period || 1,
           timeRemaining: timeRemaining,
+          possession: getPossessionTeamId(lastPlay.possession),
           lastPlay: {
             id: lastPlay.id || '',
             text: lastPlay.text || ''
@@ -479,6 +536,16 @@ export const espnApi = {
           clock: clock,
           status: status
         })
+      }
+    }
+
+    if (!situation?.possession) {
+      const fromBoard = await fetchScoreboardSituation(gameId)
+      if (fromBoard) {
+        situation = {
+          ...(situation || fromBoard),
+          ...fromBoard,
+        }
       }
     }
 
@@ -523,7 +590,9 @@ export const espnApi = {
     const response = await fetch(`${ESPN_BASE_URL}/summary?event=${gameId}`)
     const data = await response.json()
     
-    if (!data.situation) return null
+    if (!data.situation) {
+      return fetchScoreboardSituation(gameId)
+    }
     
     return {
       down: data.situation.down || 1,
@@ -531,6 +600,7 @@ export const espnApi = {
       fieldPosition: data.situation.possessionText || data.situation.yardLine || '',
       quarter: data.situation.period || 1,
       timeRemaining: data.situation.clock ? `${Math.floor(data.situation.clock / 60)}:${(data.situation.clock % 60).toString().padStart(2, '0')}` : '',
+      possession: getPossessionTeamId(data.situation.possession),
       lastPlay: data.situation.lastPlay ? {
         id: data.situation.lastPlay.id,
         text: data.situation.lastPlay.text

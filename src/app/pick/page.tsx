@@ -128,12 +128,16 @@ function PickPage() {
     }
   }
 
-  // Group games by day
+  // Group games by day, then sort each day by kickoff time
   const gamesByDay: Record<string, typeof games> = {}
   games?.forEach((game) => {
     const day = format(parseISO(game.date), 'EEEE, MMM d')
     if (!gamesByDay[day]) gamesByDay[day] = []
     gamesByDay[day].push(game)
+  })
+  Object.values(gamesByDay).forEach((dayGames) => {
+    if (!dayGames) return
+    dayGames.sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime())
   })
 
   return (

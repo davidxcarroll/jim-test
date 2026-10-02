@@ -974,7 +974,7 @@ function WeeklyMatchesPage() {
                       return (
                         <tr className="font-bold uppercase text-center xl:text-base text-sm bg-yellow-200">
                           <td className="sticky left-0 z-20 bg-yellow-200 text-center px-2 xl:h-16 h-12 align-middle font-bold xl:text-base text-sm shadow-[1px_0_0_#000000]">
-                            RECAP
+                            RESULTS
                           </td>
                           {recapStats.map((stat, idx) => (
                             <td key={stat.userId} className="text-center align-middle font-bold xl:text-base text-sm shadow-[-1px_0_0_#000000]">

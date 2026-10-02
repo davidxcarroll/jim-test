@@ -48,7 +48,7 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
   const [networkStatus, setNetworkStatus] = useState<string>('')
   /** Super Bowl pick locked at first regular-season kickoff */
   const [isSeasonStarted, setIsSeasonStarted] = useState<boolean>(false)
-  /** Show Super Bowl picker only once preseason (or later) has started */
+  /** Super Bowl picker is hidden only when season status cannot be loaded */
   const [showSuperBowlPick, setShowSuperBowlPick] = useState<boolean>(false)
   const [superBowlSeasonYear, setSuperBowlSeasonYear] = useState<number>(() => getActiveSuperBowlSeasonYear())
   const [superBowlPicksMap, setSuperBowlPicksMap] = useState<SuperBowlPicksMap>({})
@@ -92,7 +92,7 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
     loadTeamColorMappings(true)
   }, [])
 
-  // Super Bowl pick: hidden in off-season; editable until first regular-season kickoff
+  // Super Bowl pick: editable in the off-season and preseason; locked at first regular-season kickoff
   useEffect(() => {
     async function checkSeasonStatus() {
       try {
@@ -107,9 +107,9 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
           }
           setIsSeasonStarted(isSuperBowlPickLocked(nflWeek, firstKickoff))
         } else {
-          // Off-season (or API returned offSeason): hide until preseason starts
+          // Off-season: picks are open for the upcoming season
           setSuperBowlSeasonYear(getActiveSuperBowlSeasonYear())
-          setShowSuperBowlPick(false)
+          setShowSuperBowlPick(true)
           setIsSeasonStarted(false)
         }
       } catch (error) {

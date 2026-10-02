@@ -113,16 +113,13 @@ export function LiveGameDisplay({ gameId, game: fallbackGame }: LiveGameDisplayP
         ) : (
           <div className="aspect-square xl:w-12 w-8 z-20 relative" />
         )}
-        {/* <div className="flex flex-col justify-center items-center z-20 relative">
-          <span className="xl:text-3xl max-md:text-sm font-bold text-center uppercase leading-none max-md:mt-2">{getTeamDisplayNameWithFavorite(game.awayTeam, game, false)}</span>
-        </div> */}
         {!isScheduled && (
           <span className="xl:text-4xl text-2xl font-bold z-20 relative">{game.awayScore}</span>
         )}
       </div>
 
       {/* Date and Time Block */}
-      <div className="w-1/2 flex sm:flex-row flex-col items-center justify-center lg:gap-x-8 gap-x-4 lg:px-8 px-4 leading-none">
+      <div className="w-1/2 flex flex-row items-center justify-center lg:gap-x-8 gap-x-4 lg:px-8 px-4 leading-none">
 
         {isScheduled && (
           <div className="uppercase xl:text-base text-sm font-bold text-center leading-none">

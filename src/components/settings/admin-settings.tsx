@@ -654,6 +654,9 @@ export function AdminSettings() {
                   key={rowUser.id}
                   className="w-40 bg-white shadow-[0_0_0_1px_#000000] flex flex-col items-center gap-3 p-4"
                 >
+                  <div className="w-full text-center text-sm font-bold uppercase leading-tight">
+                    {userLabel}
+                  </div>
                   {pickedTeam && circle && logoSrc ? (
                     <div
                       className="w-16 h-16 flex items-center justify-center p-1 rounded-full shadow-[0_0_0_1px_#000000]"
@@ -668,9 +671,6 @@ export function AdminSettings() {
                   ) : (
                     <div className="w-16 h-16 rounded-full shadow-[0_0_0_1px_#000000]" />
                   )}
-                  <div className="w-full text-center text-sm font-bold uppercase leading-tight">
-                    {userLabel}
-                  </div>
                   <div className="relative w-full">
                     <select
                       value={currentPick}

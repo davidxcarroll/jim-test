@@ -13,6 +13,7 @@ import { useAuthStore } from '@/store/auth-store'
 import { useClipboardVisibilityStore } from '@/store/clipboard-visibility-store'
 import { Toast } from '@/components/toast'
 import { PHIL_USER, getPhilPicks, isPhil, generateAndStorePhilPicks } from '@/utils/phil-user'
+import { isHiddenUser } from '@/utils/hidden-user'
 import { Tooltip } from '@/components/tooltip'
 import { UserStatsModal } from '@/components/user-stats-modal'
 // @ts-ignore
@@ -442,9 +443,10 @@ function WeeklyMatchesPage() {
   const visibleUsers = React.useMemo(() => {
     const filteredUsers = clipboardSettingsPending
       ? users
-      : users.filter(user => {
-          // Always show current user
+      :       users.filter(user => {
+          // Always show the signed-in account and profiles it owns
           if (user.id === currentUser?.uid) return true
+          if (currentUser?.uid && user.ownerUid === currentUser.uid) return true
           // Show other users only if they're in the visible users set
           return clipboardSettings.visibleUsers.has(user.id)
         })
@@ -488,7 +490,10 @@ function WeeklyMatchesPage() {
     if (!currentUser?.uid) return
     // Wait for the user list so we don't persist empty visibleUsers on first run
     if (users.length > 0) {
-      loadSettings(currentUser.uid, users.map(user => user.id))
+      const ownedProfileIds = users
+        .filter(user => user.ownerUid === currentUser.uid)
+        .map(user => user.id)
+      loadSettings(currentUser.uid, users.map(user => user.id), ownedProfileIds)
     }
     const unsubscribe = subscribeToChanges(currentUser.uid)
     return unsubscribe
@@ -510,7 +515,7 @@ function WeeklyMatchesPage() {
         const usersData = usersSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        } as any)).filter((user: any) => user.displayName) // Only include users with display names
+        } as any)).filter((user: any) => user.displayName && !isHiddenUser(user))
 
         setUsers(usersData)
       } catch (error) {
@@ -676,8 +681,11 @@ function WeeklyMatchesPage() {
   }, [visibleUsers])
 
   // Save pick to Firestore
-  const handlePick = async (gameId: string, pick: 'home' | 'away') => {
-    if (!currentUser) return
+  const handlePick = async (gameId: string, pick: 'home' | 'away', profileId: string) => {
+    if (!currentUser || !db) return
+    const profile = users.find(user => user.id === profileId)
+    const canEdit = profileId === currentUser.uid || profile?.ownerUid === currentUser.uid
+    if (!canEdit) return
     setSaving(true)
     setToast(null)
 
@@ -695,16 +703,17 @@ function WeeklyMatchesPage() {
     }
 
     // Toggle logic: if same team is clicked again, remove the pick
-    const currentPick = userPicksByUser[currentUser.uid]?.[gameId]?.pickedTeam
+    const existingPicks = userPicksByUser[profileId]
+    const currentPick = existingPicks?.[gameId]?.pickedTeam
     let newPicks
     if (currentPick === pick) {
       // Remove the pick
-      const { [gameId]: removed, ...rest } = userPicksByUser[currentUser.uid] || {}
+      const { [gameId]: removed, ...rest } = existingPicks || {}
       newPicks = rest
     } else {
       // Set new pick
       newPicks = {
-        ...userPicksByUser[currentUser.uid],
+        ...existingPicks,
         [gameId]: { pickedTeam: pick, pickedAt: serverTimestamp() }
       }
     }
@@ -712,18 +721,18 @@ function WeeklyMatchesPage() {
     // Update local state immediately for responsive UI
     setUserPicksByUser(prev => ({
       ...prev,
-      [currentUser.uid]: newPicks
+      [profileId]: newPicks
     }))
 
     try {
-      await setDoc(doc(db, 'users', currentUser.uid, 'picks', `${currentWeekData.season}_${currentWeekData.week}`), newPicks, { merge: true })
+      await setDoc(doc(db, 'users', profileId, 'picks', `${currentWeekData.season}_${currentWeekData.week}`), newPicks, { merge: true })
       setToast({ message: currentPick === pick ? 'Pick removed!' : 'Pick saved!', type: 'success' })
     } catch (err) {
       setToast({ message: 'Failed to save pick. Please try again.', type: 'error' })
       // Revert local state on error
       setUserPicksByUser(prev => ({
         ...prev,
-        [currentUser.uid]: userPicksByUser[currentUser.uid]
+        [profileId]: existingPicks
       }))
     } finally {
       setSaving(false)
@@ -1038,20 +1047,20 @@ function WeeklyMatchesPage() {
                             {visibleUsers.map((user, userIndex) => {
                               const pick = userPicksByUser[user.id]?.[game.id]?.pickedTeam
                               const awayCorrect = pick === 'away' && (game.awayScore ?? 0) > (game.homeScore ?? 0)
-                              const isCurrentUser = user.id === currentUser?.uid
+                              const canEdit = user.id === currentUser?.uid || (!!currentUser?.uid && user.ownerUid === currentUser.uid)
                               const isGameFinished = game.status === 'final' || game.status === 'post'
                               const AwayCheck = getDeterministicCheckComponent(`${game.id}_${user.id}_away`)
                               const AwayCircleCheck = getDeterministicCircleCheckComponent(`${game.id}_${user.id}_away`)
                               return (
                                 <td
                                   key={userIndex}
-                                  className={`shadow-[inset_1px_0_0_#000000,inset_0_-1px_0_#000000] px-0 xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl min-w-14 ${isCurrentUser && game.status === 'scheduled' && !saving
+                                  className={`shadow-[inset_1px_0_0_#000000,inset_0_-1px_0_#000000] px-0 xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl min-w-14 ${canEdit && game.status === 'scheduled' && !saving
                                     ? 'cursor-pointer hover:bg-white'
-                                    : isCurrentUser && game.status !== 'scheduled'
+                                    : canEdit && game.status !== 'scheduled'
                                       ? 'cursor-not-allowed'
                                       : ''
                                     }`}
-                                  onClick={isCurrentUser ? () => handlePick(game.id, 'away') : undefined}
+                                  onClick={canEdit ? () => handlePick(game.id, 'away', user.id) : undefined}
                                 >
                                   {pick === 'away' && (
                                     <div className="relative flex items-center justify-center h-full">
@@ -1112,20 +1121,20 @@ function WeeklyMatchesPage() {
                             {visibleUsers.map((user, userIndex) => {
                               const pick = userPicksByUser[user.id]?.[game.id]?.pickedTeam
                               const homeCorrect = pick === 'home' && (game.homeScore ?? 0) > (game.awayScore ?? 0)
-                              const isCurrentUser = user.id === currentUser?.uid
+                              const canEdit = user.id === currentUser?.uid || (!!currentUser?.uid && user.ownerUid === currentUser.uid)
                               const isGameFinished = game.status === 'final' || game.status === 'post'
                               const HomeCheck = getDeterministicCheckComponent(`${game.id}_${user.id}_home`)
                               const HomeCircleCheck = getDeterministicCircleCheckComponent(`${game.id}_${user.id}_home`)
                               return (
                                 <td
                                   key={userIndex}
-                                  className={`shadow-[inset_1px_0_0_#000000] px-0 xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl min-w-14 ${isCurrentUser && game.status === 'scheduled' && !saving
+                                  className={`shadow-[inset_1px_0_0_#000000] px-0 xl:h-12 h-6 align-middle font-jim xl:text-4xl text-3xl min-w-14 ${canEdit && game.status === 'scheduled' && !saving
                                     ? 'cursor-pointer hover:bg-white'
-                                    : isCurrentUser && game.status !== 'scheduled'
+                                    : canEdit && game.status !== 'scheduled'
                                       ? 'cursor-not-allowed'
                                       : ''
                                     }`}
-                                  onClick={isCurrentUser ? () => handlePick(game.id, 'home') : undefined}
+                                  onClick={canEdit ? () => handlePick(game.id, 'home', user.id) : undefined}
                                 >
                                   {pick === 'home' && (
                                     <div className="relative flex items-center justify-center h-full">

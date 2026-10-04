@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/auth-store'
 import { db } from '@/lib/firebase'
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore'
 import { formatTeamMatchup, getPickedTeamName } from '@/utils/pick-enrichment'
+import { isHiddenUser } from '@/utils/hidden-user'
 
 interface EnrichedPick {
   pickedTeam: 'home' | 'away'
@@ -58,7 +59,7 @@ export default function PickAnalysisPage() {
         const usersList = usersSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        })) as User[]
+        })).filter(user => !isHiddenUser(user)) as User[]
         setUsers(usersList)
 
         // Get picks for each user

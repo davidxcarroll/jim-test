@@ -11,11 +11,12 @@ interface ClipboardVisibilitySettings {
 
 interface ClipboardVisibilityStore {
   settings: ClipboardVisibilitySettings
+  alwaysVisibleUserIds: string[]
   isLoading: boolean
   error: string | null
   
   // Actions
-  loadSettings: (userId: string, allUserIds?: string[]) => Promise<void>
+  loadSettings: (userId: string, allUserIds?: string[], alwaysVisibleUserIds?: string[]) => Promise<void>
   updateVisibleUsers: (userId: string, visibleUsers: Set<string>) => Promise<void>
   updateUserOrder: (userId: string, userOrder: string[]) => Promise<void>
   moveUserInOrder: (userId: string, userToMove: string, direction: 'up' | 'down', knownUserIds?: string[]) => Promise<void>
@@ -49,6 +50,13 @@ function reconcileUserOrder(
   return reconciled
 }
 
+function withAlwaysVisible(visibleUsers: Set<string>, alwaysVisibleUserIds: string[]): Set<string> {
+  if (alwaysVisibleUserIds.length === 0) return visibleUsers
+  const next = new Set(visibleUsers)
+  for (const id of alwaysVisibleUserIds) next.add(id)
+  return next
+}
+
 export const useClipboardVisibilityStore = create<ClipboardVisibilityStore>((set, get) => ({
   settings: {
     visibleUsers: new Set(),
@@ -56,16 +64,17 @@ export const useClipboardVisibilityStore = create<ClipboardVisibilityStore>((set
     lastUpdated: null,
     showNewUsersByDefault: true
   },
+  alwaysVisibleUserIds: [],
   isLoading: false,
   error: null,
 
-  loadSettings: async (userId: string, allUserIds?: string[]) => {
+  loadSettings: async (userId: string, allUserIds?: string[], alwaysVisibleUserIds: string[] = []) => {
     if (!db) {
       set({ error: 'Firebase not initialized' })
       return
     }
 
-    set({ isLoading: true, error: null })
+    set({ isLoading: true, error: null, alwaysVisibleUserIds })
 
     try {
       const docRef = doc(db, 'users', userId, 'settings', 'clipboard-visibility')
@@ -81,9 +90,19 @@ export const useClipboardVisibilityStore = create<ClipboardVisibilityStore>((set
           userOrder = [userId, ...userOrder.filter(id => id !== userId)]
         }
         
+        const storedVisibleUsers = new Set((data.visibleUsers || []) as string[])
+        const visibleUsers = withAlwaysVisible(storedVisibleUsers, alwaysVisibleUserIds)
+        const missingAlwaysVisible = alwaysVisibleUserIds.some(id => !storedVisibleUsers.has(id))
+        if (missingAlwaysVisible) {
+          await setDoc(docRef, {
+            visibleUsers: Array.from(visibleUsers),
+            lastUpdated: new Date()
+          }, { merge: true })
+        }
+
         set({
           settings: {
-            visibleUsers: new Set((data.visibleUsers || []) as string[]),
+            visibleUsers,
             userOrder,
             lastUpdated: data.lastUpdated?.toDate() || null,
             showNewUsersByDefault: data.showNewUsersByDefault !== false // Default to true if not set
@@ -92,7 +111,10 @@ export const useClipboardVisibilityStore = create<ClipboardVisibilityStore>((set
         })
       } else {
         // Initialize with all users visible by default
-        const defaultVisibleUsers = allUserIds ? new Set(allUserIds as string[]) : new Set<string>()
+        const defaultVisibleUsers = withAlwaysVisible(
+          allUserIds ? new Set(allUserIds as string[]) : new Set<string>(),
+          alwaysVisibleUserIds
+        )
         
         // Initialize user order with current user first, then others
         const defaultUserOrder = allUserIds ? [userId, ...allUserIds.filter(id => id !== userId)] : [userId]
@@ -130,17 +152,19 @@ export const useClipboardVisibilityStore = create<ClipboardVisibilityStore>((set
       return
     }
 
+    const nextVisibleUsers = withAlwaysVisible(visibleUsers, get().alwaysVisibleUserIds)
+
     try {
       const docRef = doc(db, 'users', userId, 'settings', 'clipboard-visibility')
       await setDoc(docRef, {
-        visibleUsers: Array.from(visibleUsers),
+        visibleUsers: Array.from(nextVisibleUsers),
         lastUpdated: new Date()
       }, { merge: true })
 
       set({
         settings: {
           ...get().settings,
-          visibleUsers,
+          visibleUsers: nextVisibleUsers,
           lastUpdated: new Date()
         },
         error: null
@@ -327,7 +351,10 @@ export const useClipboardVisibilityStore = create<ClipboardVisibilityStore>((set
         
         set({
           settings: {
-            visibleUsers: new Set((data.visibleUsers || []) as string[]),
+            visibleUsers: withAlwaysVisible(
+              new Set((data.visibleUsers || []) as string[]),
+              get().alwaysVisibleUserIds
+            ),
             userOrder,
             lastUpdated: data.lastUpdated?.toDate() || null,
             showNewUsersByDefault: data.showNewUsersByDefault !== false
@@ -350,6 +377,7 @@ export const useClipboardVisibilityStore = create<ClipboardVisibilityStore>((set
         lastUpdated: null,
         showNewUsersByDefault: true
       },
+      alwaysVisibleUserIds: [],
       isLoading: false,
       error: null
     })

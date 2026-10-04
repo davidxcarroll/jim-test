@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { collection, getDocs, query, orderBy } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuthStore } from '@/store/auth-store'
+import { isHiddenUser } from '@/utils/hidden-user'
 
 interface UserRow {
   uid: string
@@ -37,6 +38,7 @@ export default function UsersPage() {
         const usersData: UserRow[] = []
         querySnapshot.forEach((docSnap) => {
           const data = docSnap.data()
+          if (isHiddenUser(data)) return
           usersData.push({
             uid: docSnap.id,
             displayName: data.displayName || 'Unknown',

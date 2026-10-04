@@ -19,6 +19,7 @@ import {
   SuperBowlPicksMap
 } from '@/utils/super-bowl-picks'
 import { isAdminUser } from '@/utils/admin-user'
+import { isHiddenUser } from '@/utils/hidden-user'
 import React from 'react'
 
 interface User {
@@ -328,7 +329,7 @@ export function AdminSettings() {
       const usersList = usersSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      })) as User[]
+      })).filter(user => !isHiddenUser(user)) as User[]
       console.log('👥 Admin picks: Loaded users:', usersList.length)
       setUsers(usersList)
 

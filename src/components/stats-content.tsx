@@ -8,6 +8,7 @@ import { getWeekKey, isPreseasonVisibleInApp } from '@/utils/date-helpers'
 import { getSuperBowlWinnerForSeason } from '@/utils/season-winners'
 import { getSuperBowlPickForSeason } from '@/utils/super-bowl-picks'
 import { PHIL_USER } from '@/utils/phil-user'
+import { isHiddenUser } from '@/utils/hidden-user'
 
 interface User {
   id: string
@@ -117,7 +118,7 @@ export function StatsContent({ lockedSeason = null, embedded = false }: StatsCon
           id: docSnap.id,
           ...docSnap.data()
         } as User))
-        .filter((user) => user.displayName)
+        .filter((user) => user.displayName && !isHiddenUser(user))
 
       const weekRecapsSnapshot = await getDocs(collection(db, 'weekRecaps'))
       const currentWeekId = weekInfo

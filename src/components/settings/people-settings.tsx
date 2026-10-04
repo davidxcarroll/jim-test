@@ -13,6 +13,7 @@ import {
   getActiveSuperBowlSeasonYear,
   getSuperBowlPickForSeason
 } from '@/utils/super-bowl-picks'
+import { isHiddenUser } from '@/utils/hidden-user'
 import React from 'react'
 import { useReorderAnimation } from '@/hooks/use-reorder-animation'
 
@@ -21,6 +22,7 @@ interface User {
   email: string
   displayName: string
   superBowlPick: string
+  ownerUid?: string
   createdAt?: any
   updatedAt?: any
 }
@@ -48,20 +50,26 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
     if (currentUser?.uid && users.length > 0) {
       // Pass all user IDs to ensure all users are visible by default
       const allUserIds = users.map(user => user.uid)
+      const ownedProfileIds = users
+        .filter(user => user.ownerUid === currentUser.uid)
+        .map(user => user.uid)
 
-      loadSettings(currentUser.uid, allUserIds)
+      loadSettings(currentUser.uid, allUserIds, ownedProfileIds)
     }
   }, [currentUser?.uid, loadSettings, users])
 
   // Initialize selected users from settings when they load
   useEffect(() => {
     const newSelectedUsers = new Set(settings.visibleUsers)
-    // Always ensure current user is selected
+    // Always ensure the account and its profiles are selected
     if (currentUser?.uid) {
       newSelectedUsers.add(currentUser.uid)
+      users.forEach(user => {
+        if (user.ownerUid === currentUser.uid) newSelectedUsers.add(user.uid)
+      })
     }
     setSelectedUsers(newSelectedUsers as Set<string>)
-  }, [settings.visibleUsers, currentUser?.uid])
+  }, [settings.visibleUsers, currentUser?.uid, users])
 
   const handleSelectAll = async () => {
     const newSelectedUsers = new Set<string>()
@@ -89,18 +97,24 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
   const handleSelectNone = async () => {
     const newSelectedUsers = new Set<string>()
 
-    // Only keep current user selected
+    // Keep the account and every profile it owns selected
     if (currentUser?.uid) {
       newSelectedUsers.add(currentUser.uid)
+      users.forEach(user => {
+        if (user.ownerUid === currentUser.uid) newSelectedUsers.add(user.uid)
+      })
     }
 
     setSelectedUsers(newSelectedUsers)
 
     if (currentUser?.uid) {
+      const hasOwnedProfiles = users.some(user => user.ownerUid === currentUser.uid)
       try {
         await updateVisibleUsers(currentUser.uid, newSelectedUsers)
         onToast({
-          message: 'Only your picks will show on clipboard',
+          message: hasOwnedProfiles
+            ? 'Only you and your profiles will show on clipboard'
+            : 'Only your picks will show on clipboard',
           type: 'success'
         })
       } catch (error) {
@@ -110,8 +124,9 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
   }
 
   const handleUserCheckboxChange = async (userId: string, checked: boolean) => {
-    // Prevent current user from being deselected
-    if (userId === currentUser?.uid && !checked) {
+    const isOwnedProfile = users.some(user => user.uid === userId && user.ownerUid === currentUser?.uid)
+    // The account and its profiles stay on this board
+    if ((userId === currentUser?.uid || isOwnedProfile) && !checked) {
       return
     }
 
@@ -190,10 +205,13 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
       const usersData: User[] = []
       querySnapshot.forEach((docSnap) => {
         const data = docSnap.data()
+        if (isHiddenUser(data)) return
+        if (typeof data.displayName !== 'string' || !data.displayName.trim()) return
         usersData.push({
           uid: docSnap.id,
           email: data.email || '',
           displayName: data.displayName || 'Unknown',
+          ownerUid: typeof data.ownerUid === 'string' ? data.ownerUid : undefined,
           superBowlPick: getSuperBowlPickForSeason(data, seasonYear),
           createdAt: data.createdAt,
           updatedAt: data.updatedAt
@@ -362,6 +380,8 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
             const team = user.superBowlPick ? teamData[user.superBowlPick] : null
             const teamStyle = user.superBowlPick ? teamStyles[user.superBowlPick] : null
             const isCurrentUser = user.uid === currentUser?.uid
+            const isOwnedProfile = user.ownerUid === currentUser?.uid
+            const isAlwaysVisible = isCurrentUser || isOwnedProfile
             const canMoveUp = !isCurrentUser && index > 1 // Can't move up if you're the second user (index 1)
             const canMoveDown = !isCurrentUser && index < sortedUsers.length - 1
 
@@ -374,7 +394,7 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
                   className={`min-w-0 flex-1 flex flex-row items-center justify-start gap-4 p-4 bg-natural-100 cursor-pointer max-xl:ml-8 ${selectedUsers.has(user.uid) ? 'shadow-[0_0_0_1px_#000000]' : 'text-black/50 bg-black/5'
                     }`}
                   onClick={() => {
-                    if (user.uid !== currentUser?.uid) {
+                    if (!isAlwaysVisible) {
                       const newChecked = !selectedUsers.has(user.uid);
                       handleUserCheckboxChange(user.uid, newChecked);
                     }
@@ -385,8 +405,8 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
                     <input
                       type="checkbox"
                       className="w-4 h-4 accent-black"
-                      checked={selectedUsers.has(user.uid)}
-                      disabled={user.uid === currentUser?.uid}
+                      checked={selectedUsers.has(user.uid) || isAlwaysVisible}
+                      disabled={isAlwaysVisible}
                       onChange={(e) => handleUserCheckboxChange(user.uid, e.target.checked)}
                       onClick={(e) => e.stopPropagation()}
                     />

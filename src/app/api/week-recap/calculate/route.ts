@@ -3,6 +3,7 @@ import { db } from '@/lib/firebase'
 import { collection, getDocs, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { espnApi } from '@/lib/espn-api'
 import { getSeasonAndWeek, dateHelpers, getWeekKey } from '@/utils/date-helpers'
+import { isHiddenUser } from '@/utils/hidden-user'
 
 export async function POST(request: NextRequest) {
   try {
@@ -80,7 +81,7 @@ export async function POST(request: NextRequest) {
     const users = usersSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
-    } as any)).filter((user: any) => user.displayName)
+    } as any)).filter((user: any) => user.displayName && !isHiddenUser(user))
 
     // Fetch games for this week
     const weekGames = await espnApi.getGamesForDateRange(start, end)

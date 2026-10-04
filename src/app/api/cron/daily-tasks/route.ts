@@ -15,6 +15,7 @@ import {
 import { espnApi } from '@/lib/espn-api'
 import { assertCronAuthorized } from '@/lib/api-auth'
 import { resolveRecapSeasonContext } from '@/utils/recap-season'
+import { isHiddenUser } from '@/utils/hidden-user'
 
 export async function GET(request: NextRequest) {
   return POST(request)
@@ -166,7 +167,7 @@ export async function POST(request: NextRequest) {
       const users = usersSnapshot.docs.map(docSnap => ({
         id: docSnap.id,
         ...docSnap.data()
-      } as any)).filter((user: any) => user.displayName)
+      } as any)).filter((user: any) => user.displayName && !isHiddenUser(user))
       console.log(`👥 Found ${users.length} users`)
 
       const recapResults: Array<{ weekId: string; success: boolean; message: string; userCount?: number; recalculated?: boolean }> = []

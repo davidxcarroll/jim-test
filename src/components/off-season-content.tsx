@@ -5,6 +5,7 @@ import { collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { StatsContent } from '@/components/stats-content'
 import { computeSeasonChampionNames } from '@/utils/season-champions'
+import { isHiddenUser } from '@/utils/hidden-user'
 
 type CountdownParts = {
   days: number
@@ -91,6 +92,7 @@ export function OffSeasonContent() {
               : new Date().getFullYear() - 1
 
           const users = usersSnap.docs
+            .filter((d) => !isHiddenUser(d.data()))
             .map((d) => {
               const data = d.data()
               return {

@@ -17,7 +17,8 @@ export function BuyMeCoffeeButton() {
           padding: '0 16px',
           fontFamily: 'var(--font-chakra-petch), sans-serif',
           fontWeight: 'bold',
-          border: '1px solid white',
+          border: '1px solid #999',
+          borderWidth: '1px',
         }}
       >
         <span className="inline-flex items-center gap-1 text-[32px] leading-none select-none" aria-hidden>

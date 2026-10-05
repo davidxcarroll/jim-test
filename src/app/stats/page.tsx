@@ -6,7 +6,7 @@ import { ClipboardFooter } from '@/components/clipboard-footer'
 
 export default function StatsPage() {
   return (
-    <div className="font-chakra pb-16 select-none">
+    <div className="flex min-h-full flex-1 flex-col font-chakra select-none">
       <Navigation />
       <div className="flex flex-col lg:px-8 md:px-4 sm:px-2">
         <div className="flex flex-col pt-10 bg-neutral-100">

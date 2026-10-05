@@ -10,7 +10,10 @@ export function ClipboardBoard() {
     if (!el) return
 
     const syncWidth = () => {
-      el.style.width = `${document.documentElement.clientWidth}px`
+      const width = `${document.documentElement.clientWidth}px`
+      el.style.width = width
+      const below = document.getElementById('below-clipboard')
+      if (below) below.style.width = width
     }
 
     syncWidth()

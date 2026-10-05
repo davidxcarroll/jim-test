@@ -18,9 +18,9 @@ export function Navigation() {
 
       <Link
         href="/dashboard"
-        className="group w-full h-full py-4 max-md:mb-2 font-bold text-center uppercase"
+        className="group w-full h-full flex items-center justify-center py-4 max-md:mb-2 font-bold text-center uppercase"
       >
-        <span className={`px-2 bg-black whitespace-nowrap ${pathname === '/dashboard' ? 'underline' : ''}`}>The Picks</span>
+        <span className={`px-2 py-1 bg-black whitespace-nowrap ${pathname === '/dashboard' ? 'underline' : ''}`}>The Picks</span>
       </Link>
 
       <img
@@ -34,9 +34,9 @@ export function Navigation() {
 
       <Link
         href="/settings"
-        className="group w-full h-full py-4 max-md:mb-2 font-bold text-center uppercase"
+        className="group w-full h-full flex items-center justify-center py-4 max-md:mb-2 font-bold text-center uppercase"
       >
-        <span className={`px-2 bg-black ${pathname === '/settings' ? 'underline' : ''}`}>
+        <span className={`px-2 py-1 bg-black ${pathname === '/settings' ? 'underline' : ''}`}>
           Settings
         </span>
       </Link>

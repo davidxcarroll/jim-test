@@ -230,7 +230,7 @@ function GamesSkeletonRows({ userCount }: { userCount: number }) {
 // Skeleton loading component
 function DashboardSkeleton() {
   return (
-    <div className="clipboard-wide min-h-dvh flex flex-col font-chakra select-none">
+    <div className="clipboard-wide flex min-h-full flex-1 flex-col font-chakra select-none">
       <Navigation />
 
       <div className="flex flex-col lg:px-8 md:px-4 sm:px-2">
@@ -800,7 +800,7 @@ function WeeklyMatchesPage() {
   const hasPastWeeks = availableWeeks.length > 1
 
   return (
-    <div className="clipboard-wide min-h-dvh flex flex-col font-chakra select-none">
+    <div className="clipboard-wide flex min-h-full flex-1 flex-col font-chakra select-none">
 
       <Navigation />
 

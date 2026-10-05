@@ -62,6 +62,7 @@ export default function RootLayout({
               {children}
             </Providers>
           </div>
+          <div id="below-clipboard" className="below-clipboard" />
         </div>
       </body>
     </html>

@@ -146,46 +146,17 @@ export async function fetchTeamRecordsFromStandings() {
 } 
 
 /**
- * Determine the favorite team for a matchup based on win-loss records
- * Returns 'home' or 'away' based on which team has the better record
- * If records are equal, defaults to 'home'
- * 
- * NOTE: This is now used as a fallback when betting odds are not available.
- * The primary source for favorites is now betting odds from ESPN's API.
- */
-export function getFavoriteTeam(homeTeam: Team, awayTeam: Team): 'home' | 'away' {
-  // If either team doesn't have record data, default to home
-  if (homeTeam.wins === undefined || homeTeam.losses === undefined || 
-      awayTeam.wins === undefined || awayTeam.losses === undefined) {
-    return 'home'
-  }
-
-  // Calculate win percentages
-  const homeGames = homeTeam.wins + homeTeam.losses + (homeTeam.ties || 0)
-  const awayGames = awayTeam.wins + awayTeam.losses + (awayTeam.ties || 0)
-  
-  const homeWinPct = homeGames > 0 ? (homeTeam.wins + (homeTeam.ties || 0) * 0.5) / homeGames : 0
-  const awayWinPct = awayGames > 0 ? (awayTeam.wins + (awayTeam.ties || 0) * 0.5) / awayGames : 0
-
-  // Return the team with better win percentage
-  return awayWinPct > homeWinPct ? 'away' : 'home'
-} 
-
-/**
- * Generate Phil's picks for a given week
- * Phil always picks the favorite team for each matchup
- * Uses the existing game.favoriteTeam value for consistency
+ * Generate Phil's picks for a given week.
+ * Phil picks the betting favorite. Games with no favorite are skipped so a missing line cannot become a home pick.
  */
 export function generatePhilPicks(games: Game[]): Record<string, { pickedTeam: 'home' | 'away', pickedAt: any }> {
   const philPicks: Record<string, { pickedTeam: 'home' | 'away', pickedAt: any }> = {}
   
   games.forEach(game => {
-    // Use the existing favoriteTeam value from the game object
-    // This ensures Phil's picks always match the dots displayed next to team names
-    const favoriteTeam = game.favoriteTeam || 'home' // Default to home if not set
+    if (game.favoriteTeam !== 'home' && game.favoriteTeam !== 'away') return
     philPicks[game.id] = {
-      pickedTeam: favoriteTeam,
-      pickedAt: new Date() // Use current timestamp for Phil's picks
+      pickedTeam: game.favoriteTeam,
+      pickedAt: new Date()
     }
   })
   

@@ -14,6 +14,16 @@ interface LiveGameDisplayProps {
   game?: Game
 }
 
+function formatTeamRecord(team: { wins?: number; losses?: number; ties?: number }): string | null {
+  if (team.wins == null || team.losses == null) return null
+  const wins = Number(team.wins)
+  const losses = Number(team.losses)
+  if (Number.isNaN(wins) || Number.isNaN(losses)) return null
+  const ties = team.ties == null ? 0 : Number(team.ties)
+  if (!Number.isNaN(ties) && ties > 0) return `${wins}-${losses}-${ties}`
+  return `${wins}-${losses}`
+}
+
 export function LiveGameDisplay({ gameId, game: fallbackGame }: LiveGameDisplayProps) {
   const isLive = !fallbackGame || fallbackGame.status === 'live'
   const { game: liveGame, situation, loading, error } = useLiveGame({
@@ -82,6 +92,8 @@ export function LiveGameDisplay({ gameId, game: fallbackGame }: LiveGameDisplayP
 
   const isScheduled = game.status === 'scheduled'
   const isFinal = game.status === 'final' || game.status === 'post'
+  const awayRecord = isScheduled ? formatTeamRecord(game.awayTeam) : null
+  const homeRecord = isScheduled ? formatTeamRecord(game.homeTeam) : null
   const possessionId = situation?.possession ? String(situation.possession) : undefined
   const awayHasPossession = possessionId === String(game.awayTeam.id)
   const homeHasPossession = possessionId === String(game.homeTeam.id)
@@ -108,6 +120,9 @@ export function LiveGameDisplay({ gameId, game: fallbackGame }: LiveGameDisplayP
         className="w-full flex flex-row justify-end items-center gap-4 xl:px-6 xl:py-4 px-4 py-2 text-white"
         style={{ background: awayTeamStyle.background }}
       >
+        {awayRecord && (
+          <span className="xl:text-base text-sm font-bold leading-none text-white">{awayRecord}</span>
+        )}
         {getTeamLogo(game.awayTeam, awayTeamStyle.logoType) ? (
           <img src={getTeamLogo(game.awayTeam, awayTeamStyle.logoType)} alt={game.awayTeam.abbreviation} className="aspect-square xl:w-12 w-8 z-20 relative" />
         ) : (
@@ -184,6 +199,9 @@ export function LiveGameDisplay({ gameId, game: fallbackGame }: LiveGameDisplayP
           <img src={getTeamLogo(game.homeTeam, homeTeamStyle.logoType)} alt={game.homeTeam.abbreviation} className="aspect-square xl:w-12 w-8 z-20 relative" />
         ) : (
           <div className="aspect-square xl:w-12 w-8 z-20 relative" />
+        )}
+        {homeRecord && (
+          <span className="xl:text-base text-sm font-bold leading-none text-white">{homeRecord}</span>
         )}
       </div>
 

@@ -1,6 +1,5 @@
 import { Game, Team } from '@/types/nfl'
 import { format as formatDate } from 'date-fns'
-import { getFavoriteTeam } from '@/utils/team-utils'
 import { normalizeRoundName } from '@/utils/date-helpers'
 
 const ESPN_BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl'
@@ -91,18 +90,65 @@ function mergeLogoVariations(
   }
 }
 
-// Helper function to determine favorite based on betting odds
-function getFavoriteFromOdds(odds: any[]): 'home' | 'away' | null {
+// Favorite only when ESPN marks exactly one side favorite: true. No spread, record, or home default.
+function getFavoriteFromOdds(odds: any[] | undefined | null): 'home' | 'away' | null {
   if (!odds || odds.length === 0) return null
-  
+
   const firstOdds = odds[0]
   if (firstOdds.homeTeamOdds?.favorite === true) {
     return 'home'
-  } else if (firstOdds.awayTeamOdds?.favorite === true) {
+  }
+  if (firstOdds.awayTeamOdds?.favorite === true) {
     return 'away'
   }
-  
+
   return null
+}
+
+function isFinalGameStatus(status: { type?: { state?: string } } | undefined): boolean {
+  return status?.type?.state === 'post'
+}
+
+function recordFromCompetitor(competitor: { records?: Array<{ name?: string; type?: string; summary?: string }> } | undefined): { wins?: number; losses?: number; ties?: number } {
+  const records = competitor?.records
+  if (!Array.isArray(records)) return {}
+  const overall = records.find((record) => record?.name === 'overall' || record?.type === 'total')
+  const summary = overall?.summary
+  if (!summary) return {}
+  const parts = summary.split('-').map((part) => Number(part))
+  if (parts.length < 2 || parts.some((part) => Number.isNaN(part))) return {}
+  return { wins: parts[0], losses: parts[1], ties: parts[2] ?? 0 }
+}
+
+/** Closing (or current, if the game is not final) favorite from the summary pickcenter. */
+async function fetchPickcenterFavorite(gameId: string): Promise<'home' | 'away' | null> {
+  if (!gameId) return null
+  try {
+    const response = await fetchWithRetry(`${ESPN_BASE_URL}/summary?event=${gameId}`)
+    const data = await response.json()
+    return getFavoriteFromOdds(data.pickcenter)
+  } catch (error) {
+    console.warn(`Failed to fetch pickcenter favorite for game ${gameId}:`, error)
+    return null
+  }
+}
+
+/**
+ * Current scoreboard favorite while the game is not final.
+ * Once final, or when the scoreboard has no favorite flag, the summary pickcenter line.
+ * Undefined when neither source names a favorite.
+ */
+async function resolveBettingFavorite(
+  gameId: string,
+  status: { type?: { state?: string } } | undefined,
+  scoreboardOdds: any[] | undefined
+): Promise<'home' | 'away' | undefined> {
+  if (!isFinalGameStatus(status)) {
+    const current = getFavoriteFromOdds(scoreboardOdds)
+    if (current) return current
+  }
+  const favorite = await fetchPickcenterFavorite(gameId)
+  return favorite ?? undefined
 }
 
 function getPossessionTeamId(possession: unknown): string | undefined {
@@ -302,10 +348,11 @@ export const espnApi = {
           return acc
         }, {} as Record<string, { wins: number, losses: number, ties: number }>)
       } catch (error) {
-        console.warn('Failed to fetch team records for today\'s games, favorites may default to home:', error)
+        console.warn('Failed to fetch team records for today\'s games:', error)
       }
       
-      return data.events?.map((event: any) => {
+      const events = data.events || []
+      return Promise.all(events.map(async (event: any) => {
         const competition = event.competitions?.[0] || {}
         const home = competition.competitors?.find((c: any) => c.homeAway === 'home') || { team: {} }
         const away = competition.competitors?.find((c: any) => c.homeAway === 'away') || { team: {} }
@@ -349,9 +396,7 @@ export const espnApi = {
           ties: awayTeamRecord.ties
         }
         
-        // Use betting odds to determine favorite, fallback to win-loss records
-        const bettingFavorite = getFavoriteFromOdds(competition.odds)
-        const favoriteTeam = bettingFavorite || getFavoriteTeam(homeTeamData, awayTeamData)
+        const favoriteTeam = await resolveBettingFavorite(String(event.id ?? ''), status, competition.odds)
         
         return {
           id: String(event.id ?? ''),
@@ -364,9 +409,9 @@ export const espnApi = {
           quarter: status.period || 0,
           venue: competition.venue?.fullName || '',
           startTime: event.date,
-          favoriteTeam: favoriteTeam
+          ...(favoriteTeam ? { favoriteTeam } : {})
         }
-      }) || []
+      }))
     } catch (error) {
       console.error('Error fetching today\'s games:', error)
       return []
@@ -420,9 +465,8 @@ export const espnApi = {
       alternateColor: awayTeam.alternateColor || ''
     }
 
-    // Use betting odds to determine favorite, fallback to win-loss records
-    const bettingFavorite = getFavoriteFromOdds(competition.odds)
-    const favoriteTeam = bettingFavorite || getFavoriteTeam(homeTeamData, awayTeamData)
+    // Summary header has no odds. pickcenter is the current line before kickoff and the close after.
+    const favoriteTeam = getFavoriteFromOdds(data.pickcenter)
 
     return {
       id: data.header.id || '',
@@ -435,7 +479,7 @@ export const espnApi = {
       quarter: status.period || 0,
       venue: competition.venue?.fullName || '',
       startTime: data.header.date || '',
-      favoriteTeam: favoriteTeam
+      ...(favoriteTeam ? { favoriteTeam } : {})
     }
   },
 
@@ -670,7 +714,7 @@ export const espnApi = {
       if (data.sports[0].leagues[0].teams.length > 0) {
         // Print the raw ESPN team.team object for debugging
       }
-      
+
       return data.sports[0].leagues[0].teams.map((team: any) => ({
         id: team.team.id,
         name: team.team.name,
@@ -819,7 +863,6 @@ export const espnApi = {
 
   // Get games for a date range (week)
   async getGamesForDateRange(startDate: Date, endDate: Date): Promise<Game[]> {
-    const games: Game[] = [];
     let current = new Date(startDate);
     
     // Fetch team records and logo variants once to enrich game data
@@ -844,25 +887,37 @@ export const espnApi = {
         return acc
       }, {} as Record<string, { wins: number, losses: number, ties: number }>)
     } catch (error) {
-      console.warn('Failed to fetch team records for games, favorites may default to home:', error)
+      console.warn('Failed to fetch team records for games:', error)
     }
+
+    const pending: Array<{ game: Game; needsPickcenter: boolean }> = []
     
     while (current <= endDate) {
       const dateStr = formatDate(current, 'yyyyMMdd'); // YYYYMMDD
       const response = await fetch(`${ESPN_BASE_URL}/scoreboard?dates=${dateStr}`);
       const data = await response.json();
       if (data.events) {
-        games.push(...data.events.map((event: any) => {
+        for (const event of data.events) {
           const competition = event.competitions?.[0] || {}
           const home = competition.competitors?.find((c: any) => c.homeAway === 'home') || { team: {} }
           const away = competition.competitors?.find((c: any) => c.homeAway === 'away') || { team: {} }
           const homeTeam = home.team || {}
           const awayTeam = away.team || {}
           const status = event.status || {}
-          
-          // Enrich team data with records
-          const homeTeamRecord = teamRecords[homeTeam.abbreviation] || {}
-          const awayTeamRecord = teamRecords[awayTeam.abbreviation] || {}
+
+          // Scoreboard competitors carry the season record. The teams list does not.
+          const homeFromScoreboard = recordFromCompetitor(home)
+          const awayFromScoreboard = recordFromCompetitor(away)
+          const homeTeamRecord = {
+            wins: homeFromScoreboard.wins ?? teamRecords[homeTeam.abbreviation]?.wins,
+            losses: homeFromScoreboard.losses ?? teamRecords[homeTeam.abbreviation]?.losses,
+            ties: homeFromScoreboard.ties ?? teamRecords[homeTeam.abbreviation]?.ties,
+          }
+          const awayTeamRecord = {
+            wins: awayFromScoreboard.wins ?? teamRecords[awayTeam.abbreviation]?.wins,
+            losses: awayFromScoreboard.losses ?? teamRecords[awayTeam.abbreviation]?.losses,
+            ties: awayFromScoreboard.ties ?? teamRecords[awayTeam.abbreviation]?.ties,
+          }
           
           const homeCatalog = teamsByAbbr[homeTeam.abbreviation]
           const awayCatalog = teamsByAbbr[awayTeam.abbreviation]
@@ -899,11 +954,9 @@ export const espnApi = {
             ties: awayTeamRecord.ties
           }
           
-          // Use betting odds to determine favorite, fallback to win-loss records
-          const bettingFavorite = getFavoriteFromOdds(competition.odds)
-          const favoriteTeam = bettingFavorite || getFavoriteTeam(homeTeamData, awayTeamData)
-          
-          return {
+          const isFinal = isFinalGameStatus(status)
+          const scoreboardFavorite = isFinal ? null : getFavoriteFromOdds(competition.odds)
+          const game: Game = {
             id: String(event.id ?? ''),
             date: event.date,
             homeTeam: homeTeamData,
@@ -914,20 +967,27 @@ export const espnApi = {
             quarter: status.period || 0,
             venue: competition.venue?.fullName || '',
             startTime: event.date,
-            favoriteTeam: favoriteTeam
+            ...(scoreboardFavorite ? { favoriteTeam: scoreboardFavorite } : {})
           }
-        }));
+          pending.push({ game, needsPickcenter: isFinal || !scoreboardFavorite })
+        }
       }
       current.setDate(current.getDate() + 1);
     }
-    // Deduplicate by game id (same game can appear on multiple days in the range)
+    // Deduplicate by game id before pickcenter lookups (same game can appear on multiple days)
     const seen = new Set<string>()
-    return games.filter((g) => {
-      const id = String(g?.id ?? '')
+    const unique = pending.filter(({ game }) => {
+      const id = String(game?.id ?? '')
       if (seen.has(id)) return false
       seen.add(id)
       return true
     })
+    return Promise.all(unique.map(async ({ game, needsPickcenter }) => {
+      if (!needsPickcenter) return game
+      const favoriteTeam = await fetchPickcenterFavorite(game.id)
+      if (!favoriteTeam) return game
+      return { ...game, favoriteTeam }
+    }))
   },
 
   /** Earliest Regular Season Week 1 kickoff for a season (one scoreboard call). */

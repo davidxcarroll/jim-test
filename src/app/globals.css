@@ -23,6 +23,10 @@ body {
   font-variant-emoji: text;
 }
 
+a:focus-visible {
+  outline: thick solid #ff0;
+}
+
 .clipboard-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

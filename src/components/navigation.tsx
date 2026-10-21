@@ -23,14 +23,19 @@ export function Navigation() {
         <span className={`px-2 py-1 bg-black whitespace-nowrap ${pathname === '/dashboard' ? 'underline' : ''}`}>The Picks</span>
       </Link>
 
-      <img
-        src="/images/clip-305.png"
+      <div
         className="
         relative z-100 -mb-8 pointer-events-none
         max-md:absolute max-md:top-1/2 max-md:left-1/2 max-md:-translate-x-1/2 max-md:-translate-y-1/2
         2xl:-mt-28 xl:-mt-14 md:-mt-10 mt-0
         2xl:w-[800px] xl:w-[700px] lg:w-[600px] md:w-[500px] sm:w-[400px] w-[300px]
-      " />
+      ">
+        <img
+          src="/images/clip-305.png"
+          alt=""
+          className="block w-full h-auto pointer-events-none"
+        />
+      </div>
 
       <Link
         href="/settings"

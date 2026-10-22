@@ -258,10 +258,10 @@ function DashboardSkeleton() {
                   {Array.from({ length: 5 }, (_, i) => (
                     <th
                       key={i}
-                      className="sticky top-0 z-50 bg-neutral-100 shadow-[inset_1px_0_0_#cccccc] w-32 h-16 align-middle p-0"
+                      className="sticky top-0 z-50 bg-neutral-100 shadow-[inset_1px_0_0_#cccccc] w-14 h-16 align-middle p-0"
                     >
                       <div className="w-full h-16 flex items-center justify-center">
-                        <div className="w-16 h-8 bg-black/10 animate-pulse"></div>
+                        <div className="w-8 h-8 bg-black/10 animate-pulse"></div>
                       </div>
                     </th>
                   ))}
@@ -888,12 +888,12 @@ function WeeklyMatchesPage() {
                           style={{ willChange: 'transform' }}
                         >
                           <div
-                            className="w-full h-16 flex lg:items-center items-end justify-center font-jim xl:text-4xl text-3xl cursor-pointer"
+                            className="w-full h-16 flex items-end justify-center font-jim xl:text-4xl text-3xl cursor-pointer"
                             onClick={() => {
                               setSelectedUser({ id: visibleUsers[userIndex].id, name })
                             }}
                           >
-                            <span className="max-lg:max-w-8 flex lg:justify-center justify-start font-light max-lg:-rotate-90">{name}</span>
+                            <span className="max-w-8 flex justify-start font-light -rotate-90">{name}</span>
                           </div>
                         </th>
                       ))}

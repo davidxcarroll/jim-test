@@ -648,6 +648,14 @@ function WeeklyMatchesPage() {
     })
   }
 
+  const toggleAllMatchups = () => {
+    setExpandedGames(prev => {
+      const ids = (games ?? []).map(g => g.id)
+      const allOpen = ids.length > 0 && ids.every(id => prev.has(id))
+      return allOpen ? new Set() : new Set(ids)
+    })
+  }
+
   // Helper to filter unique games by id
   function getUniqueGamesById(games: any[]) {
     const seen = new Set()
@@ -802,7 +810,13 @@ function WeeklyMatchesPage() {
   return (
     <div className="clipboard-wide flex min-h-full flex-1 flex-col font-chakra select-none">
 
-      <Navigation />
+      <Navigation
+        onToggleMatchups={
+          !isSeasonSummaryView && games && games.length > 0
+            ? toggleAllMatchups
+            : undefined
+        }
+      />
 
       {toast && (
         <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />

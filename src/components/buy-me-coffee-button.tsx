@@ -11,17 +11,15 @@ export function BuyMeCoffeeButton() {
         href="https://www.buymeacoffee.com/hazeltine"
         target="_blank"
         rel="noopener noreferrer"
-        className="bmc-btn inline-flex items-center box-border no-underline hover:no-underline focus:no-underline active:no-underline cursor-pointer font-bold xl:text-base text-sm shadow-[inset_0_0_0_1px_#000000]"
+        className="bmc-btn inline-flex items-center box-border no-underline hover:no-underline focus:no-underline active:no-underline cursor-pointer font-jim text-[1.75rem] leading-[2.5rem] xl:text-[2rem] xl:leading-[3rem] shadow-[inset_0_0_0_1px_#000000]"
         style={{
-          height: 40,
-          padding: '0 16px',
-          fontFamily: 'var(--font-chakra-petch), sans-serif',
-          fontWeight: 'bold',
+          height: '2rem',
+          padding: '0 .5rem',
           border: '1px solid #999',
           borderWidth: '1px',
         }}
       >
-        <span className="inline-flex items-center gap-1 text-[32px] leading-none select-none" aria-hidden>
+        {/* <span className="inline-flex items-center gap-1 text-[32px] leading-none select-none" aria-hidden>
           <span
             title="System text emoji"
             style={{
@@ -31,16 +29,15 @@ export function BuyMeCoffeeButton() {
           >
             ☕
           </span>
-        </span>
+        </span> */}
         <span
-          className="bmc-btn-text"
+          className="bmc-btn-text font-jim"
           style={{
-            marginLeft: 8,
+            marginLeft: 0,
             whiteSpace: 'nowrap',
-            fontFamily: 'var(--font-chakra-petch), sans-serif',
           }}
         >
-          Buy me a coffee
+          Buy me a coffee?
         </span>
       </a>
     </div>

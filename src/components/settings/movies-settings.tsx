@@ -1,19 +1,25 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
-import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuthStore } from '@/store/auth-store'
 import { useRouter } from 'next/navigation'
 import { MovieSearchInput } from '@/components/movie-search-input'
 import { tmdbApi } from '@/lib/tmdb-api'
 import { useReorderAnimation } from '@/hooks/use-reorder-animation'
+import { isHiddenUser } from '@/utils/hidden-user'
 
 interface MoviePick {
     title: string
     tmdbId?: number
     posterPath?: string
     clientId: string
+}
+
+interface ProfileOption {
+    id: string
+    displayName: string
 }
 
 interface UserSettings {
@@ -39,6 +45,52 @@ function createEmptyMoviePicks() {
     }))
 }
 
+function createdAtMillis(value: unknown): number {
+    if (!value || typeof value !== 'object') return 0
+    if ('toMillis' in value && typeof value.toMillis === 'function') return value.toMillis()
+    if ('seconds' in value && typeof value.seconds === 'number') return value.seconds * 1000
+    return 0
+}
+
+function parseMoviePicks(raw: unknown): MoviePick[] {
+    const moviePicks = Array.isArray(raw) ? raw : Array(10).fill('')
+    const processed = moviePicks.map((movie: unknown) => {
+        if (typeof movie === 'string') {
+            return { title: movie, tmdbId: undefined, posterPath: undefined, clientId: createClientId() }
+        }
+        if (movie && typeof movie === 'object') {
+            const record = movie as { title?: unknown; tmdbId?: unknown; posterPath?: unknown }
+            return {
+                title: typeof record.title === 'string' ? record.title : '',
+                tmdbId: typeof record.tmdbId === 'number' ? record.tmdbId : undefined,
+                posterPath: typeof record.posterPath === 'string' ? record.posterPath : undefined,
+                clientId: createClientId()
+            }
+        }
+        return createEmptyMoviePick()
+    })
+    while (processed.length < 10) processed.push(createEmptyMoviePick())
+    return processed
+}
+
+function serializeMoviePicks(picks: MoviePick[]) {
+    return JSON.stringify(picks.map(movie => ({
+        title: movie.title || '',
+        tmdbId: movie.tmdbId ?? null,
+        posterPath: movie.posterPath ?? null,
+    })))
+}
+
+function top10Heading(displayName: string) {
+    const first = displayName.trim().split(/\s+/)[0]
+    if (!first) return 'Your Top 10'
+    return `${first}'s Top 10`
+}
+
+function profileLabel(displayName: string) {
+    return displayName.trim() || 'Select'
+}
+
 interface MoviesSettingsProps {
     onToast: (toast: { message: string; type: 'success' | 'error' }) => void
 }
@@ -49,78 +101,120 @@ export function MoviesSettings({ onToast }: MoviesSettingsProps) {
     const [settings, setSettings] = useState<UserSettings>({
         moviePicks: createEmptyMoviePicks()
     })
+    const [profiles, setProfiles] = useState<ProfileOption[]>([])
+    const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null)
+    const [savedSnapshot, setSavedSnapshot] = useState('')
+    const [menuOpen, setMenuOpen] = useState(false)
     const [saving, setSaving] = useState(false)
+    const profileLoadId = useRef(0)
     const movieIds = useMemo(
         () => settings.moviePicks.map(movie => movie.clientId),
         [settings.moviePicks]
     )
     const setItemRef = useReorderAnimation(movieIds)
+    const selectedProfile = profiles.find(profile => profile.id === selectedProfileId)
+    const heading = top10Heading(selectedProfile?.displayName || '')
+    const picksDirty = savedSnapshot !== '' && serializeMoviePicks(settings.moviePicks) !== savedSnapshot
 
-    // Load user settings on component mount
     useEffect(() => {
-        if (user) {
-            loadUserSettings()
+        if (!menuOpen) return
+
+        const handleClickOutside = (event: MouseEvent) => {
+            const target = event.target as Element
+            if (!target.closest('.profile-selector')) {
+                setMenuOpen(false)
+            }
+        }
+
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, [menuOpen])
+
+    useEffect(() => {
+        if (!user || !db) return
+
+        let cancelled = false
+
+        const loadProfiles = async () => {
+            try {
+                const accountRef = doc(db, 'users', user.uid)
+                const profilesQuery = query(collection(db, 'users'), where('ownerUid', '==', user.uid))
+                const [accountSnap, profilesSnap] = await Promise.all([
+                    getDoc(accountRef),
+                    getDocs(profilesQuery)
+                ])
+                if (cancelled) return
+
+                const accountData = accountSnap.exists() ? accountSnap.data() : {}
+                const accountName = typeof accountData.displayName === 'string' ? accountData.displayName : ''
+                const owned = profilesSnap.docs
+                    .filter((profileDoc) => profileDoc.id !== user.uid && !isHiddenUser(profileDoc.data()))
+                    .map((profileDoc) => {
+                        const data = profileDoc.data()
+                        const displayName = typeof data.displayName === 'string' ? data.displayName : ''
+                        return {
+                            profile: { id: profileDoc.id, displayName },
+                            createdAt: data.createdAt
+                        }
+                    })
+                    .sort((a, b) => createdAtMillis(a.createdAt) - createdAtMillis(b.createdAt))
+                    .map(({ profile }) => profile)
+
+                const picks = parseMoviePicks(accountData.moviePicks)
+                setProfiles([{ id: user.uid, displayName: accountName }, ...owned])
+                setSelectedProfileId(user.uid)
+                setSettings({ moviePicks: picks })
+                setSavedSnapshot(serializeMoviePicks(picks))
+            } catch (error) {
+                console.error('Error loading movie picks:', error)
+            }
+        }
+
+        loadProfiles()
+        return () => {
+            cancelled = true
         }
     }, [user])
 
-    const loadUserSettings = async () => {
-        if (!user) return
+    const handleSelectProfile = async (profileId: string) => {
+        setMenuOpen(false)
+        if (!user || !db || saving || profileId === selectedProfileId) return
+        if (!profiles.some(profile => profile.id === profileId)) return
+        if (picksDirty && !window.confirm('Leave without saving these movie picks?')) return
 
-        // Check if Firebase is initialized
-        if (!db) {
-            console.warn('Firebase not initialized, cannot load user settings')
-            return
-        }
-
+        const requestId = ++profileLoadId.current
         try {
-            const userDoc = await getDoc(doc(db, 'users', user.uid))
-            if (userDoc.exists()) {
-                const data = userDoc.data()
-
-                // Handle backward compatibility for moviePicks
-                const moviePicks = data.moviePicks || Array(10).fill('')
-                const processedMoviePicks = moviePicks.map((movie: any) => {
-                    if (typeof movie === 'string') {
-                        // Old format - convert to new format
-                        return { title: movie, tmdbId: undefined, posterPath: undefined, clientId: createClientId() }
-                    } else if (movie && typeof movie === 'object') {
-                        // New format - use as is, keep a stable in-memory key
-                        return { ...movie, clientId: createClientId() }
-                    } else {
-                        // Invalid format - use empty object
-                        return createEmptyMoviePick()
-                    }
-                })
-
-                setSettings({
-                    moviePicks: processedMoviePicks
-                })
-            }
+            const profileSnap = await getDoc(doc(db, 'users', profileId))
+            if (requestId !== profileLoadId.current) return
+            const picks = parseMoviePicks(profileSnap.exists() ? profileSnap.data().moviePicks : undefined)
+            setSelectedProfileId(profileId)
+            setSettings({ moviePicks: picks })
+            setSavedSnapshot(serializeMoviePicks(picks))
         } catch (error) {
-            console.error('Error loading user settings:', error)
+            console.error('Error loading movie picks:', error)
+            onToast({ message: 'Error loading movie picks', type: 'error' })
         }
     }
 
     const handleSave = async () => {
-        if (!user || !db) return
+        if (!user || !db || !selectedProfileId || saving) return
+        if (!profiles.some(profile => profile.id === selectedProfileId)) return
 
         setSaving(true)
         try {
-            // Sanitize movie picks to remove undefined values
             const sanitizedMoviePicks = settings.moviePicks.map(movie => ({
                 title: movie.title || '',
                 tmdbId: movie.tmdbId ?? null,
                 posterPath: movie.posterPath ?? null,
             }))
 
-            await setDoc(doc(db, 'users', user.uid), {
+            await setDoc(doc(db, 'users', selectedProfileId), {
                 moviePicks: sanitizedMoviePicks,
                 updatedAt: new Date()
             }, { merge: true })
 
+            setSavedSnapshot(serializeMoviePicks(settings.moviePicks))
             onToast({ message: 'Movie picks saved!', type: 'success' })
-
-            // Navigate to dashboard after successful save
             router.push('/dashboard')
         } catch (error) {
             console.error('Error saving movie picks:', error)
@@ -135,14 +229,13 @@ export function MoviesSettings({ onToast }: MoviesSettingsProps) {
         newMoviePicks[index] = { ...movieData, clientId: newMoviePicks[index].clientId }
         setSettings(prev => ({ ...prev, moviePicks: newMoviePicks }))
 
-        // Show toast when a movie is selected from dropdown (has tmdbId)
         if (movieData.tmdbId) {
             onToast({ message: `"${movieData.title}" added to your list!`, type: 'success' })
         }
     }
 
     const handleMoveMovieUp = (index: number) => {
-        if (index === 0) return // Can't move first item up
+        if (index === 0) return
 
         const newMoviePicks = [...settings.moviePicks]
         const temp = newMoviePicks[index]
@@ -152,7 +245,7 @@ export function MoviesSettings({ onToast }: MoviesSettingsProps) {
     }
 
     const handleMoveMovieDown = (index: number) => {
-        if (index === settings.moviePicks.length - 1) return // Can't move last item down
+        if (index === settings.moviePicks.length - 1) return
 
         const newMoviePicks = [...settings.moviePicks]
         const temp = newMoviePicks[index]
@@ -170,9 +263,37 @@ export function MoviesSettings({ onToast }: MoviesSettingsProps) {
     return (
         <div className="w-full max-w-[1000px] min-w-0 mx-auto bg-neutral-100 space-y-6 text-center">
 
-            <div className="w-full min-w-0 flex flex-col items-center justify-center py-4 gap-2">
+            <div className="w-full min-w-0 flex flex-col items-center justify-center sm:py-4 gap-2">
 
-                <h1 className="uppercase font-bold xl:text-4xl text-2xl text-center">Your Top 10</h1>
+                <div className={`w-full min-w-0 flex flex-row flex-wrap items-center sm:mb-6 mb-2 px-4 ${profiles.length > 1 ? 'justify-between sm:gap-x-8 gap-x-4' : 'justify-center'}`}>
+                    <h1 className="uppercase font-bold xl:text-4xl text-2xl text-center min-w-0 whitespace-nowrap">{heading}</h1>
+                    {profiles.length > 1 && (
+                        <div className="profile-selector relative shrink-0">
+                            <div
+                                className="w-fit flex items-center justify-between gap-1 p-2 pl-4 bg-neutral-100 whitespace-nowrap font-bold uppercase xl:text-base text-sm shadow-[inset_0_0_0_1px_#000000] cursor-pointer"
+                                onClick={() => setMenuOpen(open => !open)}
+                            >
+                                {profileLabel(selectedProfile?.displayName || '')}
+                                <span className="material-symbols-sharp">
+                                    arrow_drop_down
+                                </span>
+                            </div>
+                            {menuOpen && (
+                                <div className="absolute top-full right-0 z-[70] mt-1 min-w-full w-max max-w-[70vw] bg-white shadow-[inset_0_0_0_1px_#000000] shadow-2xl max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-black scrollbar-track-black xl:text-base text-sm">
+                                    {profiles.map((profile) => (
+                                        <div
+                                            key={profile.id}
+                                            className={`px-3 py-2 cursor-pointer hover:bg-black hover:text-white font-bold text-center uppercase ${profile.id === selectedProfileId ? 'bg-black/30' : ''}`}
+                                            onClick={() => handleSelectProfile(profile.id)}
+                                        >
+                                            {profileLabel(profile.displayName)}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
 
                 {settings.moviePicks.map((movie, index) => (
                     <div key={movie.clientId} ref={setItemRef(movie.clientId)} className="w-full min-w-0 flex flex-row items-center justify-center">
@@ -201,12 +322,10 @@ export function MoviesSettings({ onToast }: MoviesSettingsProps) {
                             value={movie.title || ''}
                             onChange={(value) => {
                                 if (typeof value === 'string') {
-                                    // User is typing manually - only update local state, don't save to database
                                     const newMoviePicks = [...settings.moviePicks]
                                     newMoviePicks[index] = { ...movie, title: value }
                                     setSettings(prev => ({ ...prev, moviePicks: newMoviePicks }))
                                 } else {
-                                    // User selected from dropdown - update local state and show toast
                                     handleMoviePickChange(index, value)
                                 }
                             }}
@@ -214,7 +333,6 @@ export function MoviesSettings({ onToast }: MoviesSettingsProps) {
                             placeholder={`#${index + 1} Movie`}
                         />
                         <div className="w-12 shrink-0 flex flex-row items-center justify-center">
-                            {/* Up/Down arrows stacked vertically */}
                             <div className="flex flex-col gap-4">
                                 <button
                                     onClick={() => handleMoveMovieUp(index)}
@@ -240,7 +358,7 @@ export function MoviesSettings({ onToast }: MoviesSettingsProps) {
 
             <button
                 onClick={handleSave}
-                disabled={saving}
+                disabled={saving || !selectedProfileId}
                 className="bg-black text-white py-3 px-4 font-bold uppercase xl:text-3xl text-2xl focus:outline-none disabled:opacity-50"
             >
                 {saving ? 'Saving...' : 'Done'}
@@ -248,4 +366,4 @@ export function MoviesSettings({ onToast }: MoviesSettingsProps) {
 
         </div>
     )
-} 
+}

@@ -67,6 +67,37 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
   const { currentWeek: apiCurrentWeek, weekInfo } = useCurrentWeek()
 
   useEffect(() => {
+    if (!isOpen) return
+    const scrollX = window.scrollX
+    const scrollY = window.scrollY
+    const html = document.documentElement
+    const body = document.body
+    const prev = {
+      htmlOverflow: html.style.overflow,
+      bodyOverflow: body.style.overflow,
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      width: body.style.width,
+    }
+    html.style.overflow = 'hidden'
+    body.style.overflow = 'hidden'
+    body.style.position = 'fixed'
+    body.style.top = `-${scrollY}px`
+    body.style.left = `-${scrollX}px`
+    body.style.width = '100%'
+    return () => {
+      html.style.overflow = prev.htmlOverflow
+      body.style.overflow = prev.bodyOverflow
+      body.style.position = prev.position
+      body.style.top = prev.top
+      body.style.left = prev.left
+      body.style.width = prev.width
+      window.scrollTo(scrollX, scrollY)
+    }
+  }, [isOpen])
+
+  useEffect(() => {
     if (isOpen && userId && weekInfo) {
       fetchUserStats()
     }
@@ -548,10 +579,10 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50"
+      className="fixed inset-0 z-[70] flex items-center justify-center overscroll-none bg-black/50 p-2"
       onClick={handleBackdropClick}
     >
-      <div className="bg-neutral-100 max-w-2xl w-full mx-2 max-h-[98vh] overflow-y-auto">
+      <div className="bg-neutral-100 max-w-2xl w-full min-h-0 max-h-full overflow-y-auto overscroll-contain">
 
         {/* Header */}
         <div className="sticky top-0 bg-neutral-100 shadow-[0_1px_0_#000000] p-1">

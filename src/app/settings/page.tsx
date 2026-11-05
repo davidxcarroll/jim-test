@@ -56,7 +56,7 @@ function SettingsPage() {
       )}
 
       <div className="flex flex-col min-w-0 lg:px-8 md:px-4 sm:px-2">
-        <div className="relative flex flex-col min-w-0 pt-10 pb-16 bg-neutral-100">
+        <div className="relative flex flex-col min-w-0 sm:pt-10 pt-4 pb-16 bg-neutral-100">
 
           <div className="w-full min-w-0 flex flex-col items-center justify-center mb-4">
 

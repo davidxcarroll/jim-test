@@ -4,8 +4,8 @@
 
 @font-face {
   font-family: 'JimCasual';
-  src: url('../fonts/JimCasual-04.woff2') format('woff2'),
-       url('../fonts/JimCasual-04.woff') format('woff');
+  src: url('../fonts/JimCasual-05.woff2') format('woff2'),
+       url('../fonts/JimCasual-05.woff') format('woff');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -85,13 +85,15 @@ body:has(.clipboard-wide) {
   min-width: fit-content;
 }
 
-/* One-color Noto Emoji (Light 300) for all emoji */
+/* One-color Noto Emoji (Light 300) for all emoji.
+   An explicit U+FE0F in the text forces the system color emoji over this. */
 .emoji,
 [role="img"] {
   font-family: "Noto Emoji", sans-serif;
   font-optical-sizing: auto;
   font-weight: 300;
   font-style: normal;
+  font-synthesis: none;
   font-variant-emoji: text;
 }
 

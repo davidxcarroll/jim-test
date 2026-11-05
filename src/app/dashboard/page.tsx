@@ -14,6 +14,7 @@ import { useClipboardVisibilityStore } from '@/store/clipboard-visibility-store'
 import { Toast } from '@/components/toast'
 import { PHIL_USER, getPhilPicks, isPhil, generateAndStorePhilPicks } from '@/utils/phil-user'
 import { isHiddenUser } from '@/utils/hidden-user'
+import { notoEmoji } from '@/utils/noto-emoji'
 import { Tooltip } from '@/components/tooltip'
 import { UserStatsModal } from '@/components/user-stats-modal'
 // @ts-ignore
@@ -1004,7 +1005,7 @@ function WeeklyMatchesPage() {
                               <span className="inline-flex items-center justify-center">
                                 {stat.percentage}%
                                 {winnerIds.includes(stat.userId) && (
-                                  <span title="Top Score" className="ml-0.5 text-orange-600" role="img">🔥</span>
+                                  <span title="Top Score" className="ml-0.5 text-orange-600" role="img">{notoEmoji('🔥')}</span>
                                 )}
                               </span>
                               <br />

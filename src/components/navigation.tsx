@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useUserData } from '@/hooks/use-nfl-data'
+import { notoEmoji } from '@/utils/noto-emoji'
 
 export function Navigation({ onToggleMatchups }: { onToggleMatchups?: () => void }) {
   const pathname = usePathname()
@@ -37,7 +38,7 @@ export function Navigation({ onToggleMatchups }: { onToggleMatchups?: () => void
             onClick={onToggleMatchups}
             className="absolute z-10 lg:bottom-[20%] md:bottom-[15%] bottom-[15%] left-1/2 -translate-x-1/2 lg:w-12 md:w-10 sm:w-8 w-6 lg:h-12 md:h-10 sm:h-8 h-6 flex items-center justify-center leading-none text-white bg-black lg:text-5xl md:text-4xl sm:text-3xl text-2xl whitespace-nowrap emoji rounded-full pointer-events-auto border-0 p-0"
           >
-            🏈
+            {notoEmoji('🏈')}
           </button>
         )}
         <img

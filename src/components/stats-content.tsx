@@ -9,6 +9,7 @@ import { getSuperBowlWinnerForSeason } from '@/utils/season-winners'
 import { getSuperBowlPickForSeason } from '@/utils/super-bowl-picks'
 import { PHIL_USER } from '@/utils/phil-user'
 import { isHiddenUser } from '@/utils/hidden-user'
+import { notoEmoji } from '@/utils/noto-emoji'
 
 interface User {
   id: string
@@ -420,11 +421,10 @@ export function StatsContent({ lockedSeason = null, embedded = false }: StatsCon
   return (
     <div className={embedded ? 'w-full text-left' : ''}>
       {!embedded && (
-        <div className="flex flex-wrap items-baseline gap-4 mb-8">
-          <h1 className="lg:text-9xl text-7xl font-bold uppercase">Stats</h1>
+        <div className="flex flex-col items-center justify-center mb-4">
+          <h1 className="w-full lg:text-9xl text-7xl font-bold uppercase text-center">Stats</h1>
           {availableSeasons.length > 0 && effectiveSeason != null && lockedSeason == null && (
             <label className="flex items-center gap-2 font-bold uppercase text-sm">
-              <span>Season:</span>
               <select
                 value={effectiveSeason}
                 onChange={(e) => setSelectedSeason(Number(e.target.value))}
@@ -448,11 +448,11 @@ export function StatsContent({ lockedSeason = null, embedded = false }: StatsCon
       )}
 
       <section className="mb-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
           {mostCorrectUsers.length > 0 && (
             <div>
               <div className="text-2xl font-bold uppercase mb-2 shadow-[0_1px_0_0_#000000] p-2">
-                <span role="img">🏆</span> Most Correct Picks
+                <span role="img">{notoEmoji('🏆')}</span> Most Correct Picks
                 {mostCorrectUsers.length > 1 && ` (Tie - ${mostCorrectUsers.length} users)`}
               </div>
               {mostCorrectUsers.map((user, index) => (
@@ -469,7 +469,7 @@ export function StatsContent({ lockedSeason = null, embedded = false }: StatsCon
           {mostWeeksWonUsers.length > 0 && (
             <div>
               <div className="text-2xl font-bold uppercase mb-2 shadow-[0_1px_0_0_#000000] p-2">
-                <span role="img">🔥</span> Most Weeks Won
+                <span role="img">{notoEmoji('🔥')}</span> Most Weeks Won
               </div>
               {mostWeeksWonUsers.map((user, index) => (
                 <div key={user.userId} className={index > 0 ? 'mt-3' : ''}>
@@ -505,7 +505,7 @@ export function StatsContent({ lockedSeason = null, embedded = false }: StatsCon
           {bestSingleWeekEntries.length > 0 && (
             <div>
               <div className="text-2xl font-bold uppercase mb-2 shadow-[0_1px_0_0_#000000] p-2">
-                <span role="img">☝️</span> Best Single Week
+                <span role="img">{notoEmoji('☝️')}</span> Best Single Week
               </div>
               {bestSingleWeekEntries.map((entry, index) => (
                 <div key={`${entry.userId}-${entry.weekLabel}-${index}`} className={index > 0 ? 'mt-3' : ''}>
@@ -521,7 +521,7 @@ export function StatsContent({ lockedSeason = null, embedded = false }: StatsCon
           {underdogHeroUsers.length > 0 && (
             <div>
               <div className="text-2xl font-bold uppercase mb-2 shadow-[0_1px_0_0_#000000] p-2">
-                <span role="img">🐶</span> Underdog Hero
+                <span role="img">{notoEmoji('🐶')}</span> Underdog Hero
               </div>
               {underdogHeroUsers.map((entry, index) => (
                 <div key={entry.userId} className={index > 0 ? 'mt-3' : ''}>
@@ -538,7 +538,7 @@ export function StatsContent({ lockedSeason = null, embedded = false }: StatsCon
           {mostInTop10Movies.length > 0 && (
             <div>
               <div className="text-2xl font-bold uppercase mb-2 shadow-[0_1px_0_0_#000000] p-2">
-                <span role="img">🎬</span> Top of Top 10
+                <span role="img">{notoEmoji('🎬')}</span> Top of Top 10
               </div>
               {mostInTop10Movies.map((movie, index) => (
                 <div key={movie.title} className={index > 0 ? 'mt-3' : ''}>
@@ -555,7 +555,7 @@ export function StatsContent({ lockedSeason = null, embedded = false }: StatsCon
 
       <section className="mb-4">
         <h2 className="text-2xl font-bold uppercase mb-4 shadow-[0_1px_0_0_#000000] p-2">
-          <span role="img">📋</span> Overall Leaderboard
+          <span role="img">{notoEmoji('📋')}</span> Overall Leaderboard
         </h2>
         <div>
           <div className="mb-8">

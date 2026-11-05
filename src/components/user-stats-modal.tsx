@@ -8,6 +8,7 @@ import { espnApi } from '@/lib/espn-api'
 import { dateHelpers, getSeasonAndWeek, isWeekComplete, normalizeRoundName, getRoundDisplayName } from '@/utils/date-helpers'
 import { getTeamByAbbreviation, getTeamLogo, getTeamBackgroundAndLogo } from '@/utils/team-utils'
 import { Team } from '@/types/nfl'
+import { notoEmoji } from '@/utils/noto-emoji'
 import { loadTeamColorMappings } from '@/store/team-color-mapping-store'
 import { tmdbApi } from '@/lib/tmdb-api'
 import { PHIL_USER, isPhil } from '@/utils/phil-user'
@@ -668,7 +669,7 @@ export function UserStatsModal({ isOpen, onClose, userId, userName }: UserStatsM
                     <span className="inline-flex items-center justify-center gap-1">
                       {week.percentage}%
                       {week.isTopScore && (
-                        <span title="Top Score" className="ml-0.5" role="img">🔥</span>
+                        <span title="Top Score" className="ml-0.5" role="img">{notoEmoji('🔥')}</span>
                       )}
                     </span>
                   </div>

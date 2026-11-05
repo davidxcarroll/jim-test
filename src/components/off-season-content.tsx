@@ -6,6 +6,7 @@ import { db } from '@/lib/firebase'
 import { StatsContent } from '@/components/stats-content'
 import { computeSeasonChampionNames } from '@/utils/season-champions'
 import { isHiddenUser } from '@/utils/hidden-user'
+import { notoEmoji } from '@/utils/noto-emoji'
 
 type CountdownParts = {
   days: number
@@ -167,7 +168,7 @@ export function OffSeasonContent() {
      <div className="flex flex-col">
         <div className="w-full uppercase md:text-5xl text-3xl text-center font-bold text-balance">
           {completedSeasonYear != null ? completedSeasonYear : '—'}{' '}
-          <span role="img">🏆</span> Winner
+          <span role="img">{notoEmoji('🏆')}</span> Winner
         </div>
         <div className="w-full max-w-6xl font-jim text-center text-6xl md:text-7xl lg:text-8xl xl:text-9xl leading-none text-balance">
           {winnerLabel}

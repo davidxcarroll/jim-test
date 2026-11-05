@@ -8,12 +8,12 @@ function CoffeeRow() {
   return (
     <div className="flex w-full flex-col items-center justify-center gap-x-4 gap-y-4 bg-black px-8 py-8 text-neutral-400 xl:flex-row">
       <p className="text-balance text-center font-jim text-[1.75rem] leading-[1.66rem] xl:text-left xl:text-[2rem] xl:leading-[3rem]">
-        Hey! David here. <a
+        Hey! David here. This app is a <a
           href="https://www.youtube.com/watch?v=UfPloyCQeS0&t=289s"
           target="_blank"
           rel="noopener noreferrer"
-          className="underline underline-offset-2 decoration-1"
-        >This app is a labor of love</a>. Enjoy!
+          className="underline underline-offset-4 decoration-1"
+        >labor of love</a>. Enjoy!
       </p>
       <BuyMeCoffeeButton />
     </div>

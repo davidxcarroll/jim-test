@@ -678,8 +678,8 @@ function WeeklyMatchesPage() {
 
   // Helper to truncate text if longer than 8 characters
   function truncateName(name: string): string {
-    if (name.length > 8) {
-      return name.substring(0, 8) + '...'
+    if (name.length > 9) {
+      return name.substring(0, 9) + '...'
     }
     return name
   }
@@ -894,7 +894,7 @@ function WeeklyMatchesPage() {
                               setSelectedUser({ id: visibleUsers[userIndex].id, name })
                             }}
                           >
-                            <span className="max-w-8 flex justify-start font-light -rotate-90">{name}</span>
+                            <span className="max-w-8 flex justify-start font-light -rotate-90 leading-none whitespace-nowrap">{name}</span>
                           </div>
                         </th>
                       ))}

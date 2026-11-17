@@ -76,6 +76,15 @@ const config: Config = {
         'gradient-conic':
           'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
       },
+      keyframes: {
+        'tip-arrow-nudge': {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '50%': { transform: 'translateX(-6px)' },
+        },
+      },
+      animation: {
+        'tip-arrow-nudge': 'tip-arrow-nudge 1.8s ease-in-out infinite',
+      },
     },
   },
   plugins: [],

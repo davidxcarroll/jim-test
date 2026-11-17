@@ -6,16 +6,17 @@ import { ProtectedRoute } from '@/components/protected-route'
 import { Navigation } from '@/components/navigation'
 import { Toast } from '@/components/toast'
 import { GeneralSettings } from '@/components/settings/general-settings'
+import { TipsSettings } from '@/components/settings/tips-settings'
 import { PeopleSettings } from '@/components/settings/people-settings'
 import { MoviesSettings } from '@/components/settings/movies-settings'
 import { AdminSettings } from '@/components/settings/admin-settings'
 import { useAuthStore } from '@/store/auth-store'
 import { isAdminUser } from '@/utils/admin-user'
 
-type SettingsTab = 'general' | 'people' | 'movies' | 'admin'
+type SettingsTab = 'general' | 'tips' | 'people' | 'movies' | 'admin'
 
 function isSettingsTab(value: string | null): value is SettingsTab {
-  return value === 'general' || value === 'people' || value === 'movies' || value === 'admin'
+  return value === 'general' || value === 'tips' || value === 'people' || value === 'movies' || value === 'admin'
 }
 
 function SettingsPage() {
@@ -67,7 +68,13 @@ function SettingsPage() {
                 className={`flex sm:px-4 px-2 py-2 cursor-pointer ${activeTab === 'general' ? 'underline' : 'opacity-40'}`}
                 onClick={() => setActiveTab('general')}
               >
-                General
+                Main
+              </li>
+              <li
+                className={`flex sm:px-4 px-2 py-2 cursor-pointer ${activeTab === 'tips' ? 'underline' : 'opacity-40'}`}
+                onClick={() => setActiveTab('tips')}
+              >
+                Tips
               </li>
               <li
                 className={`flex sm:px-4 px-2 py-2 cursor-pointer ${activeTab === 'people' ? 'underline' : 'opacity-40'}`}
@@ -97,6 +104,8 @@ function SettingsPage() {
 
           {activeTab === 'general' ? (
             <GeneralSettings onToast={setToast} />
+          ) : activeTab === 'tips' ? (
+            <TipsSettings />
           ) : activeTab === 'people' ? (
             <PeopleSettings onToast={setToast} />
           ) : activeTab === 'movies' ? (

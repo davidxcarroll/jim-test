@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
 
+import { notoEmoji } from '@/utils/noto-emoji'
+
 const TIP_ARROW = '/images/tips/tip-arrow.svg'
 
 type TipArrowProps = {
@@ -54,13 +56,103 @@ function TipShot({ src, alt, children, className = '' }: TipShotProps) {
 export function TipsSettings() {
   return (
     <div className="w-full max-w-[1000px] min-w-0 mx-auto bg-neutral-100 px-4 pb-8 text-left">
-      <div className="w-full min-w-0 max-w-[900px] mx-auto flex flex-col gap-12">
+      <div className="w-full min-w-0 max-w-[900px] mx-auto flex flex-col gap-12 pt-10">
+
+        <h2 className="text-4xl font-bold uppercase leading-[1.2]">
+          How it works
+        </h2>
+
+        {/* Picks lock at kickoff */}
+        <section className="w-full min-w-0 flex flex-col gap-5">
+          <div className="flex flex-col gap-5 text-black">
+            <h3 className="text-2xl font-bold uppercase leading-[1.2]">
+              Picks lock at kickoff
+            </h3>
+            <p className="text-lg font-semibold leading-[1.2]">
+              Once a game starts, that pick is locked. You can’t change it after kickoff.
+            </p>
+          </div>
+        </section>
+
+        {/* Clear a pick */}
+        <section className="w-full min-w-0 flex flex-col gap-5">
+          <div className="flex flex-col gap-5 text-black">
+            <h3 className="text-2xl font-bold uppercase leading-[1.2]">
+              Clear a pick
+            </h3>
+            <p className="text-lg font-semibold leading-[1.2]">
+              If you regret a pick and want to save it for later, tap the same cell again to remove a pick.
+            </p>
+          </div>
+        </section>
+
+        {/* Week selector */}
+        <section className="w-full min-w-0 flex flex-col gap-5">
+          <div className="flex flex-col gap-5 text-black">
+            <h3 className="text-2xl font-bold uppercase leading-[1.2]">
+              Week selector for past weeks
+            </h3>
+            <p className="text-lg font-semibold leading-[1.2]">
+              Use the week selector next to the names to jump back to earlier weeks.
+            </p>
+          </div>
+        </section>
+
+        {/* Super Bowl pick locks */}
+        <section className="w-full min-w-0 flex flex-col gap-5">
+          <div className="flex flex-col gap-5 text-black">
+            <h3 className="text-2xl font-bold uppercase leading-[1.2]">
+              Super Bowl pick locks when the season starts
+            </h3>
+            <p className="text-lg font-semibold leading-[1.2]">
+              Your Super Bowl pick locks when the season starts.
+            </p>
+          </div>
+        </section>
+
+        {/* Circled checks */}
+        <section className="w-full min-w-0 flex flex-col gap-5">
+          <div className="flex flex-col gap-5 text-black">
+            <h3 className="text-2xl font-bold uppercase leading-[1.2]">
+              Circled checks for correct picks
+            </h3>
+            <p className="text-lg font-semibold leading-[1.2]">
+              After a game finishes, a circled check marks a correct pick.
+            </p>
+          </div>
+        </section>
+
+        <hr className="w-full border-0 border-t-4 border-black" />
+
+        <h2 className="text-4xl font-bold uppercase leading-[1.2]">
+          Settings
+        </h2>
+
+        {/* People tab columns */}
+        <section className="w-full min-w-0 flex flex-col gap-5">
+          <div className="flex flex-col gap-5 text-black">
+            <h3 className="text-2xl font-bold uppercase leading-[1.2]">
+              People tab: show, hide, reorder
+            </h3>
+            <p className="text-lg font-semibold leading-[1.2]">
+              On the People tab you can show or hide columns and drag to reorder them so the board
+              matches how you like to compare everyone.
+            </p>
+          </div>
+        </section>
+
+        <hr className="w-full border-0 border-t-4 border-black" />
+
+        <h2 className="text-4xl font-bold uppercase leading-[1.2]">
+          Fancy stuff
+        </h2>
+
         {/* Weekly Email Reminders */}
         <section className="w-full min-w-0 flex flex-col gap-5">
           <div className="flex flex-col gap-5 text-black">
-            <h2 className="text-2xl font-bold uppercase leading-[1.2]">
+            <h3 className="text-2xl font-bold uppercase leading-[1.2]">
               Weekly Email Reminders
-            </h2>
+            </h3>
             <p className="text-lg font-semibold leading-[1.2]">
               Would you like to receive an email notification when a new week’s picks are available?
               Look under the Super Bowl pick on the “Main” Settings tab.
@@ -77,15 +169,30 @@ export function TipsSettings() {
           </div>
         </section>
 
-        <hr className="w-full border-0 border-t-4 border-black" />
+        {/* Tap a name for stats */}
+        <section className="w-full min-w-0 flex flex-col gap-5">
+          <div className="flex flex-col gap-5 text-black">
+            <h3 className="text-2xl font-bold uppercase leading-[1.2]">
+              Tap a name for stats
+            </h3>
+            <p className="text-lg font-semibold leading-[1.2]">
+              Tap someone’s name to open that person’s stats — a quick way to see how they’re
+              doing without leaving the board.
+            </p>
+          </div>
+        </section>
 
         {/* Game data */}
         <section className="w-full min-w-0 flex flex-col gap-5">
           <div className="flex flex-col gap-5 text-black">
-            <h2 className="text-2xl font-bold uppercase leading-[1.2]">Game data</h2>
+            <h3 className="text-2xl font-bold uppercase leading-[1.2]">
+              Game data
+            </h3>
             <p className="text-lg font-semibold leading-[1.2]">
-              Two ways to see game data (1) tap a matchup to toggle only those two teams or (2) tap
-              the football icon to toggle all matchups. Game data is different depending on the
+              Two ways to see game data ① tap a matchup to toggle only those two teams or ② tap
+              the football icon to toggle all matchups.</p>
+            <p className="text-lg font-semibold leading-[1.2]">
+              Game data is different depending on the
               game’s status of before, during, or after. Before will show a team’s record and the
               game’s start time. During will show the score, time, and possession. After will show
               the final score. A green dot indicates when a game is live.
@@ -109,14 +216,12 @@ export function TipsSettings() {
           </div>
         </section>
 
-        <hr className="w-full border-0 border-t-4 border-black" />
-
         {/* Manage multiple profiles */}
         <section className="w-full min-w-0 flex flex-col gap-5">
           <div className="flex flex-col gap-5 text-black">
-            <h2 className="text-2xl font-bold uppercase leading-[1.2]">
+            <h3 className="text-2xl font-bold uppercase leading-[1.2]">
               Manage multiple profiles
-            </h2>
+            </h3>
             <p className="text-lg font-semibold leading-[1.2]">
               Kids? Spouses? Instead of everyone in a household needing separate accounts, just add
               profiles.
@@ -154,7 +259,21 @@ export function TipsSettings() {
           </TipShot>
         </section>
 
-        {/* <hr className="w-full border-0 border-t-4 border-black" /> */}
+        <hr className="w-full border-0 border-t-4 border-black" />
+
+        {/* Questions */}
+        <section className="w-full min-w-0 flex flex-col gap-5">
+          <h2 className="text-4xl font-bold uppercase leading-[1.2]">
+            Questions? Seething rage?
+          </h2>
+          <p className="text-lg font-semibold leading-[1.2]">
+            Don't hesitate to reach out!
+          </p>
+          <p className="text-lg font-semibold leading-[1.2]">
+            <span role="img">{notoEmoji('❤️')}</span> David
+          </p>
+        </section>
+
       </div>
     </div>
   )

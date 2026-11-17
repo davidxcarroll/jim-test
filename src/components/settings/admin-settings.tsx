@@ -637,7 +637,7 @@ export function AdminSettings() {
             <div className="text-black font-bold uppercase">No users found</div>
           </div>
         ) : (
-          <div className="flex flex-wrap gap-4 p-6">
+          <div className="flex flex-wrap gap-4 p-6 pt-0">
             {users.map(rowUser => {
               const currentPick = getSuperBowlPickForSeason(rowUser, superBowlSeason)
               const pickedTeam = currentPick
@@ -647,13 +647,13 @@ export function AdminSettings() {
               const logoSrc = pickedTeam && circle ? getTeamLogo(pickedTeam, circle.logoType) : undefined
               const pickLabel = currentPick
                 ? (teamDisplayNames[currentPick] || pickedTeam?.name || currentPick)
-                : 'Select a Team'
+                : 'Select Team'
               const hasCurrentTeamOption = !currentPick || teams.some(team => team.abbreviation === currentPick)
               const userLabel = rowUser.displayName || rowUser.email || rowUser.id
               return (
                 <div
                   key={rowUser.id}
-                  className="w-40 bg-white shadow-[0_0_0_1px_#000000] flex flex-col items-center gap-3 p-4"
+                  className="w-36 bg-white shadow-[0_0_0_1px_#000000] flex flex-col items-center gap-3 p-4"
                 >
                   <div className="w-full text-center text-sm font-bold uppercase leading-tight">
                     {userLabel}

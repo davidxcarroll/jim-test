@@ -21,7 +21,7 @@ export function Navigation({ onToggleMatchups }: { onToggleMatchups?: () => void
         href="/dashboard"
         className="group w-full h-full flex items-center justify-center py-4 max-md:mb-2 font-bold text-center uppercase"
       >
-        <span className={`px-2 py-1 bg-black whitespace-nowrap ${pathname === '/dashboard' ? 'underline' : ''}`}>The Picks</span>
+        <span className={`px-2 py-1 whitespace-nowrap ${pathname === '/dashboard' ? 'bg-black underline' : 'bg-black/50'}`}>The Picks</span>
       </Link>
 
       <div
@@ -52,7 +52,7 @@ export function Navigation({ onToggleMatchups }: { onToggleMatchups?: () => void
         href="/settings"
         className="group w-full h-full flex items-center justify-center py-4 max-md:mb-2 font-bold text-center uppercase"
       >
-        <span className={`px-2 py-1 bg-black ${pathname === '/settings' ? 'underline' : ''}`}>
+        <span className={`px-2 py-1 ${pathname === '/settings' ? 'bg-black underline' : 'bg-black/50'}`}>
           Settings
         </span>
       </Link>

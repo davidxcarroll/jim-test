@@ -6,6 +6,7 @@ import { ProtectedRoute } from '@/components/protected-route'
 import { Navigation } from '@/components/navigation'
 import { Toast } from '@/components/toast'
 import { GeneralSettings } from '@/components/settings/general-settings'
+import { StatsSettings } from '@/components/settings/stats-settings'
 import { TipsSettings } from '@/components/settings/tips-settings'
 import { PeopleSettings } from '@/components/settings/people-settings'
 import { MoviesSettings } from '@/components/settings/movies-settings'
@@ -13,10 +14,17 @@ import { AdminSettings } from '@/components/settings/admin-settings'
 import { useAuthStore } from '@/store/auth-store'
 import { isAdminUser } from '@/utils/admin-user'
 
-type SettingsTab = 'general' | 'tips' | 'people' | 'movies' | 'admin'
+type SettingsTab = 'general' | 'info' | 'stats' | 'people' | 'movies' | 'admin'
 
 function isSettingsTab(value: string | null): value is SettingsTab {
-  return value === 'general' || value === 'tips' || value === 'people' || value === 'movies' || value === 'admin'
+  return (
+    value === 'general' ||
+    value === 'stats' ||
+    value === 'info' ||
+    value === 'people' ||
+    value === 'movies' ||
+    value === 'admin'
+  )
 }
 
 function SettingsPage() {
@@ -63,34 +71,40 @@ function SettingsPage() {
 
             <h1 className="font-jim xl:text-7xl lg:text-6xl text-5xl text-center">Settings</h1>
 
-            <ul className="flex flex-row font-bold uppercase max-xl:text-base">
+            <ul className="w-full flex flex-row sm:gap-[2svw] sm:justify-center justify-evenly font-bold uppercase max-xl:text-base">
               <li
-                className={`flex sm:px-4 px-2 py-2 cursor-pointer ${activeTab === 'general' ? 'underline' : 'opacity-40'}`}
+                className={`flex py-2 cursor-pointer ${activeTab === 'general' ? 'underline' : 'opacity-40'}`}
                 onClick={() => setActiveTab('general')}
               >
-                Main
+                You
               </li>
               <li
-                className={`flex sm:px-4 px-2 py-2 cursor-pointer ${activeTab === 'tips' ? 'underline' : 'opacity-40'}`}
-                onClick={() => setActiveTab('tips')}
+                className={`flex py-2 cursor-pointer ${activeTab === 'info' ? 'underline' : 'opacity-40'}`}
+                onClick={() => setActiveTab('info')}
               >
-                Tips
+                Info
               </li>
               <li
-                className={`flex sm:px-4 px-2 py-2 cursor-pointer ${activeTab === 'people' ? 'underline' : 'opacity-40'}`}
+                className={`flex py-2 cursor-pointer ${activeTab === 'stats' ? 'underline' : 'opacity-40'}`}
+                onClick={() => setActiveTab('stats')}
+              >
+                Stats
+              </li>
+              <li
+                className={`flex py-2 cursor-pointer ${activeTab === 'people' ? 'underline' : 'opacity-40'}`}
                 onClick={() => setActiveTab('people')}
               >
                 People
               </li>
               <li
-                className={`flex sm:px-4 px-2 py-2 cursor-pointer ${activeTab === 'movies' ? 'underline' : 'opacity-40'}`}
+                className={`flex py-2 cursor-pointer ${activeTab === 'movies' ? 'underline' : 'opacity-40'}`}
                 onClick={() => setActiveTab('movies')}
               >
                 Movies
               </li>
               {isAdmin && (
                 <li
-                  className={`flex sm:px-4 px-2 py-2 cursor-pointer ${activeTab === 'admin' ? 'underline' : 'opacity-40'}`}
+                  className={`flex py-2 cursor-pointer ${activeTab === 'admin' ? 'underline' : 'opacity-40'}`}
                   onClick={() => setActiveTab('admin')}
                 >
                   Admin
@@ -104,7 +118,9 @@ function SettingsPage() {
 
           {activeTab === 'general' ? (
             <GeneralSettings onToast={setToast} />
-          ) : activeTab === 'tips' ? (
+          ) : activeTab === 'stats' ? (
+            <StatsSettings />
+          ) : activeTab === 'info' ? (
             <TipsSettings />
           ) : activeTab === 'people' ? (
             <PeopleSettings onToast={setToast} />

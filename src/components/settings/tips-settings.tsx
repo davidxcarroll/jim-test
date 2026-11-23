@@ -5,7 +5,7 @@ import { notoEmoji } from '@/utils/noto-emoji'
 const TIP_ARROW = '/images/tips/tip-arrow.svg'
 
 type TipArrowProps = {
-  /** Positioning + size of the arrow’s bounding box (percent of parent). */
+  /** Positioning + size of the arrow's bounding box (percent of parent). */
   className: string
   variant?: 'default' | 'movies'
 }
@@ -59,147 +59,202 @@ export function TipsSettings() {
       <div className="w-full min-w-0 max-w-[900px] mx-auto flex flex-col gap-12 pt-10">
 
         <h2 className="text-4xl font-bold uppercase leading-[1.2]">
-          How it works
+          Picks page
         </h2>
 
-        {/* Picks lock at kickoff */}
+        {/* Your column */}
         <section className="w-full min-w-0 flex flex-col gap-5">
-          <div className="flex flex-col gap-5 text-black">
-            <h3 className="text-2xl font-bold uppercase leading-[1.2]">
-              Picks lock at kickoff
+          <div className="flex flex-col gap-2 text-black">
+            <h3 className="text-xl font-bold leading-[1.2]">
+              Your column
             </h3>
-            <p className="text-lg font-semibold leading-[1.2]">
-              Once a game starts, that pick is locked. You can’t change it after kickoff.
+            <p className="text-base font-mono leading-[1.2] text-pretty">
+              People's names are lined up at the top. The column under your name is your picks column.
             </p>
           </div>
-        </section>
 
-        {/* Clear a pick */}
-        <section className="w-full min-w-0 flex flex-col gap-5">
-          <div className="flex flex-col gap-5 text-black">
-            <h3 className="text-2xl font-bold uppercase leading-[1.2]">
+          {/* Make a pick */}
+          <div className="flex flex-col gap-2 text-black">
+            <h3 className="text-xl font-bold leading-[1.2]">
+              Make a pick
+            </h3>
+            <p className="text-base font-mono leading-[1.2] text-pretty">
+              When a new week starts, use a sharpie to write on your screen. Kidding. Just tap a cell in your column to make a pick.
+            </p>
+          </div>
+
+          {/* Clear a pick */}
+          <div className="flex flex-col gap-2 text-black">
+            <h3 className="text-xl font-bold leading-[1.2]">
               Clear a pick
             </h3>
-            <p className="text-lg font-semibold leading-[1.2]">
-              If you regret a pick and want to save it for later, tap the same cell again to remove a pick.
+            <p className="text-base font-mono leading-[1.2] text-pretty">
+              After making a pick, tap the check again to remove it.
             </p>
           </div>
-        </section>
 
-        {/* Week selector */}
-        <section className="w-full min-w-0 flex flex-col gap-5">
-          <div className="flex flex-col gap-5 text-black">
-            <h3 className="text-2xl font-bold uppercase leading-[1.2]">
-              Week selector for past weeks
+          {/* Picks lock at kickoff */}
+          <div className="flex flex-col gap-2 text-black">
+            <h3 className="text-xl font-bold leading-[1.2]">
+              Game picks lock at kickoff
             </h3>
-            <p className="text-lg font-semibold leading-[1.2]">
-              Use the week selector next to the names to jump back to earlier weeks.
+            <p className="text-base font-mono leading-[1.2] text-pretty">
+              Once a game starts, that pick is locked.
             </p>
           </div>
-        </section>
 
-        {/* Super Bowl pick locks */}
-        <section className="w-full min-w-0 flex flex-col gap-5">
-          <div className="flex flex-col gap-5 text-black">
-            <h3 className="text-2xl font-bold uppercase leading-[1.2]">
-              Super Bowl pick locks when the season starts
+          {/* Circled checks */}
+          <div className="flex flex-col gap-2 text-black">
+            <h3 className="text-xl font-bold leading-[1.2]">
+              Circled winners
             </h3>
-            <p className="text-lg font-semibold leading-[1.2]">
-              Your Super Bowl pick locks when the season starts.
+            <p className="text-base font-mono leading-[1.2] text-pretty">
+              After a game finishes, the winning team and correct picks are circled.
             </p>
           </div>
-        </section>
 
-        {/* Circled checks */}
-        <section className="w-full min-w-0 flex flex-col gap-5">
-          <div className="flex flex-col gap-5 text-black">
-            <h3 className="text-2xl font-bold uppercase leading-[1.2]">
-              Circled checks for correct picks
+          {/* Week selector */}
+          <div className="flex flex-col gap-2 text-black">
+            <h3 className="text-xl font-bold leading-[1.2]">
+              See previous weeks
             </h3>
-            <p className="text-lg font-semibold leading-[1.2]">
-              After a game finishes, a circled check marks a correct pick.
+            <p className="text-base font-mono leading-[1.2] text-pretty">
+              On the Picks page, use the [WEEKS] dropdown to jump back to earlier weeks.
+            </p>
+            {/* reference */}
+            {/* <div className="week-selector h-16 flex items-center justify-start relative">
+              <div className="w-fit flex items-center justify-between gap-1 p-2 pl-4 bg-neutral-100 whitespace-nowrap font-bold uppercase xl:text-base border-4 border-black">
+                Weeks
+                <span className="material-symbols-sharp transition-transform">arrow_drop_down</span>
+              </div>
+            </div> */}
+          </div>
+
+          {/* Tap a name for stats */}
+          <div className="flex flex-col gap-2 text-black">
+            <h3 className="text-xl font-bold leading-[1.2]">
+              Profiles
+            </h3>
+            <p className="text-base font-mono leading-[1.2] text-pretty">
+              Tap someone's name to open an overview of their picks, both football and movies.
             </p>
           </div>
+
         </section>
 
-        <hr className="w-full border-0 border-t-4 border-black" />
+        <hr className="w-full border-0 border-t border-black" />
 
         <h2 className="text-4xl font-bold uppercase leading-[1.2]">
-          Settings
+          Settings page
         </h2>
 
-        {/* People tab columns */}
+        {/* You tab */}
         <section className="w-full min-w-0 flex flex-col gap-5">
-          <div className="flex flex-col gap-5 text-black">
-            <h3 className="text-2xl font-bold uppercase leading-[1.2]">
-              People tab: show, hide, reorder
+
+          <h3 className="sm:text-2xl text-xl font-bold leading-[1.2] uppercase underline">
+            You tab
+          </h3>
+
+          <div className="flex flex-col gap-2 text-black">
+            <h3 className="text-xl font-bold leading-[1.2]">
+              Your name
             </h3>
-            <p className="text-lg font-semibold leading-[1.2]">
-              On the People tab you can show or hide columns and drag to reorder them so the board
-              matches how you like to compare everyone.
-            </p>
-          </div>
-        </section>
-
-        <hr className="w-full border-0 border-t-4 border-black" />
-
-        <h2 className="text-4xl font-bold uppercase leading-[1.2]">
-          Fancy stuff
-        </h2>
-
-        {/* Weekly Email Reminders */}
-        <section className="w-full min-w-0 flex flex-col gap-5">
-          <div className="flex flex-col gap-5 text-black">
-            <h3 className="text-2xl font-bold uppercase leading-[1.2]">
-              Weekly Email Reminders
-            </h3>
-            <p className="text-lg font-semibold leading-[1.2]">
-              Would you like to receive an email notification when a new week’s picks are available?
-              Look under the Super Bowl pick on the “Main” Settings tab.
+            <p className="text-base font-mono leading-[1.2] text-pretty">
+              Keep this short. It's what will appear atop the Picks page.
             </p>
           </div>
 
-          <div className="relative w-full min-w-0 border-4 border-black bg-white">
+          <div className="flex flex-col gap-2 text-black">
+            <h3 className="text-xl font-bold leading-[1.2]">
+              Super Bowl pick
+            </h3>
+            <p className="text-base font-mono leading-[1.2] text-pretty">
+              Pick which team you think will win the Super Bowl. Just like Jim used to do it.
+            </p>
+            <p className="text-base font-mono leading-[1.2] text-pretty">
+              Note: Super Bowl pick locks at the start of the season.
+            </p>
+          </div>
+
+          {/* Weekly Email Reminders */}
+          <div className="flex flex-col gap-2 text-black">
+            <h3 className="text-xl font-bold leading-[1.2]">
+              Weekly email reminders
+            </h3>
+            <p className="text-base font-mono leading-[1.2] text-pretty">
+              Receive an email notification when a new week's picks are available.
+            </p>
+          </div>
+
+          {/* <div className="relative w-full min-w-0 border-4 border-black bg-white">
             <img
               src="/images/tips/tip-reminder.png"
               alt="Checkbox to get weekly email reminders"
               className="block w-full h-auto"
             />
             <TipArrow className="left-[8.6%] top-[40%] w-[12.6%] aspect-[114/88]" />
-          </div>
+          </div> */}
+
         </section>
 
-        {/* Tap a name for stats */}
+        {/* People tab */}
         <section className="w-full min-w-0 flex flex-col gap-5">
-          <div className="flex flex-col gap-5 text-black">
-            <h3 className="text-2xl font-bold uppercase leading-[1.2]">
-              Tap a name for stats
+
+          <h3 className="sm:text-2xl text-xl font-bold leading-[1.2] uppercase underline">
+            People tab
+          </h3>
+
+          {/* People tab columns */}
+          <div className="flex flex-col gap-2 text-black">
+            <h3 className="text-xl font-bold leading-[1.2]">
+              Show, hide, reorder
             </h3>
-            <p className="text-lg font-semibold leading-[1.2]">
-              Tap someone’s name to open that person’s stats — a quick way to see how they’re
-              doing without leaving the board.
+            <p className="text-base font-mono leading-[1.2] text-pretty">
+              Show or hide columns and drag to reorder them so the board matches how you like to compare everyone.
             </p>
           </div>
         </section>
+
+        {/* Movies tab */}
+        <section className="w-full min-w-0 flex flex-col gap-5">
+
+          <h3 className="sm:text-2xl text-xl font-bold leading-[1.2] uppercase underline">
+            Movies tab
+          </h3>
+
+          {/* Top 10 movie lists */}
+          <div className="flex flex-col gap-2 text-black">
+            <h3 className="text-xl font-bold leading-[1.2]">
+              Top 10 movie lists
+            </h3>
+            <p className="text-base font-mono leading-[1.2] text-pretty">
+              Not football related but hey we can't properly invoke Jim without asking for everyone's top 10 movies. These will appear on people's profiles.
+            </p>
+          </div>
+        </section>
+
+        <hr className="w-full border-0 border-t border-black" />
+
+        <h2 className="text-4xl font-bold uppercase leading-[1.2]">
+          Fancy stuff
+        </h2>
 
         {/* Game data */}
         <section className="w-full min-w-0 flex flex-col gap-5">
-          <div className="flex flex-col gap-5 text-black">
-            <h3 className="text-2xl font-bold uppercase leading-[1.2]">
+          <div className="flex flex-col gap-2 text-black">
+            <h3 className="text-xl font-bold leading-[1.2]">
               Game data
             </h3>
-            <p className="text-lg font-semibold leading-[1.2]">
-              Two ways to see game data ① tap a matchup to toggle only those two teams or ② tap
-              the football icon to toggle all matchups.</p>
-            <p className="text-lg font-semibold leading-[1.2]">
-              Game data is different depending on the
-              game’s status of before, during, or after. Before will show a team’s record and the
-              game’s start time. During will show the score, time, and possession. After will show
-              the final score. A green dot indicates when a game is live.
+            <p className="text-base font-mono leading-[1.2] text-pretty">
+              Two ways to see game data: (1) tap a matchup to toggle only those two teams, or (2) tap
+              the little <span role="img">{notoEmoji('🏈')}</span> football icon at the top to toggle all matchups.
+            </p>
+            <p className="text-base font-mono leading-[1.2] text-pretty">
+              Data depends on status. Before: Start time and teams' records. During: Score, quarter, time, and possession. After: Final score.
             </p>
           </div>
 
-          <div className="w-full min-w-0 flex flex-col md:flex-row gap-7 md:justify-between">
+          {/* <div className="w-full min-w-0 flex flex-col md:flex-row gap-7 md:justify-between">
             <TipShot
               src="/images/tips/tip-football.png"
               alt="Picks board with football icon and live green dot highlighted"
@@ -213,41 +268,44 @@ export function TipsSettings() {
               alt="Picks board showing a live game with green status dot"
               className="md:w-[calc(50%-0.875rem)]"
             />
-          </div>
+          </div> */}
+
         </section>
 
         {/* Manage multiple profiles */}
         <section className="w-full min-w-0 flex flex-col gap-5">
-          <div className="flex flex-col gap-5 text-black">
-            <h3 className="text-2xl font-bold uppercase leading-[1.2]">
+          <div className="flex flex-col gap-2 text-black">
+            <h3 className="text-xl font-bold leading-[1.2]">
               Manage multiple profiles
             </h3>
-            <p className="text-lg font-semibold leading-[1.2]">
-              Kids? Spouses? Instead of everyone in a household needing separate accounts, just add
-              profiles.
+            <p className="text-base font-mono leading-[1.2] text-pretty">
+              Kids? Spouses? Instead of everyone in a household needing separate accounts, one account can contain multiple profiles.
+            </p>
+            <p className="text-base font-mono leading-[1.2] text-pretty">
+              On the "YOU" Settings tab, tap the [ADD PROFILE] button to add a new profile.
             </p>
           </div>
 
-          <div className="w-full min-w-0 flex flex-col md:flex-row gap-7 md:justify-between md:items-start">
+          {/* <div className="w-full min-w-0 flex flex-col md:flex-row gap-7 md:justify-between md:items-start">
             <TipShot
               src="/images/tips/tip-add-profile.png"
-              alt="Settings Main tab with Add Profile button highlighted"
+              alt="Settings You tab with Add Profile button highlighted"
               className="md:w-[calc(50%-0.875rem)]"
             >
               <TipArrow className="left-[34%] top-[79.7%] w-[26%] aspect-[114/88]" />
             </TipShot>
             <TipShot
               src="/images/tips/tip-profile-added.png"
-              alt="Settings Main tab after adding a second profile"
+              alt="Settings You tab after adding a second profile"
               className="md:w-[calc(50%-0.875rem)]"
             />
-          </div>
+          </div> */}
 
-          <p className="text-lg font-semibold leading-[1.2] text-black">
+          <p className="text-lg font-mono leading-[1.2] text-black">
             Top 10 movie lists for these people can also be managed from within the same account.
           </p>
 
-          <TipShot
+          {/* <TipShot
             src="/images/tips/tip-movie-users.png"
             alt="Movies tab with profile dropdown highlighted"
             className="md:w-[calc(50%-0.875rem)]"
@@ -256,22 +314,50 @@ export function TipsSettings() {
               className="left-[47.3%] top-[22.5%] w-[26%] aspect-[114/88]"
               variant="movies"
             />
-          </TipShot>
+          </TipShot> */}
         </section>
 
-        <hr className="w-full border-0 border-t-4 border-black" />
+        <hr className="w-full border-0 border-t border-black" />
 
-        {/* Questions */}
+        {/* Housekeeping */}
         <section className="w-full min-w-0 flex flex-col gap-5">
           <h2 className="text-4xl font-bold uppercase leading-[1.2]">
-            Questions? Seething rage?
+            Housekeeping
           </h2>
-          <p className="text-lg font-semibold leading-[1.2]">
-            Don't hesitate to reach out!
-          </p>
-          <p className="text-lg font-semibold leading-[1.2]">
-            <span role="img">{notoEmoji('❤️')}</span> David
-          </p>
+
+          <div className="flex flex-col gap-2 text-black">
+            <h3 className="text-xl font-bold leading-[1.2]">
+              Grace
+            </h3>
+            <p className="text-base font-mono leading-[1.2] text-pretty">
+              In true Jim fashion, I'll do my best to bug you to get your picks in on time.
+            </p>
+            <p className="text-base font-mono leading-[1.2] text-pretty">
+              In true David fashion, if you miss three weeks in a row I'm going to boot you.
+            </p>
+            <p className="text-base font-mono leading-[1.2] text-pretty">
+              Didn't make a pick in time? It might not be too late! Contact me!
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2 text-black">
+            <h3 className="text-xl font-bold leading-[1.2]">
+              Questions? Panic? Seething rage?
+            </h3>
+            <p className="text-base font-mono leading-[1.2] text-pretty">
+              Someone you know knows my number. Don't hesitate to reach out!
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2 text-black">
+            <h3 className="text-xl font-bold leading-[1.2]">
+              Happy picking!
+            </h3>
+            <p className="text-base font-mono leading-[1.2] text-pretty">
+              <span role="img">{notoEmoji('❤️')}</span> David
+            </p>
+          </div>
+
         </section>
 
       </div>

@@ -355,8 +355,8 @@ export function PeopleSettings({ onToast }: PeopleSettingsProps) {
 
           <div className="w-full flex flex-row flex-wrap items-center justify-center my-6 gap-2">
 
-            <div className="px-4 font-bold uppercase text-sm leading-none text-balance">
-              Manage whose picks you see and in what order
+            <div className="px-4 font-mono text-sm leading-none text-balance">
+              Manage whose picks you see and in what order...
             </div>
 
             <div className="flex flex-row gap-8 items-center justify-center px-4 text-black/50 uppercase font-bold text-sm">

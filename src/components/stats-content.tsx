@@ -87,9 +87,15 @@ export type StatsContentProps = {
   lockedSeason?: number | null
   /** Hide the Stats h1 / season dropdown chrome (embedded under off-season wrap-up). */
   embedded?: boolean
+  /** Suppress the page-level Stats h1 (e.g. under Settings tabs) while keeping the season dropdown. */
+  hideTitle?: boolean
 }
 
-export function StatsContent({ lockedSeason = null, embedded = false }: StatsContentProps) {
+export function StatsContent({
+  lockedSeason = null,
+  embedded = false,
+  hideTitle = false
+}: StatsContentProps) {
   const [loading, setLoading] = useState(true)
   const [userStats, setUserStats] = useState<UserStats[]>([])
   const [includedWeekIds, setIncludedWeekIds] = useState<string[]>([])
@@ -399,7 +405,7 @@ export function StatsContent({ lockedSeason = null, embedded = false }: StatsCon
     return (
       <div className="text-center py-8">
         <div className="text-2xl font-bold uppercase text-red-600 mb-4">Error</div>
-        <div className="text-lg">{error}</div>
+        <div className="text-base font-mono">{error}</div>
       </div>
     )
   }
@@ -418,12 +424,17 @@ export function StatsContent({ lockedSeason = null, embedded = false }: StatsCon
   const maxWeeksWon = Math.max(...userStats.map((stat) => stat.weeksWon), 0)
   const mostWeeksWonUsers = userStats.filter((stat) => stat.weeksWon === maxWeeksWon)
 
+  const showSeasonDropdown =
+    availableSeasons.length > 0 && effectiveSeason != null && lockedSeason == null && !embedded
+
   return (
     <div className={embedded ? 'w-full text-left' : ''}>
-      {!embedded && (
+      {!embedded && (!hideTitle || showSeasonDropdown) && (
         <div className="flex flex-col items-center justify-center mb-4">
-          <h1 className="w-full lg:text-9xl text-7xl font-bold uppercase text-center">Stats</h1>
-          {availableSeasons.length > 0 && effectiveSeason != null && lockedSeason == null && (
+          {!hideTitle && (
+            <h1 className="w-full lg:text-9xl text-7xl font-bold uppercase text-center">Stats</h1>
+          )}
+          {showSeasonDropdown && (
             <label className="flex items-center gap-2 font-bold uppercase text-sm">
               <select
                 value={effectiveSeason}
@@ -458,7 +469,7 @@ export function StatsContent({ lockedSeason = null, embedded = false }: StatsCon
               {mostCorrectUsers.map((user, index) => (
                 <div key={user.userId} className={index > 0 ? 'mt-3' : ''}>
                   <div className="-mb-1 font-jim text-4xl">{user.userName}</div>
-                  <div className="text-lg">
+                  <div className="text-base font-mono">
                     {user.totalCorrect} correct out of {user.totalGames} games ({user.overallPercentage.toFixed(1)}%)
                   </div>
                 </div>
@@ -474,7 +485,7 @@ export function StatsContent({ lockedSeason = null, embedded = false }: StatsCon
               {mostWeeksWonUsers.map((user, index) => (
                 <div key={user.userId} className={index > 0 ? 'mt-3' : ''}>
                   <div className="-mb-1 font-jim text-4xl">{user.userName}</div>
-                  <div className="text-lg">
+                  <div className="text-base font-mono">
                     {user.weeksWon} week{user.weeksWon !== 1 ? 's' : ''} with top score
                   </div>
                 </div>
@@ -510,7 +521,7 @@ export function StatsContent({ lockedSeason = null, embedded = false }: StatsCon
               {bestSingleWeekEntries.map((entry, index) => (
                 <div key={`${entry.userId}-${entry.weekLabel}-${index}`} className={index > 0 ? 'mt-3' : ''}>
                   <div className="-mb-1 font-jim text-4xl">{entry.userName}</div>
-                  <div className="text-lg">
+                  <div className="text-base font-mono">
                     {entry.correct}/{entry.totalInWeek} in {entry.weekLabel}
                   </div>
                 </div>
@@ -526,7 +537,7 @@ export function StatsContent({ lockedSeason = null, embedded = false }: StatsCon
               {underdogHeroUsers.map((entry, index) => (
                 <div key={entry.userId} className={index > 0 ? 'mt-3' : ''}>
                   <div className="-mb-1 font-jim text-4xl">{entry.userName}</div>
-                  <div className="text-lg">
+                  <div className="text-base font-mono">
                     {entry.underdogPicks} underdog pick{entry.underdogPicks !== 1 ? 's' : ''}
                     {entry.underdogCorrect > 0 && ` (${entry.underdogCorrect} correct)`}
                   </div>
@@ -543,7 +554,7 @@ export function StatsContent({ lockedSeason = null, embedded = false }: StatsCon
               {mostInTop10Movies.map((movie, index) => (
                 <div key={movie.title} className={index > 0 ? 'mt-3' : ''}>
                   <div className="-mb-1 font-jim text-4xl">{movie.title}</div>
-                  <div className="text-lg">
+                  <div className="text-base font-mono">
                     In {movie.count} list{movie.count !== 1 ? 's' : ''}
                   </div>
                 </div>
@@ -565,21 +576,27 @@ export function StatsContent({ lockedSeason = null, embedded = false }: StatsCon
                   <th className="text-center py-2 px-2">Rank</th>
                   <th className="text-center py-2 px-2">Name</th>
                   <th className="text-center py-2 px-2">Correct</th>
-                  <th className="text-center py-2 px-2">Percentage</th>
+                  <th className="text-center py-2 px-2">%</th>
                 </tr>
               </thead>
               <tbody>
                 {userStatsWithRanks.map((stat) => (
                   <tr key={stat.userId} className="border-b border-black/20">
-                    <td className="py-2 px-2 font-bold text-center">#{stat.rank}</td>
-                    <td className="py-2 px-2 font-jim text-4xl text-center">
+                    <td className="py-2 px-2 text-center text-[clamp(0.99rem,2.5vw,1.5rem)]">
+                      #{stat.rank}
+                    </td>
+                    <td className="py-2 px-2 font-jim text-[clamp(1.485rem,4vw,2.25rem)] text-center">
                       {stat.userName}
                       {stat.weeksPlayed < includedWeekIds.length && (
                         <span title="Did not enter picks for all weeks"> *</span>
                       )}
                     </td>
-                    <td className="py-2 px-2 text-center">{stat.totalCorrect}</td>
-                    <td className="py-2 px-2 text-center">{stat.overallPercentage.toFixed(1)}%</td>
+                    <td className="py-2 px-2 text-center text-[clamp(0.99rem,2.5vw,1.5rem)]">
+                      {stat.totalCorrect}
+                    </td>
+                    <td className="py-2 px-2 text-center text-[clamp(0.99rem,2.5vw,1.5rem)]">
+                      {stat.overallPercentage.toFixed(1)}%
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -587,8 +604,8 @@ export function StatsContent({ lockedSeason = null, embedded = false }: StatsCon
           </div>
           {includedWeekIds.length > 0 &&
             userStatsWithRanks.some((s) => s.weeksPlayed < includedWeekIds.length) && (
-              <p>
-                <span className="text-5xl font-jim">*</span>
+              <p className="text-base font-mono">
+                <span className="font-jim text-[clamp(1.98rem,5vw,3rem)]">*</span>
                 Did not enter picks for all weeks
               </p>
             )}

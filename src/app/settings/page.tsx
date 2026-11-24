@@ -14,14 +14,14 @@ import { AdminSettings } from '@/components/settings/admin-settings'
 import { useAuthStore } from '@/store/auth-store'
 import { isAdminUser } from '@/utils/admin-user'
 
-type SettingsTab = 'general' | 'info' | 'stats' | 'people' | 'movies' | 'admin'
+type SettingsTab = 'general' | 'people' | 'stats' | 'info' | 'movies' | 'admin'
 
 function isSettingsTab(value: string | null): value is SettingsTab {
   return (
     value === 'general' ||
+    value === 'people' ||
     value === 'stats' ||
     value === 'info' ||
-    value === 'people' ||
     value === 'movies' ||
     value === 'admin'
   )
@@ -79,10 +79,10 @@ function SettingsPage() {
                 You
               </li>
               <li
-                className={`flex py-2 cursor-pointer ${activeTab === 'info' ? 'underline' : 'opacity-40'}`}
-                onClick={() => setActiveTab('info')}
+                className={`flex py-2 cursor-pointer ${activeTab === 'people' ? 'underline' : 'opacity-40'}`}
+                onClick={() => setActiveTab('people')}
               >
-                Info
+                People
               </li>
               <li
                 className={`flex py-2 cursor-pointer ${activeTab === 'stats' ? 'underline' : 'opacity-40'}`}
@@ -91,10 +91,10 @@ function SettingsPage() {
                 Stats
               </li>
               <li
-                className={`flex py-2 cursor-pointer ${activeTab === 'people' ? 'underline' : 'opacity-40'}`}
-                onClick={() => setActiveTab('people')}
+                className={`flex py-2 cursor-pointer ${activeTab === 'info' ? 'underline' : 'opacity-40'}`}
+                onClick={() => setActiveTab('info')}
               >
-                People
+                Info
               </li>
               <li
                 className={`flex py-2 cursor-pointer ${activeTab === 'movies' ? 'underline' : 'opacity-40'}`}
@@ -118,12 +118,12 @@ function SettingsPage() {
 
           {activeTab === 'general' ? (
             <GeneralSettings onToast={setToast} />
+          ) : activeTab === 'people' ? (
+            <PeopleSettings onToast={setToast} />
           ) : activeTab === 'stats' ? (
             <StatsSettings />
           ) : activeTab === 'info' ? (
             <TipsSettings />
-          ) : activeTab === 'people' ? (
-            <PeopleSettings onToast={setToast} />
           ) : activeTab === 'movies' ? (
             <MoviesSettings onToast={setToast} />
           ) : isAdmin ? (

@@ -767,7 +767,7 @@ export function GeneralSettings({ onToast }: GeneralSettingsProps) {
         <p className="max-xl:text-base font-bold text-black uppercase leading-none text-balance">
           Get weekly email reminders
         </p>
-        <p className="mt-1 text-base font-mono text-center text-balance">
+        <p className="mt-1 text-base font-mono leading-none text-center text-balance">
           {settings.emailNotifications
             ? 'You will receive an email when a new week starts'
             : 'You will not receive a reminder email when a new week starts'}

@@ -196,7 +196,7 @@ export function EmailTestClient() {
           <div className={`p-4 rounded text-sm ${
             message.includes('Error') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
           }`}>
-            <pre className="whitespace-pre-wrap font-mono">{message}</pre>
+            <pre className="whitespace-pre-wrap font-mono leading-none">{message}</pre>
           </div>
         )}
 

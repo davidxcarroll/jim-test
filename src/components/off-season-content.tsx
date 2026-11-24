@@ -30,7 +30,7 @@ function pad2(n: number): string {
 }
 
 function MonoNum({ value }: { value: number }) {
-  return <span className="font-mono">{pad2(value)}</span>
+  return <span className="font-mono leading-none">{pad2(value)}</span>
 }
 
 function formatCountdown(parts: CountdownParts) {

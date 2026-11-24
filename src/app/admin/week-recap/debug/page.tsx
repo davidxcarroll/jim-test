@@ -344,7 +344,7 @@ export default function WeekRecapDebugPage() {
             {results.allWeekIdsInPicks && results.allWeekIdsInPicks.length > 0 && (
               <div className="bg-white p-4 rounded border border-gray-300">
                 <h3 className="font-bold mb-2">All Week IDs Found in Picks Collection:</h3>
-                <div className="text-sm font-mono bg-gray-100 p-2 rounded max-h-40 overflow-y-auto">
+                <div className="text-sm font-mono leading-none bg-gray-100 p-2 rounded max-h-40 overflow-y-auto">
                   {results.allWeekIdsInPicks.join(', ')}
                 </div>
                 {!results.allWeekIdsInPicks.includes(results.weekId) && !results.foundWeekId && (
@@ -358,7 +358,7 @@ export default function WeekRecapDebugPage() {
                     {results.alternativeWeekIds && results.alternativeWeekIds.length > 0 && (
                       <div className="mt-2 text-sm">
                         <div className="font-bold">🔍 Alternative formats checked:</div>
-                        <div className="font-mono mt-1 text-xs">
+                        <div className="font-mono leading-none mt-1 text-xs">
                           {results.alternativeWeekIds.map((wid: string, idx: number) => (
                             <div key={idx} className={wid === results.foundWeekId ? 'text-green-600 font-bold' : ''}>
                               {wid === results.foundWeekId ? '✅ ' : '❌ '}{wid}
@@ -379,7 +379,7 @@ export default function WeekRecapDebugPage() {
                       return similarWeeks.length > 0 ? (
                         <div className="mt-2 text-sm">
                           <div className="font-bold">💡 Similar week IDs found (click to check):</div>
-                          <div className="font-mono mt-1">
+                          <div className="font-mono leading-none mt-1">
                             {similarWeeks.map((wid: string, idx: number) => (
                               <div key={idx} className="cursor-pointer hover:underline text-blue-600" onClick={() => {
                                 setWeekIdInput(wid)
@@ -430,7 +430,7 @@ export default function WeekRecapDebugPage() {
                   <div className="font-bold text-orange-600 mb-2">
                     API Game IDs NOT in Picks ({results.gameIds.apiOnlyIds.length}):
                   </div>
-                  <div className="text-sm font-mono bg-gray-100 p-2 rounded max-h-40 overflow-y-auto">
+                  <div className="text-sm font-mono leading-none bg-gray-100 p-2 rounded max-h-40 overflow-y-auto">
                     {results.gameIds.apiOnlyIds.join(', ')}
                   </div>
                 </div>
@@ -441,7 +441,7 @@ export default function WeekRecapDebugPage() {
                   <div className="font-bold text-orange-600 mb-2">
                     Pick Game IDs NOT in API ({results.gameIds.picksOnlyIds.length}):
                   </div>
-                  <div className="text-sm font-mono bg-gray-100 p-2 rounded max-h-40 overflow-y-auto">
+                  <div className="text-sm font-mono leading-none bg-gray-100 p-2 rounded max-h-40 overflow-y-auto">
                     {results.gameIds.picksOnlyIds.join(', ')}
                   </div>
                 </div>
@@ -452,7 +452,7 @@ export default function WeekRecapDebugPage() {
                   <div className="font-bold text-green-600 mb-2">
                     Matching Game IDs ({results.gameIds.matchingIds.length}):
                   </div>
-                  <div className="text-sm font-mono bg-green-50 p-2 rounded max-h-40 overflow-y-auto">
+                  <div className="text-sm font-mono leading-none bg-green-50 p-2 rounded max-h-40 overflow-y-auto">
                     {results.gameIds.matchingIds.slice(0, 20).join(', ')}
                     {results.gameIds.matchingIds.length > 20 && ` ... and ${results.gameIds.matchingIds.length - 20} more`}
                   </div>
@@ -484,7 +484,7 @@ export default function WeekRecapDebugPage() {
               <div className="space-y-2">
                 {results.sampleApiGames.map((game: any, idx: number) => (
                   <div key={idx} className="p-3 bg-gray-50 rounded border border-gray-200">
-                    <div className="font-mono text-sm">
+                    <div className="font-mono leading-none text-sm">
                       <div><strong>ID:</strong> {game.id} (raw: {String(game.idRaw)}, type: {game.idType})</div>
                       <div><strong>Game:</strong> {game.awayTeam} @ {game.homeTeam}</div>
                       <div><strong>Score:</strong> {game.awayScore} - {game.homeScore}</div>
@@ -508,7 +508,7 @@ export default function WeekRecapDebugPage() {
                 <div className="space-y-2">
                   {results.samplePicks.map((pick: any, idx: number) => (
                     <div key={idx} className="p-3 bg-gray-50 rounded border border-gray-200">
-                      <div className="font-mono text-sm">
+                      <div className="font-mono leading-none text-sm">
                         <div><strong>Game ID:</strong> {pick.gameId} (raw: {String(pick.gameIdRaw)}, type: {pick.gameIdType})</div>
                         <div><strong>Picked:</strong> {pick.pickedTeam}</div>
                         {/* Check if this ID exists in API */}

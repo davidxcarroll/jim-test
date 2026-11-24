@@ -405,7 +405,7 @@ export function StatsContent({
     return (
       <div className="text-center py-8">
         <div className="text-2xl font-bold uppercase text-red-600 mb-4">Error</div>
-        <div className="text-base font-mono">{error}</div>
+        <div className="text-base font-mono leading-none">{error}</div>
       </div>
     )
   }
@@ -469,7 +469,7 @@ export function StatsContent({
               {mostCorrectUsers.map((user, index) => (
                 <div key={user.userId} className={index > 0 ? 'mt-3' : ''}>
                   <div className="-mb-1 font-jim text-4xl">{user.userName}</div>
-                  <div className="text-base font-mono">
+                  <div className="text-base font-mono leading-none">
                     {user.totalCorrect} correct out of {user.totalGames} games ({user.overallPercentage.toFixed(1)}%)
                   </div>
                 </div>
@@ -485,7 +485,7 @@ export function StatsContent({
               {mostWeeksWonUsers.map((user, index) => (
                 <div key={user.userId} className={index > 0 ? 'mt-3' : ''}>
                   <div className="-mb-1 font-jim text-4xl">{user.userName}</div>
-                  <div className="text-base font-mono">
+                  <div className="text-base font-mono leading-none">
                     {user.weeksWon} week{user.weeksWon !== 1 ? 's' : ''} with top score
                   </div>
                 </div>
@@ -521,7 +521,7 @@ export function StatsContent({
               {bestSingleWeekEntries.map((entry, index) => (
                 <div key={`${entry.userId}-${entry.weekLabel}-${index}`} className={index > 0 ? 'mt-3' : ''}>
                   <div className="-mb-1 font-jim text-4xl">{entry.userName}</div>
-                  <div className="text-base font-mono">
+                  <div className="text-base font-mono leading-none">
                     {entry.correct}/{entry.totalInWeek} in {entry.weekLabel}
                   </div>
                 </div>
@@ -537,7 +537,7 @@ export function StatsContent({
               {underdogHeroUsers.map((entry, index) => (
                 <div key={entry.userId} className={index > 0 ? 'mt-3' : ''}>
                   <div className="-mb-1 font-jim text-4xl">{entry.userName}</div>
-                  <div className="text-base font-mono">
+                  <div className="text-base font-mono leading-none">
                     {entry.underdogPicks} underdog pick{entry.underdogPicks !== 1 ? 's' : ''}
                     {entry.underdogCorrect > 0 && ` (${entry.underdogCorrect} correct)`}
                   </div>
@@ -554,7 +554,7 @@ export function StatsContent({
               {mostInTop10Movies.map((movie, index) => (
                 <div key={movie.title} className={index > 0 ? 'mt-3' : ''}>
                   <div className="-mb-1 font-jim text-4xl">{movie.title}</div>
-                  <div className="text-base font-mono">
+                  <div className="text-base font-mono leading-none">
                     In {movie.count} list{movie.count !== 1 ? 's' : ''}
                   </div>
                 </div>
@@ -604,7 +604,7 @@ export function StatsContent({
           </div>
           {includedWeekIds.length > 0 &&
             userStatsWithRanks.some((s) => s.weeksPlayed < includedWeekIds.length) && (
-              <p className="text-base font-mono">
+              <p className="text-base font-mono leading-none">
                 <span className="font-jim text-[clamp(1.98rem,5vw,3rem)]">*</span>
                 Did not enter picks for all weeks
               </p>

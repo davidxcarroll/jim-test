@@ -946,8 +946,8 @@ function WeeklyMatchesPage() {
                       const maxCorrect = Math.max(...recapStats.map(s => s.correct));
                       const winnerIds = recapStats.filter(s => s.correct === maxCorrect && maxCorrect > 0).map(s => s.userId);
 
-                      // Save week recap to Firestore with ALL users so overall leaderboard is complete.
-                      // We must not overwrite with only visibleUsers (clipboard subset) or users like Jon/Carter disappear from stats.
+                      // Save week recap for every user who made picks (not just visibleUsers/clipboard).
+                      // Omit users with zero picks so they count as missed weeks on /stats (asterisk), matching cron/API.
                       const saveWeekRecap = async () => {
                         if (!db || users.length === 0) return
                         try {
@@ -957,21 +957,24 @@ function WeeklyMatchesPage() {
                             const snap = await getDoc(doc(db, 'users', user.id, 'picks', weekId))
                             picksByUser[user.id] = snap.exists() ? (snap.data() as Record<string, { pickedTeam?: string }>) : {}
                           }))
-                          const allUserStats = users.map(user => {
+                          const allUserStats = users.flatMap(user => {
                             let correct = 0
+                            let gamesWithPicks = 0
                             playedGames.forEach(game => {
                               const pick = picksByUser[user.id]?.[String(game.id)]?.pickedTeam
+                              if (pick) gamesWithPicks++
                               const homeScore = Number(game.homeScore) ?? 0
                               const awayScore = Number(game.awayScore) ?? 0
                               const homeWon = homeScore > awayScore
                               const pickCorrect = (pick === 'home' && homeWon) || (pick === 'away' && !homeWon)
                               if (pick && pickCorrect) correct++
                             })
+                            if (gamesWithPicks === 0) return []
                             const total = playedGames.length
                             const percentage = total > 0 ? Math.round((correct / total) * 100) : 0
-                            return { userId: user.id, correct, total, percentage }
+                            return [{ userId: user.id, correct, total, percentage }]
                           })
-                          const globalMaxCorrect = Math.max(...allUserStats.map(s => s.correct))
+                          const globalMaxCorrect = Math.max(...allUserStats.map(s => s.correct), 0)
                           const globalWinnerIds = allUserStats.filter(s => s.correct === globalMaxCorrect && globalMaxCorrect > 0).map(s => s.userId)
                           const weekRecapData = {
                             weekId,

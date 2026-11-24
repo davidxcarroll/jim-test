@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { collection, getDocs, onSnapshot } from 'firebase/firestore'
+import { collection, getDocs, getDoc, doc, onSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useCurrentWeek } from '@/hooks/use-current-week'
 import { getWeekKey, isPreseasonVisibleInApp } from '@/utils/date-helpers'
@@ -225,9 +225,79 @@ export function StatsContent({
         }
         return 0
       }
-      const weekRecaps: WeekRecap[] = Array.from(dedupeMap.values()).sort(
+      let weekRecaps: WeekRecap[] = Array.from(dedupeMap.values()).sort(
         (a, b) => sortKey(a) - sortKey(b)
       )
+
+      // Pick-doc index: used to ignore phantom weekRecap rows (users with 0/N who never picked).
+      const pickWeekIdsByUser = new Map<string, Set<string>>()
+      await Promise.all(
+        users.map(async (user) => {
+          try {
+            const snap = await getDocs(collection(db, 'users', user.id, 'picks'))
+            pickWeekIdsByUser.set(user.id, new Set(snap.docs.map((d) => d.id)))
+          } catch {
+            pickWeekIdsByUser.set(user.id, new Set())
+          }
+        })
+      )
+
+      // Include finished current week live (stored recaps for current week are filtered out above
+      // to avoid mid-week partials; dashboard RESULTS already show these scores).
+      if (isViewingCurrentSeason && currentWeekId && weekInfo) {
+        try {
+          const { espnApi } = await import('@/lib/espn-api')
+          const games = await espnApi.getGamesForDateRange(weekInfo.startDate, weekInfo.endDate)
+          const finished = games.filter((g) => g.status === 'final' || g.status === 'post')
+          const allFinished = games.length > 0 && finished.length === games.length
+          if (allFinished) {
+            const liveStats: WeekRecap['userStats'] = []
+            for (const user of users) {
+              const pickIds = pickWeekIdsByUser.get(user.id)
+              if (!pickIds?.has(currentWeekId)) continue
+              const pickDoc = await getDoc(doc(db, 'users', user.id, 'picks', currentWeekId))
+              const userPicks = pickDoc.exists() ? pickDoc.data() : {}
+              let correct = 0
+              let gamesWithPicks = 0
+              for (const game of finished) {
+                const picks = userPicks as Record<string, { pickedTeam?: string } | undefined>
+                const pick = picks[String(game.id)]?.pickedTeam ?? picks[String(Number(game.id))]?.pickedTeam
+                if (pick) gamesWithPicks++
+                const homeScore = Number(game.homeScore) || 0
+                const awayScore = Number(game.awayScore) || 0
+                const homeWon = homeScore > awayScore
+                const pickCorrect =
+                  (pick === 'home' && homeWon) || (pick === 'away' && !homeWon)
+                if (pick && pickCorrect) correct++
+              }
+              if (gamesWithPicks === 0) continue
+              const total = finished.length
+              liveStats.push({
+                userId: user.id,
+                correct,
+                total,
+                percentage: total > 0 ? Math.round((correct / total) * 100) : 0,
+                isTopScore: false
+              })
+            }
+            const maxCorrect = Math.max(...liveStats.map((s) => s.correct), 0)
+            liveStats.forEach((s) => {
+              s.isTopScore = s.correct === maxCorrect && maxCorrect > 0
+            })
+            weekRecaps = [
+              ...weekRecaps,
+              {
+                weekId: currentWeekId,
+                season: String(weekInfo.season),
+                week: getWeekKey(weekInfo.weekType, weekInfo.week, weekInfo.label),
+                userStats: liveStats
+              }
+            ]
+          }
+        } catch (err) {
+          console.error('Error including finished current week in stats:', err)
+        }
+      }
 
       const statsMap = new Map<string, UserStats>()
       users.forEach((user) => {
@@ -247,6 +317,8 @@ export function StatsContent({
         recap.userStats?.forEach((stat) => {
           const userStat = statsMap.get(stat.userId)
           if (!userStat) return
+          // Skip phantom entries written when dashboard saved 0/N for users with no picks
+          if (!pickWeekIdsByUser.get(stat.userId)?.has(recap.weekId)) return
           userStat.totalCorrect += stat.correct
           userStat.totalGames += stat.total
           userStat.weeksPlayed++
@@ -307,6 +379,7 @@ export function StatsContent({
       const underdogByUser = new Map<string, { underdogPicks: number; underdogCorrect: number }>()
       weekRecaps.forEach((recap) => {
         recap.userStats?.forEach((stat) => {
+          if (!pickWeekIdsByUser.get(stat.userId)?.has(recap.weekId)) return
           const existing = underdogByUser.get(stat.userId) ?? { underdogPicks: 0, underdogCorrect: 0 }
           existing.underdogPicks += stat.underdogPicks ?? 0
           existing.underdogCorrect += stat.underdogCorrect ?? 0
@@ -334,6 +407,7 @@ export function StatsContent({
       let bestSingleWeekCorrect = 0
       weekRecaps.forEach((recap) => {
         recap.userStats?.forEach((stat) => {
+          if (!pickWeekIdsByUser.get(stat.userId)?.has(recap.weekId)) return
           if (stat.correct > bestSingleWeekCorrect) bestSingleWeekCorrect = stat.correct
         })
       })
@@ -346,6 +420,7 @@ export function StatsContent({
       if (bestSingleWeekCorrect > 0) {
         weekRecaps.forEach((recap) => {
           recap.userStats?.forEach((stat) => {
+            if (!pickWeekIdsByUser.get(stat.userId)?.has(recap.weekId)) return
             if (stat.correct === bestSingleWeekCorrect) {
               bestSingleWeekCandidates.push({
                 userId: stat.userId,
@@ -405,7 +480,7 @@ export function StatsContent({
     return (
       <div className="text-center py-8">
         <div className="text-2xl font-bold uppercase text-red-600 mb-4">Error</div>
-        <div className="text-base font-mono leading-none">{error}</div>
+        <div className="text-base font-mono leading-none text-balance">{error}</div>
       </div>
     )
   }
@@ -458,19 +533,18 @@ export function StatsContent({
         </div>
       )}
 
-      <section className="mb-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+      <section className="sm:mb-4 mb-12">
+        <div className="grid xl:grid-cols-4 md:grid-cols-2 grid-cols-1 gap-12">
           {mostCorrectUsers.length > 0 && (
-            <div>
-              <div className="text-2xl font-bold uppercase mb-2 shadow-[0_1px_0_0_#000000] p-2">
-                <span role="img">{notoEmoji('🏆')}</span> Most Correct Picks
-                {mostCorrectUsers.length > 1 && ` (Tie - ${mostCorrectUsers.length} users)`}
+            <div className="text-center">
+              <div className="text-2xl font-bold uppercase mb-2 shadow-[0_1px_0_0_#000000] p-2 text-balance leading-none">
+                <span className="leading-normal" role="img">{notoEmoji('🏆')}</span><br/>Most Correct Picks
               </div>
               {mostCorrectUsers.map((user, index) => (
                 <div key={user.userId} className={index > 0 ? 'mt-3' : ''}>
                   <div className="-mb-1 font-jim text-4xl">{user.userName}</div>
-                  <div className="text-base font-mono leading-none">
-                    {user.totalCorrect} correct out of {user.totalGames} games ({user.overallPercentage.toFixed(1)}%)
+                  <div className="text-base font-mono leading-none text-balance">
+                    {user.totalCorrect}/{user.totalGames} games ({user.overallPercentage.toFixed(1)}%)
                   </div>
                 </div>
               ))}
@@ -478,15 +552,15 @@ export function StatsContent({
           )}
 
           {mostWeeksWonUsers.length > 0 && (
-            <div>
-              <div className="text-2xl font-bold uppercase mb-2 shadow-[0_1px_0_0_#000000] p-2">
-                <span role="img">{notoEmoji('🔥')}</span> Most Weeks Won
+            <div className="text-center">
+              <div className="text-2xl font-bold uppercase mb-2 shadow-[0_1px_0_0_#000000] p-2 text-balance leading-none">
+                <span className="leading-normal" role="img">{notoEmoji('🔥')}</span><br/> Most Weeks Won
               </div>
               {mostWeeksWonUsers.map((user, index) => (
                 <div key={user.userId} className={index > 0 ? 'mt-3' : ''}>
                   <div className="-mb-1 font-jim text-4xl">{user.userName}</div>
-                  <div className="text-base font-mono leading-none">
-                    {user.weeksWon} week{user.weeksWon !== 1 ? 's' : ''} with top score
+                  <div className="text-base font-mono leading-none text-balance">
+                    {user.weeksWon} week{user.weeksWon !== 1 ? 's' : ''}
                   </div>
                 </div>
               ))}
@@ -494,8 +568,8 @@ export function StatsContent({
           )}
 
           {superBowlPickers.length > 0 && (
-            <div>
-              <div className="text-2xl font-bold uppercase mb-2 shadow-[0_1px_0_0_#000000] p-2 flex items-center gap-2">
+            <div className="text-center">
+              <div className="text-2xl font-bold uppercase mb-2 shadow-[0_1px_0_0_#000000] p-2 flex items-center justify-center gap-2">
                 {winnerAbbrev && (
                   <img
                     src={`https://a.espncdn.com/i/teamlogos/nfl/500/${winnerAbbrev.toLowerCase()}.png`}
@@ -514,14 +588,14 @@ export function StatsContent({
           )}
 
           {bestSingleWeekEntries.length > 0 && (
-            <div>
-              <div className="text-2xl font-bold uppercase mb-2 shadow-[0_1px_0_0_#000000] p-2">
-                <span role="img">{notoEmoji('☝️')}</span> Best Single Week
+            <div className="text-center">
+              <div className="text-2xl font-bold uppercase mb-2 shadow-[0_1px_0_0_#000000] p-2 text-balance leading-none">
+                <span className="leading-normal" role="img">{notoEmoji('☝️')}</span><br/> Best Single Week
               </div>
               {bestSingleWeekEntries.map((entry, index) => (
                 <div key={`${entry.userId}-${entry.weekLabel}-${index}`} className={index > 0 ? 'mt-3' : ''}>
                   <div className="-mb-1 font-jim text-4xl">{entry.userName}</div>
-                  <div className="text-base font-mono leading-none">
+                  <div className="text-base font-mono leading-none text-balance">
                     {entry.correct}/{entry.totalInWeek} in {entry.weekLabel}
                   </div>
                 </div>
@@ -530,14 +604,14 @@ export function StatsContent({
           )}
 
           {underdogHeroUsers.length > 0 && (
-            <div>
-              <div className="text-2xl font-bold uppercase mb-2 shadow-[0_1px_0_0_#000000] p-2">
-                <span role="img">{notoEmoji('🐶')}</span> Underdog Hero
+            <div className="text-center">
+              <div className="text-2xl font-bold uppercase mb-2 shadow-[0_1px_0_0_#000000] p-2 text-balance leading-none">
+                <span className="leading-normal" role="img">{notoEmoji('🐶')}</span><br/> Underdog Hero
               </div>
               {underdogHeroUsers.map((entry, index) => (
                 <div key={entry.userId} className={index > 0 ? 'mt-3' : ''}>
                   <div className="-mb-1 font-jim text-4xl">{entry.userName}</div>
-                  <div className="text-base font-mono leading-none">
+                  <div className="text-base font-mono leading-none text-balance">
                     {entry.underdogPicks} underdog pick{entry.underdogPicks !== 1 ? 's' : ''}
                     {entry.underdogCorrect > 0 && ` (${entry.underdogCorrect} correct)`}
                   </div>
@@ -547,14 +621,14 @@ export function StatsContent({
           )}
 
           {mostInTop10Movies.length > 0 && (
-            <div>
-              <div className="text-2xl font-bold uppercase mb-2 shadow-[0_1px_0_0_#000000] p-2">
-                <span role="img">{notoEmoji('🎬')}</span> Top of Top 10
+            <div className="text-center">
+              <div className="text-2xl font-bold uppercase mb-2 shadow-[0_1px_0_0_#000000] p-2 text-balance leading-none">
+                <span className="leading-normal" role="img">{notoEmoji('🎬')}</span><br/> Top of Top 10
               </div>
               {mostInTop10Movies.map((movie, index) => (
                 <div key={movie.title} className={index > 0 ? 'mt-3' : ''}>
                   <div className="-mb-1 font-jim text-4xl">{movie.title}</div>
-                  <div className="text-base font-mono leading-none">
+                  <div className="text-base font-mono leading-none text-balance">
                     In {movie.count} list{movie.count !== 1 ? 's' : ''}
                   </div>
                 </div>
@@ -565,8 +639,8 @@ export function StatsContent({
       </section>
 
       <section className="mb-4">
-        <h2 className="text-2xl font-bold uppercase mb-4 shadow-[0_1px_0_0_#000000] p-2">
-          <span role="img">{notoEmoji('📋')}</span> Overall Leaderboard
+        <h2 className="text-2xl font-bold uppercase mb-4 text-center shadow-[0_1px_0_0_#000000] p-2">
+          <span className="leading-normal" role="img">{notoEmoji('📋')}</span><br/>Overall Leaderboard
         </h2>
         <div>
           <div className="mb-8">

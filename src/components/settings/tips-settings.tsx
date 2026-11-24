@@ -68,7 +68,7 @@ export function TipsSettings() {
             <h3 className="text-xl font-bold leading-[1.2]">
               Your column
             </h3>
-            <p className="text-base font-mono leading-none text-pretty">
+            <p className="text-base font-mono leading-[1.5] text-pretty">
               People's names are lined up at the top. The column under your name is your picks column.
             </p>
           </div>
@@ -78,7 +78,7 @@ export function TipsSettings() {
             <h3 className="text-xl font-bold leading-[1.2]">
               Make a pick
             </h3>
-            <p className="text-base font-mono leading-none text-pretty">
+            <p className="text-base font-mono leading-[1.5] text-pretty">
               When a new week starts, use a sharpie to write on your screen. Kidding. Just tap a cell in your column to make a pick.
             </p>
           </div>
@@ -88,7 +88,7 @@ export function TipsSettings() {
             <h3 className="text-xl font-bold leading-[1.2]">
               Clear a pick
             </h3>
-            <p className="text-base font-mono leading-none text-pretty">
+            <p className="text-base font-mono leading-[1.5] text-pretty">
               After making a pick, tap the check again to remove it.
             </p>
           </div>
@@ -98,7 +98,7 @@ export function TipsSettings() {
             <h3 className="text-xl font-bold leading-[1.2]">
               Game picks lock at kickoff
             </h3>
-            <p className="text-base font-mono leading-none text-pretty">
+            <p className="text-base font-mono leading-[1.5] text-pretty">
               Once a game starts, that pick is locked.
             </p>
           </div>
@@ -108,7 +108,7 @@ export function TipsSettings() {
             <h3 className="text-xl font-bold leading-[1.2]">
               Circled winners
             </h3>
-            <p className="text-base font-mono leading-none text-pretty">
+            <p className="text-base font-mono leading-[1.5] text-pretty">
               After a game finishes, the winning team and correct picks are circled.
             </p>
           </div>
@@ -118,7 +118,7 @@ export function TipsSettings() {
             <h3 className="text-xl font-bold leading-[1.2]">
               See previous weeks
             </h3>
-            <p className="text-base font-mono leading-none text-pretty">
+            <p className="text-base font-mono leading-[1.5] text-pretty">
               On the Picks page, use the [WEEKS] dropdown to jump back to earlier weeks.
             </p>
             {/* reference */}
@@ -135,7 +135,7 @@ export function TipsSettings() {
             <h3 className="text-xl font-bold leading-[1.2]">
               Profiles
             </h3>
-            <p className="text-base font-mono leading-none text-pretty">
+            <p className="text-base font-mono leading-[1.5] text-pretty">
               Tap someone's name to open an overview of their picks, both football and movies.
             </p>
           </div>
@@ -159,7 +159,7 @@ export function TipsSettings() {
             <h3 className="text-xl font-bold leading-[1.2]">
               Your name
             </h3>
-            <p className="text-base font-mono leading-none text-pretty">
+            <p className="text-base font-mono leading-[1.5] text-pretty">
               Keep this short. It's what will appear atop the Picks page.
             </p>
           </div>
@@ -168,10 +168,10 @@ export function TipsSettings() {
             <h3 className="text-xl font-bold leading-[1.2]">
               Super Bowl pick
             </h3>
-            <p className="text-base font-mono leading-none text-pretty">
+            <p className="text-base font-mono leading-[1.5] text-pretty">
               Pick which team you think will win the Super Bowl. Just like Jim used to do it.
             </p>
-            <p className="text-base font-mono leading-none text-pretty">
+            <p className="text-base font-mono leading-[1.5] text-pretty">
               Note: Super Bowl pick locks at the start of the season.
             </p>
           </div>
@@ -181,7 +181,7 @@ export function TipsSettings() {
             <h3 className="text-xl font-bold leading-[1.2]">
               Weekly email reminders
             </h3>
-            <p className="text-base font-mono leading-none text-pretty">
+            <p className="text-base font-mono leading-[1.5] text-pretty">
               Receive an email notification when a new week's picks are available.
             </p>
           </div>
@@ -209,7 +209,7 @@ export function TipsSettings() {
             <h3 className="text-xl font-bold leading-[1.2]">
               Show, hide, reorder
             </h3>
-            <p className="text-base font-mono leading-none text-pretty">
+            <p className="text-base font-mono leading-[1.5] text-pretty">
               Show or hide columns and drag to reorder them so the board matches how you like to compare everyone.
             </p>
           </div>
@@ -227,7 +227,7 @@ export function TipsSettings() {
             <h3 className="text-xl font-bold leading-[1.2]">
               Top 10 movie lists
             </h3>
-            <p className="text-base font-mono leading-none text-pretty">
+            <p className="text-base font-mono leading-[1.5] text-pretty">
               Not football related but hey we can't properly invoke Jim without asking for everyone's top 10 movies. These will appear on people's profiles.
             </p>
           </div>
@@ -245,11 +245,11 @@ export function TipsSettings() {
             <h3 className="text-xl font-bold leading-[1.2]">
               Game data
             </h3>
-            <p className="text-base font-mono leading-none text-pretty">
+            <p className="text-base font-mono leading-[1.5] text-pretty">
               Two ways to see game data: (1) tap a matchup to toggle only those two teams, or (2) tap
               the little <span role="img">{notoEmoji('🏈')}</span> football icon at the top to toggle all matchups.
             </p>
-            <p className="text-base font-mono leading-none text-pretty">
+            <p className="text-base font-mono leading-[1.5] text-pretty">
               Data depends on status. Before: Start time and teams' records. During: Score, quarter, time, and possession. After: Final score.
             </p>
           </div>
@@ -278,10 +278,10 @@ export function TipsSettings() {
             <h3 className="text-xl font-bold leading-[1.2]">
               Manage multiple profiles
             </h3>
-            <p className="text-base font-mono leading-none text-pretty">
+            <p className="text-base font-mono leading-[1.5] text-pretty">
               Kids? Spouses? Instead of everyone in a household needing separate accounts, one account can contain multiple profiles.
             </p>
-            <p className="text-base font-mono leading-none text-pretty">
+            <p className="text-base font-mono leading-[1.5] text-pretty">
               On the "YOU" Settings tab, tap the [ADD PROFILE] button to add a new profile.
             </p>
           </div>
@@ -301,7 +301,7 @@ export function TipsSettings() {
             />
           </div> */}
 
-          <p className="text-lg font-mono leading-none text-black">
+          <p className="text-lg font-mono leading-[1.5] text-black">
             Top 10 movie lists for these people can also be managed from within the same account.
           </p>
 
@@ -329,14 +329,14 @@ export function TipsSettings() {
             <h3 className="text-xl font-bold leading-[1.2]">
               Grace
             </h3>
-            <p className="text-base font-mono leading-none text-pretty">
+            <p className="text-base font-mono leading-[1.5] text-pretty">
               In true Jim fashion, I'll do my best to bug you to get your picks in on time.
             </p>
-            <p className="text-base font-mono leading-none text-pretty">
+            <p className="text-base font-mono leading-[1.5] text-pretty">
               In true David fashion, if you miss three weeks in a row I'm going to boot you.
             </p>
-            <p className="text-base font-mono leading-none text-pretty">
-              Didn't make a pick in time? It might not be too late! Contact me!
+            <p className="text-base font-mono leading-[1.5] text-pretty">
+              Didn't make a pick in time? Might not be too late! Contact me!
             </p>
           </div>
 
@@ -344,7 +344,7 @@ export function TipsSettings() {
             <h3 className="text-xl font-bold leading-[1.2]">
               Questions? Panic? Seething rage?
             </h3>
-            <p className="text-base font-mono leading-none text-pretty">
+            <p className="text-base font-mono leading-[1.5] text-pretty">
               Someone you know knows my number. Don't hesitate to reach out!
             </p>
           </div>
@@ -353,12 +353,58 @@ export function TipsSettings() {
             <h3 className="text-xl font-bold leading-[1.2]">
               Happy picking!
             </h3>
-            <p className="text-base font-mono leading-none text-pretty">
-              <span role="img">{notoEmoji('❤️')}</span> David
+            <p className="text-base font-mono leading-[1.5] text-pretty">
+              <span role="img">{notoEmoji('💜')}</span> David
             </p>
           </div>
 
         </section>
+
+        <hr className="w-full border-0 border-t border-black" />
+
+        {/* PS */}
+        <div className="flex flex-row flex-wrap items-start justify-center gap-y-8">
+
+          <div className="md:w-1/3 w-full flex flex-col gap-2 text-black">
+            <h2 className="text-4xl font-bold uppercase leading-[1.2]">
+              Fun fact
+            </h2>
+            <p className="text-base font-mono leading-[1.5] md:text-balance text-pretty">
+              The font used in the app, "Jim Casual," is a digital replica of Jim's handwriting.
+            </p>
+          </div>
+
+          <div className="md:w-1/3 w-1/2 h-[500px]">
+            <img
+              src="/images/tips/font-teams-01.png"
+              alt="Jim Casual circled checks and marks"
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <div className="md:w-1/3 w-1/2 h-[500px]">
+            <img
+              src="/images/tips/font-teams-02.png"
+              alt="Jim Casual circled checks and marks"
+              className="w-full h-full object-contain"
+            />
+          </div>
+
+        </div>
+
+        {/* <div className="flex flex-col gap-2 text-black">
+            <h3 className="text-xl font-bold leading-[1.2]">
+              Backstory
+            </h3>
+            <p className="text-base font-mono leading-[1.5] text-pretty">
+              Once upon a time there was a guy named Jim. A man of many friends, skills, passions, quirks.
+            </p>
+            <p className="text-base font-mono leading-[1.5] text-pretty">
+              When you met Jim, you got a smile and a question: "What are your top 10 favorite movies?"
+            </p>
+            <p className="text-base font-mono leading-[1.5] text-pretty">
+              Top 10 list notepad in his pocket, and often under his arm, a clipboard.
+            </p>
+          </div> */}
 
       </div>
     </div>
